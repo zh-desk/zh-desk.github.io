@@ -216,6 +216,12 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
 .batch-row .why { display: block; color: var(--amber); font-weight: 700; font-size: 0.8rem; }
 .batch-row.skip { opacity: .65; }
 
+.qr { display: flex; justify-content: center; padding: 6px 0 2px; }
+.qr svg { width: min(260px, 70vw); height: auto; border-radius: 6px; }
+#device-dialog .sub { margin: 14px 0 4px; }
+#device-dialog p { margin: 0 0 8px; }
+.warn { color: var(--proof); font-weight: 700; font-size: 0.86rem; }
+
 /* Lane tools */
 .tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: -4px 0 14px; font-size: 0.88rem; }
 .tools label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-weight: 700; }
@@ -248,8 +254,9 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
   <h1>Desk</h1>
   <p>Sign in with your GitHub access key for the desk. It stays in this browser only.</p>
   <form id="signin-form">
+    <input class="sr-only" type="text" name="username" autocomplete="username" value="zh-desk" tabindex="-1" aria-hidden="true">
     <label for="key" class="sr-only">Access key</label>
-    <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_...">
+    <input id="key" name="password" type="password" autocomplete="current-password" spellcheck="false" placeholder="github_pat_...">
     <button class="btn btn-primary" type="submit">Sign in</button>
     <p class="err" id="signin-err" role="alert" hidden></p>
   </form>
@@ -264,6 +271,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
       <li>Under <strong>Permissions</strong>, open <strong>Repository permissions</strong>. Set <strong>Contents</strong> and <strong>Issues</strong> to <strong>Read and write</strong>.</li>
       <li>Click <strong>Generate token</strong>, copy it, and paste it above.</li>
     </ol>
+    <p style="margin-top:10px">Already signed in on another device? Open the desk there and use <strong>Other devices</strong> at the top to sign this one in with a QR code or a link.</p>
   </details>
 </section>
 
@@ -273,6 +281,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     <p class="lastrun" id="lastrun">Loading...</p>
     <div class="me" id="me"></div>
     <button class="btn btn-small" type="button" id="refresh">Refresh</button>
+    <button class="btn btn-small" type="button" id="device-open">Other devices</button>
     <button class="btn btn-small btn-quiet" type="button" id="signout">Sign out</button>
   </header>
   <div class="banner" id="banner" hidden></div>
@@ -361,6 +370,23 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
       <button class="btn btn-primary" type="submit" id="batch-submit" disabled>Add stories</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="device-dialog" aria-labelledby="device-h">
+  <h3 id="device-h">Sign in another device</h3>
+  <p class="hint">Your key works on any number of devices, but each browser needs it once.</p>
+  <h4 class="sub">Phone or tablet</h4>
+  <p>Open the camera, point it at the code, and tap the link that appears. The desk opens signed in.</p>
+  <div class="qr" id="device-qr" hidden></div>
+  <div class="row" style="justify-content:flex-start"><button class="btn btn-strong" type="button" id="device-show">Show the code</button></div>
+  <h4 class="sub">Another computer</h4>
+  <p>Copy the sign-in link and open it on the other computer, or copy the key and paste it into the desk's sign-in box there. Saving the key in your password manager makes every future device one paste.</p>
+  <div class="row" style="justify-content:flex-start">
+    <button class="btn" type="button" id="device-copy-link">Copy sign-in link</button>
+    <button class="btn" type="button" id="device-copy-key">Copy key</button>
+  </div>
+  <p class="warn" style="margin-top:12px">The code, the link and the key each work like a password: anyone who has one can use the desk as you. Keep them to your own devices.</p>
+  <div class="row"><button class="btn btn-primary" type="button" id="device-close">Done</button></div>
 </dialog>
 
 <div id="toast" role="status" aria-live="polite" hidden></div>
@@ -1402,6 +1428,181 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
       .then(function () { $('scan-submit').disabled = false; });
   });
 
+  // Minimal QR code encoder: byte mode, error correction level M, versions 1-40.
+  // Follows ISO/IEC 18004 (Reed-Solomon over GF(256) with 0x11D, BCH format and version info).
+  function makeQR(text) {
+    var ECC = [-1, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24, 24, 28, 28, 26, 26, 26, 26, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28];
+    var BLOCKS = [-1, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5, 5, 8, 9, 9, 10, 10, 11, 13, 14, 16, 17, 17, 18, 20, 21, 23, 25, 26, 28, 29, 31, 33, 35, 37, 38, 40, 43, 45, 47, 49];
+    var FORMAT_ECL = 0; // M
+    function rawModules(v) {
+      var r = (16 * v + 128) * v + 64;
+      if (v >= 2) { var n = Math.floor(v / 7) + 2; r -= (25 * n - 10) * n - 55; if (v >= 7) { r -= 36; } }
+      return r;
+    }
+    function dataCodewords(v) { return Math.floor(rawModules(v) / 8) - ECC[v] * BLOCKS[v]; }
+    function gfMul(x, y) { var z = 0; for (var i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11D); z ^= ((y >>> i) & 1) * x; } return z; }
+    function rsDivisor(deg) {
+      var r = []; for (var i = 0; i < deg - 1; i++) { r.push(0); } r.push(1);
+      var root = 1;
+      for (i = 0; i < deg; i++) {
+        for (var j = 0; j < r.length; j++) { r[j] = gfMul(r[j], root); if (j + 1 < r.length) { r[j] ^= r[j + 1]; } }
+        root = gfMul(root, 0x02);
+      }
+      return r;
+    }
+    function rsRemainder(data, div) {
+      var r = div.map(function () { return 0; });
+      data.forEach(function (b) {
+        var f = b ^ r.shift(); r.push(0);
+        div.forEach(function (c, i) { r[i] ^= gfMul(c, f); });
+      });
+      return r;
+    }
+    var bytes = Array.from(new TextEncoder().encode(text));
+    var ver;
+    for (ver = 1; ver <= 40; ver++) {
+      if (4 + (ver < 10 ? 8 : 16) + bytes.length * 8 <= dataCodewords(ver) * 8) { break; }
+    }
+    if (ver > 40) { throw new Error('Text too long for a QR code'); }
+    var bits = [];
+    function put(val, n) { for (var i = n - 1; i >= 0; i--) { bits.push((val >>> i) & 1); } }
+    put(4, 4); put(bytes.length, ver < 10 ? 8 : 16); bytes.forEach(function (b) { put(b, 8); });
+    var cap = dataCodewords(ver) * 8;
+    put(0, Math.min(4, cap - bits.length)); put(0, (8 - bits.length % 8) % 8);
+    for (var pad = 0xEC; bits.length < cap; pad ^= 0xEC ^ 0x11) { put(pad, 8); }
+    var data = [];
+    for (var i = 0; i < bits.length; i += 8) { var v8 = 0; for (var k = 0; k < 8; k++) { v8 = (v8 << 1) | bits[i + k]; } data.push(v8); }
+    // error correction and interleaving
+    var nb = BLOCKS[ver], el = ECC[ver], raw = Math.floor(rawModules(ver) / 8);
+    var nShort = nb - raw % nb, shortLen = Math.floor(raw / nb), div = rsDivisor(el), blocks = [], pos = 0;
+    for (i = 0; i < nb; i++) {
+      var dat = data.slice(pos, pos + shortLen - el + (i < nShort ? 0 : 1)); pos += dat.length;
+      var ecc = rsRemainder(dat, div);
+      if (i < nShort) { dat.push(0); }
+      blocks.push(dat.concat(ecc));
+    }
+    var cw = [];
+    for (i = 0; i < blocks[0].length; i++) {
+      for (var j = 0; j < blocks.length; j++) { if (i !== shortLen - el || j >= nShort) { cw.push(blocks[j][i]); } }
+    }
+    // function patterns
+    var size = ver * 4 + 17, mod = [], fn = [];
+    for (i = 0; i < size; i++) { mod.push(new Array(size).fill(false)); fn.push(new Array(size).fill(false)); }
+    function setF(x, y, d) { mod[y][x] = d; fn[y][x] = true; }
+    for (i = 0; i < size; i++) { setF(6, i, i % 2 === 0); setF(i, 6, i % 2 === 0); }
+    [[3, 3], [size - 4, 3], [3, size - 4]].forEach(function (c) {
+      for (var dy = -4; dy <= 4; dy++) {
+        for (var dx = -4; dx <= 4; dx++) {
+          var d = Math.max(Math.abs(dx), Math.abs(dy)), xx = c[0] + dx, yy = c[1] + dy;
+          if (xx >= 0 && xx < size && yy >= 0 && yy < size) { setF(xx, yy, d !== 2 && d !== 4); }
+        }
+      }
+    });
+    if (ver > 1) {
+      var na = Math.floor(ver / 7) + 2, step = Math.floor((ver * 8 + na * 3 + 5) / (na * 4 - 4)) * 2, ap = [6];
+      for (var p = size - 7; ap.length < na; p -= step) { ap.splice(1, 0, p); }
+      for (i = 0; i < na; i++) {
+        for (j = 0; j < na; j++) {
+          if ((i === 0 && j === 0) || (i === 0 && j === na - 1) || (i === na - 1 && j === 0)) { continue; }
+          for (var ay = -2; ay <= 2; ay++) { for (var ax = -2; ax <= 2; ax++) { setF(ap[i] + ax, ap[j] + ay, Math.max(Math.abs(ax), Math.abs(ay)) !== 1); } }
+        }
+      }
+    }
+    function drawFormat(mask) {
+      var d = (FORMAT_ECL << 3) | mask, r = d;
+      for (var t = 0; t < 10; t++) { r = (r << 1) ^ ((r >>> 9) * 0x537); }
+      var b = ((d << 10) | r) ^ 0x5412;
+      function bit(n) { return ((b >>> n) & 1) !== 0; }
+      for (var q = 0; q <= 5; q++) { setF(8, q, bit(q)); }
+      setF(8, 7, bit(6)); setF(8, 8, bit(7)); setF(7, 8, bit(8));
+      for (q = 9; q < 15; q++) { setF(14 - q, 8, bit(q)); }
+      for (q = 0; q < 8; q++) { setF(size - 1 - q, 8, bit(q)); }
+      for (q = 8; q < 15; q++) { setF(8, size - 15 + q, bit(q)); }
+      setF(8, size - 8, true);
+    }
+    drawFormat(0);
+    if (ver >= 7) {
+      var r2 = ver;
+      for (i = 0; i < 12; i++) { r2 = (r2 << 1) ^ ((r2 >>> 11) * 0x1F25); }
+      var vb = (ver << 12) | r2;
+      for (i = 0; i < 18; i++) { var on = ((vb >>> i) & 1) !== 0, a = size - 11 + i % 3, bb = Math.floor(i / 3); setF(a, bb, on); setF(bb, a, on); }
+    }
+    // data
+    var n = 0;
+    for (var right = size - 1; right >= 1; right -= 2) {
+      if (right === 6) { right = 5; }
+      for (var vert = 0; vert < size; vert++) {
+        for (j = 0; j < 2; j++) {
+          var x = right - j, up = ((right + 1) & 2) === 0, y = up ? size - 1 - vert : vert;
+          if (!fn[y][x] && n < cw.length * 8) { mod[y][x] = ((cw[n >>> 3] >>> (7 - (n & 7))) & 1) !== 0; n++; }
+        }
+      }
+    }
+    var MASKS = [
+      function (x, y) { return (x + y) % 2 === 0; }, function (x, y) { return y % 2 === 0; },
+      function (x) { return x % 3 === 0; }, function (x, y) { return (x + y) % 3 === 0; },
+      function (x, y) { return (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0; }, function (x, y) { return x * y % 2 + x * y % 3 === 0; },
+      function (x, y) { return (x * y % 2 + x * y % 3) % 2 === 0; }, function (x, y) { return ((x + y) % 2 + x * y % 3) % 2 === 0; }
+    ];
+    function applyMask(m) { for (var yy = 0; yy < size; yy++) { for (var xx = 0; xx < size; xx++) { if (!fn[yy][xx] && MASKS[m](xx, yy)) { mod[yy][xx] = !mod[yy][xx]; } } } }
+    function penalty() {
+      var s = 0, dark = 0, a, b, run, c;
+      for (a = 0; a < size; a++) {
+        for (var dir = 0; dir < 2; dir++) {
+          run = 1;
+          for (b = 1; b < size; b++) {
+            var cur = dir ? mod[b][a] : mod[a][b], prev = dir ? mod[b - 1][a] : mod[a][b - 1];
+            if (cur === prev) { run++; } else { if (run >= 5) { s += run - 2; } run = 1; }
+          }
+          if (run >= 5) { s += run - 2; }
+          var line = []; for (b = 0; b < size; b++) { line.push(dir ? mod[b][a] : mod[a][b]); }
+          var pat = [true, false, true, true, true, false, true];
+          for (b = 0; b + 7 <= size; b++) {
+            var ok = true; for (c = 0; c < 7; c++) { if (line[b + c] !== pat[c]) { ok = false; break; } }
+            if (!ok) { continue; }
+            var before = true, after = true;
+            for (c = 1; c <= 4; c++) { if (b - c >= 0 && line[b - c]) { before = false; } if (b + 6 + c < size && line[b + 6 + c]) { after = false; } }
+            if (before || after) { s += 40; }
+          }
+        }
+      }
+      for (a = 0; a < size - 1; a++) { for (b = 0; b < size - 1; b++) { var v = mod[a][b]; if (v === mod[a][b + 1] && v === mod[a + 1][b] && v === mod[a + 1][b + 1]) { s += 3; } } }
+      for (a = 0; a < size; a++) { for (b = 0; b < size; b++) { if (mod[a][b]) { dark++; } } }
+      s += Math.floor(Math.abs(dark * 20 - size * size * 10) / (size * size)) * 10;
+      return s;
+    }
+    var best = 0, bestScore = Infinity;
+    for (var m = 0; m < 8; m++) {
+      applyMask(m); drawFormat(m);
+      var sc = penalty();
+      if (sc < bestScore) { bestScore = sc; best = m; }
+      applyMask(m);
+    }
+    applyMask(best); drawFormat(best);
+    return { size: size, version: ver, mask: best, modules: mod };
+  }
+  function qrSvg(text, px) {
+    var q = makeQR(text), quiet = 4, n = q.size + quiet * 2, d = '';
+    for (var y = 0; y < q.size; y++) { for (var x = 0; x < q.size; x++) { if (q.modules[y][x]) { d += 'M' + (x + quiet) + ' ' + (y + quiet) + 'h1v1h-1z'; } } }
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + n + ' ' + n + '" width="' + (px || 240) + '" height="' + (px || 240) + '" shape-rendering="crispEdges" role="img" aria-label="QR code"><rect width="' + n + '" height="' + n + '" fill="#fff"/><path d="' + d + '" fill="#000"/></svg>';
+  }
+
+  // ---------- other devices
+  var ddlg = $('device-dialog');
+  function signinLink() { return location.origin + location.pathname + '#key=' + encodeURIComponent(S.token || ''); }
+  $('device-open').addEventListener('click', function () {
+    $('device-qr').hidden = true; $('device-qr').innerHTML = ''; $('device-show').hidden = false;
+    if (ddlg.showModal) { ddlg.showModal(); } else { ddlg.setAttribute('open', ''); }
+  });
+  $('device-show').addEventListener('click', function () {
+    try { $('device-qr').innerHTML = qrSvg(signinLink(), 260); $('device-qr').hidden = false; this.hidden = true; }
+    catch (e) { toast('Couldn\'t draw the code: ' + e.message, true); }
+  });
+  $('device-copy-link').addEventListener('click', function () { var b = this; copyText(signinLink()).then(function (ok) { flash(b, ok); }); });
+  $('device-copy-key').addEventListener('click', function () { var b = this; copyText(S.token || '').then(function (ok) { flash(b, ok); }); });
+  $('device-close').addEventListener('click', function () { $('device-qr').innerHTML = ''; ddlg.close(); });
+  ddlg.addEventListener('close', function () { $('device-qr').innerHTML = ''; $('device-qr').hidden = true; });
+
   // ---------- sign in / out
   function showDesk(on) { $('desk').hidden = !on; $('signin').hidden = on; }
   function signOut(msg) {
@@ -1436,8 +1637,15 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
   setInterval(function () { if (S.token && document.visibilityState === 'visible') { load(); } }, 90000);
   document.addEventListener('visibilitychange', function () { if (S.token && document.visibilityState === 'visible') { load(); } });
 
-  var saved = store('token');
-  if (saved) {
+  var fromLink = /^#key=([^&]+)/.exec(location.hash || ''), saved = store('token');
+  if (fromLink) {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
+    var linked = decodeURIComponent(fromLink[1]);
+    start(linked).then(function () { toast('Signed in on this device'); }).catch(function (e) {
+      var why = e.status === 401 ? 'That sign-in link has a key GitHub no longer accepts. Make a new link on a signed-in device, or paste a new key.' : 'Couldn\'t sign in from that link: ' + e.message;
+      if (saved) { start(saved).then(function () { toast(why, true); }).catch(function () { signOut(why); }); } else { signOut(why); }
+    });
+  } else if (saved) {
     start(saved).catch(function (e) { signOut(e.status === 401 ? 'That access key stopped working. Sign in with a new one.' : 'Couldn\'t reach the desk: ' + e.message); });
   } else { showDesk(false); }
 })();
