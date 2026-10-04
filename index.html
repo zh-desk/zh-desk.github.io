@@ -231,6 +231,29 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
 #device-dialog p { margin: 0 0 8px; }
 .warn { color: var(--proof); font-weight: 700; font-size: 0.86rem; }
 
+/* Add dialog tabs, drop zone */
+.dtabs { display: flex; flex-wrap: wrap; gap: 2px; margin: 4px 0 12px; border-bottom: 1px solid var(--rule); }
+.dtabs button { font: 700 0.86rem/1.2 var(--sans); padding: 8px 10px 9px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--muted); cursor: pointer; }
+.dtabs button:hover { color: var(--ink); }
+.dtabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--pencil); }
+dialog label.drop { display: flex; align-items: center; justify-content: center; min-height: 110px; border: 2px dashed var(--rule); border-radius: 8px; padding: 14px; text-align: center; color: var(--muted); cursor: pointer; position: relative; }
+dialog label.drop.over, dialog label.drop:hover { border-color: var(--pencil); color: var(--pencil); background: var(--pencil-soft); }
+dialog label.drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+dialog label.check { display: flex; gap: 8px; align-items: center; font-weight: 400; }
+dialog label.check input { width: 18px; height: 18px; accent-color: var(--pencil); }
+.hybrid-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 0.86rem; font-weight: 700; color: var(--muted); cursor: pointer; }
+.hybrid-toggle input { width: 17px; height: 17px; accent-color: var(--pencil); cursor: pointer; }
+
+/* ET wire */
+.wire-row { background: var(--panel); border: 1px solid var(--rule); border-left: 5px solid var(--rule); border-radius: 8px; padding: 11px 14px 12px; margin: 0 0 9px; }
+.wire-row.fresh { border-left-color: var(--proof); }
+.wire-row.done { opacity: .6; }
+.wire-row .hed { font-size: 1.12rem; margin: 3px 0 3px; }
+.wire-row .sum { margin: 0; color: var(--muted); font-size: 0.9rem; }
+.wire-row .actions { margin-top: 8px; }
+.tools label.flag { font-weight: 400; color: var(--ink); }
+.tools label.flag input { accent-color: var(--pencil); }
+
 /* Lane tools */
 .tools { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: -4px 0 14px; font-size: 0.88rem; }
 .tools label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-weight: 700; }
@@ -289,6 +312,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     <h1 class="brand">Desk</h1>
     <p class="lastrun" id="lastrun">Loading...</p>
     <div class="me" id="me"></div>
+    <button class="btn btn-small btn-go" type="button" id="run-now" title="Start a Claude run now: it preps priority items first, then the rest of the queue">Run now</button>
     <button class="btn btn-small" type="button" id="refresh">Refresh</button>
     <button class="btn btn-small" type="button" id="device-open">Other devices</button>
     <button class="btn btn-small btn-quiet" type="button" id="signout">Sign out</button>
@@ -328,14 +352,35 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
 
 <dialog id="add-dialog" aria-labelledby="add-h">
   <h3 id="add-h">Add stories</h3>
+  <div class="dtabs" role="tablist" aria-label="How to add">
+    <button type="button" role="tab" data-addtab="links" aria-selected="true">Links or headlines</button>
+    <button type="button" role="tab" data-addtab="paste" aria-selected="false">Paste an article</button>
+    <button type="button" role="tab" data-addtab="file" aria-selected="false">Upload a file</button>
+  </div>
   <form id="add-form" method="dialog">
-    <p class="hint">Paste links, headlines, or both, one per line. For a headline without a link, the hourly sweep finds the article.</p>
-    <label for="add-text" class="sr-only">Links or headlines</label>
-    <textarea id="add-text" class="field-input big" placeholder="https://...&#10;Pentagon fails its seventh straight audit&#10;Fed holds rates - https://..."></textarea>
-    <p class="batch-sum" id="add-sum" aria-live="polite"></p>
-    <div class="batch-list" id="add-list" hidden></div>
+    <div data-addpanel="links" style="display:grid;gap:12px">
+      <p class="hint">Paste links, headlines, or both, one per line. For a headline without a link, the hourly sweep finds the article.</p>
+      <label for="add-text" class="sr-only">Links or headlines</label>
+      <textarea id="add-text" class="field-input big" placeholder="https://...&#10;Pentagon fails its seventh straight audit&#10;Fed holds rates - https://..."></textarea>
+      <p class="batch-sum" id="add-sum" aria-live="polite"></p>
+      <div class="batch-list" id="add-list" hidden></div>
+    </div>
+    <div data-addpanel="paste" style="display:grid;gap:12px" hidden>
+      <p class="hint">Paste the article's HTML (from view-source or an editor) or its plain text. The run preps it from exactly what you paste.</p>
+      <label for="add-paste" class="sr-only">Article HTML or text</label>
+      <textarea id="add-paste" class="field-input big mono" placeholder="&lt;p&gt;...&lt;/p&gt; or plain text"></textarea>
+      <label>Source link <span style="font-weight:400;color:var(--muted)">(optional; lets the run restore links, embeds and pictures from the live page)</span><input id="add-paste-url" type="url" placeholder="https://..."></label>
+      <label>Headline <span style="font-weight:400;color:var(--muted)">(optional)</span><input id="add-paste-title" type="text"></label>
+    </div>
+    <div data-addpanel="file" style="display:grid;gap:12px" hidden>
+      <p class="hint">A Word file (.docx), a saved web page (.html) or a text file. The run reads its links too.</p>
+      <label class="drop" id="add-drop"><input id="add-file" type="file" accept=".docx,.html,.htm,.txt,.md"><span id="add-file-name">Drop a file here, or click to choose one</span></label>
+      <label>Source link <span style="font-weight:400;color:var(--muted)">(optional)</span><input id="add-file-url" type="url" placeholder="https://..."></label>
+      <label>Headline <span style="font-weight:400;color:var(--muted)">(optional)</span><input id="add-file-title" type="text"></label>
+    </div>
     <label>Note for the run <span style="font-weight:400;color:var(--muted)">(optional; goes on each story)</span><textarea id="add-note" class="field-input" placeholder="e.g. Prep as a hybrid."></textarea></label>
     <label>Beat <span style="font-weight:400;color:var(--muted)">(optional)</span><select id="add-beat"></select></label>
+    <label class="check"><input type="checkbox" id="add-hybrid"> Prep as a hybrid</label>
     <div class="choice" role="radiogroup" aria-label="Where they go">
       <label><input type="radio" name="add-mode" value="approved" checked> Approve for prep now</label>
       <label><input type="radio" name="add-mode" value="scouted"> Add to New scans</label>
@@ -413,6 +458,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
   var STATUSES = ['scouted', 'approved', 'prepping', 'ready', 'needs-paste', 'posted', 'rejected', 'skipped', 'dupe'];
   var CLOSED = { posted: 'completed', rejected: 'not_planned', skipped: 'not_planned', dupe: 'not_planned' };
   var LANES = [
+    { id: 'wire', name: 'ET wire', st: [], blurb: 'The Epoch Times\' newest stories, checked about every 20 minutes. Red edge: out in the last hour.' },
     { id: 'scans', name: 'New scans', st: ['scouted'], blurb: 'Approve what should be prepped; reject the rest.' },
     { id: 'prep', name: 'In prep', st: ['approved', 'prepping'], blurb: 'Approved and waiting for the next run, or being prepped now.' },
     { id: 'ready', name: 'Ready', st: ['ready'], blurb: 'Finished packages. Mark each one posted when it runs, or skip it.' },
@@ -433,7 +479,8 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
   var S = {
     token: null, me: null, issues: {}, index: {}, lastRun: null, events: [], notesIssue: null, notes: [],
     packages: {}, comments: {}, lane: 'ready', open: {}, previews: {}, sig: '', loading: false,
-    requests: [], reqComments: {}, config: null, watch: null, filter: { outlet: '', origin: '', beat: '' }, sort: 'default', beatEdit: {}
+    requests: [], reqComments: {}, config: null, watch: null, wire: null, lock: null,
+    wf: { section: '', hideZh: true, hideDesk: false, hideCanada: true }, filter: { outlet: '', origin: '', beat: '' }, sort: 'default', beatEdit: {}
   };
 
   // ---------- small helpers
@@ -459,14 +506,14 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
   var toastTimer;
-  function toast(msg, err, undo) {
+  function toast(msg, err, undo, ms) {
     var t = $('toast'); t.textContent = msg; t.className = err ? 'err' : ''; t.hidden = false;
     if (undo) {
       var u = document.createElement('button'); u.type = 'button'; u.className = 'toast-undo'; u.textContent = 'Undo';
       u.addEventListener('click', function () { t.hidden = true; undo(); });
       t.appendChild(u);
     }
-    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, err ? 6000 : (undo ? 7000 : 2400));
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, ms || (err ? 6000 : (undo ? 7000 : 2400)));
   }
   function stripFooter(s) { return String(s || '').replace(FOOTER_RE, ''); }
 
@@ -696,6 +743,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     var meta = metaOf(issue);
     if (meta.origin === 'claude' || hasLabel(issue, 'origin:claude')) { return 'claude'; }
     if (meta.origin === 'gpt' || hasLabel(issue, 'origin:gpt')) { return 'gpt'; }
+    if (meta.origin === 'wire' || hasLabel(issue, 'origin:wire')) { return 'wire'; }
     return 'people';
   }
   function beatList() { return (S.config && S.config.beats) || []; }
@@ -728,7 +776,9 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
       api(BASE + '/contents/runs/latest.json', { raw: true }).then(function (t) { return JSON.parse(t); }).catch(function () { return null; }),
       api(BASE + '/issues/events?per_page=60').catch(function () { return []; }),
       S.config ? Promise.resolve(S.config) : api(BASE + '/contents/config/desk.json', { raw: true }).then(function (t) { return JSON.parse(t); }).catch(function () { return null; }),
-      api(BASE + '/contents/runs/zh-watch.json', { raw: true }).then(function (t) { return JSON.parse(t); }).catch(function () { return null; })
+      api(BASE + '/contents/runs/zh-watch.json', { raw: true }).then(function (t) { return JSON.parse(t); }).catch(function () { return null; }),
+      api(BASE + '/contents/runs/lock.json', { raw: true }).then(function (t) { return JSON.parse(t); }).catch(function () { return null; }),
+      api(BASE + '/contents/data/wire/et.json', { raw: true }).then(function (t) { return JSON.parse(t); }).catch(function () { return null; })
     ]).then(function (r) {
       var issues = {}, reqs = [];
       r[0].concat(r[1]).forEach(function (i) { if (!i.pull_request) { issues[i.number] = i; } });
@@ -736,6 +786,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
       Object.keys(issues).forEach(function (k) {
         if (hasLabel(issues[k], 'desk-notes')) { S.notesIssue = issues[k]; delete issues[k]; }
         else if (hasLabel(issues[k], 'scan-request')) { reqs.push(issues[k]); delete issues[k]; }
+        else if (hasLabel(issues[k], 'run-request')) { delete issues[k]; }
       });
       S.issues = issues;
       S.requests = reqs.sort(function (a, b) { return new Date(b.created_at) - new Date(a.created_at); });
@@ -744,6 +795,8 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
       S.events = r[4] || [];
       S.config = r[5] || S.config;
       S.watch = r[6];
+      S.lock = r[7];
+      S.wire = r[8] || S.wire;
       $('banner').hidden = true;
       var jobs = [];
       if (S.notesIssue) { jobs.push(apiAll(BASE + '/issues/' + S.notesIssue.number + '/comments?per_page=100').then(function (c) { S.notes = c; })); }
@@ -864,7 +917,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
 
   // ---------- rendering
   function laneOf(status) {
-    for (var i = 0; i < LANES.length; i++) { if (LANES[i].st.indexOf(status) >= 0) { return LANES[i].id; } }
+    for (var i = 0; i < LANES.length; i++) { if (LANES[i].st.length && LANES[i].st.indexOf(status) >= 0) { return LANES[i].id; } }
     return 'scans';
   }
   function passes(i) {
@@ -905,10 +958,25 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
       return new Date(b.created_at) - new Date(a.created_at);
     };
   }
+  function runActive() { return !!(S.lock && S.lock.started && Date.now() - new Date(S.lock.started).getTime() < 4 * 3600000); }
+  function nextRun() {
+    var times = (S.config && S.config.run_times_pt) || [];
+    if (!times.length) { return null; }
+    var parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date());
+    var get = function (t) { return +(parts.filter(function (p) { return p.type === t; })[0] || {}).value || 0; };
+    var now = get('hour') * 60 + get('minute');
+    var mins = times.map(function (t) { var a = t.split(':'); return +a[0] * 60 + +a[1]; }).sort(function (a, b) { return a - b; });
+    var next = mins.filter(function (x) { return x > now; })[0];
+    return new Date(Date.now() + ((next != null ? next : mins[0] + 1440) - now) * 60000);
+  }
+  function shortClock(d) { return new Date(d).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); }
   function renderTop() {
-    var lr = S.lastRun, el = $('lastrun');
-    if (lr && lr.finished) { el.innerHTML = 'Last run <strong>' + esc(relTime(lr.finished)) + '</strong> (' + esc(clock(lr.finished)) + ')' + (lr.summary ? ': ' + esc(lr.summary) : ''); }
-    else { el.textContent = 'No scheduled run has finished yet.'; }
+    var lr = S.lastRun, el = $('lastrun'), bits = [], nx = nextRun();
+    if (runActive()) { bits.push('<strong style="color:var(--done)">Run in progress</strong> since ' + esc(shortClock(S.lock.started)) + '.'); }
+    if (lr && lr.finished) { bits.push('Last run <strong>' + esc(relTime(lr.finished)) + '</strong> (' + esc(clock(lr.finished)) + ')' + (lr.summary ? ': ' + esc(lr.summary) : '')); }
+    else if (!runActive()) { bits.push('No scheduled run has finished yet.'); }
+    if (!runActive() && nx) { bits.push('<span style="white-space:nowrap">&middot; Next run ' + esc(shortClock(nx)) + '</span>'); }
+    el.innerHTML = bits.join(' ');
     if (S.watch && S.watch.checked) {
       var stale = Date.now() - new Date(S.watch.checked).getTime() > 3 * 3600000;
       el.innerHTML += ' <span style="white-space:nowrap' + (stale ? ';color:var(--proof)' : '') + '">&middot; ZH checked ' + esc(relTime(S.watch.checked)) + '</span>';
@@ -920,8 +988,8 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
   function renderTabs() {
     var wrap = $('lanes');
     wrap.innerHTML = LANES.map(function (l) {
-      var n = itemsIn(l.id).length;
-      var attn = (l.id === 'paste' && n) ? ' attn' : '';
+      var n = l.id === 'wire' ? wireFresh() : itemsIn(l.id).length;
+      var attn = ((l.id === 'paste' || l.id === 'wire') && n) ? ' attn' : '';
       return '<button type="button" role="tab" class="lane-tab' + attn + '" data-lane="' + l.id + '" aria-selected="' + (S.lane === l.id) + '">' + esc(l.name) + '<span class="n">' + n + '</span></button>';
     }).join('');
   }
@@ -931,7 +999,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     if (meta.author) { bits.push('<span>' + esc(meta.author) + '</span>'); }
     if (meta.published) { bits.push('<span>' + esc(shortDate(meta.published)) + '</span>'); }
     var og = originOf(issue);
-    var origin = og === 'claude' ? 'Found by Claude' : og === 'gpt' ? 'From ' + esc(meta.source || 'GPT') + (meta.added_by ? ', added by ' + esc(meta.added_by) : '') : (meta.origin && meta.origin !== 'desk' ? 'Added by ' + esc(meta.origin) : 'Added on the desk');
+    var origin = og === 'wire' ? 'From the ET wire' + (meta.added_by ? ', added by ' + esc(meta.added_by) : '') : og === 'claude' ? 'Found by Claude' : og === 'gpt' ? 'From ' + esc(meta.source || 'GPT') + (meta.added_by ? ', added by ' + esc(meta.added_by) : '') : (meta.origin && meta.origin !== 'desk' ? 'Added by ' + esc(meta.origin) : 'Added on the desk');
     bits.push('<span>' + origin + '</span>');
     bits.push('<span title="' + esc(new Date(issue.created_at).toLocaleString()) + '">' + esc(relTime(issue.created_at)) + '</span>');
     return '<div class="meta">' + bits.join('') + '</div>';
@@ -948,7 +1016,9 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     if (!meta.url && meta.headline_only) { c.push(meta.link_not_found ? '<span class="chip chip-pri">Couldn\'t find the article</span>' : '<span class="chip chip-obscure">Finding the article</span>'); }
     var st = statusOf(issue);
     if (st === 'prepping') { c.push('<span class="chip chip-prep">Prepping now</span>'); }
-    if (st === 'approved') { c.push('<span class="chip chip-prep">Waiting for the next run</span>'); }
+    if (st === 'approved') { var nx = nextRun(); c.push('<span class="chip chip-prep">' + (runActive() ? 'In the current run\'s queue' : 'Waiting for the next run' + (nx ? ' (' + esc(shortClock(nx)) + ')' : '')) + '</span>'); }
+    if (hasLabel(issue, 'hybrid')) { c.push('<span class="chip chip-obscure">Hybrid</span>'); }
+    if (meta.source_file) { c.push('<span class="chip">From ' + esc(meta.file_name || 'a pasted article') + '</span>'); }
     if (laneOf(st) === 'done') { c.push('<span class="chip ' + (st === 'posted' ? 'chip-ok' : '') + '">' + esc(STATUS_WORD[st]) + '</span>'); }
     (extra || []).forEach(function (x) { c.push(x); });
     return c.length ? '<div class="chips">' + c.join('') + '</div>' : '';
@@ -1076,6 +1146,8 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
         var back = (metaOf(issue).packages || []).length ? 'ready' : 'scouted';
         acts.push('<button class="btn" type="button" data-act="status" data-st="' + back + '" data-n="' + n + '">Reopen</button>');
       }
+      if (meta.source_file) { acts.push('<a class="btn" href="https://github.com/' + OWNER + '/' + REPO + '/blob/main/' + esc(meta.source_file.split('/').map(encodeURIComponent).join('/')) + '" target="_blank" rel="noopener">Open file</a>'); }
+      if (lane === 'scans' || lane === 'prep') { acts.push('<label class="hybrid-toggle"><input type="checkbox" data-act="hybrid" data-n="' + n + '"' + (hasLabel(issue, 'hybrid') ? ' checked' : '') + '> Prep as hybrid</label>'); }
       acts.push('<span class="spacer"></span><button class="btn btn-quiet" type="button" data-act="beats" data-n="' + n + '" aria-expanded="' + !!S.beatEdit[n] + '">Beats</button>');
       acts.push('<button class="btn btn-quiet" type="button" data-act="toggle" data-n="' + n + '" aria-expanded="' + open + '">' + (open ? 'Hide notes' : 'Notes' + (issue.comments ? ' (' + issue.comments + ')' : '')) + '</button>');
       out.push('<div class="actions">' + acts.join('') + '</div>');
@@ -1099,7 +1171,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     if (S.filter.outlet && names.indexOf(S.filter.outlet) < 0) { names.unshift(S.filter.outlet); }
     function opt(v, label, cur) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label) + '</option>'; }
     var outlets = opt('', 'All outlets', S.filter.outlet) + names.map(function (o) { return opt(o, o + ' (' + (counts[o] || 0) + ')', S.filter.outlet); }).join('');
-    var origins = [['', 'Anyone'], ['claude', 'Claude'], ['gpt', 'GPT'], ['people', 'People']].map(function (x) { return opt(x[0], x[1], S.filter.origin); }).join('');
+    var origins = [['', 'Anyone'], ['claude', 'Claude'], ['wire', 'ET wire'], ['gpt', 'GPT'], ['people', 'People']].map(function (x) { return opt(x[0], x[1], S.filter.origin); }).join('');
     var bc = {};
     all.forEach(function (i) { beatsOf(i).forEach(function (b) { bc[b] = (bc[b] || 0) + 1; }); });
     var beats = opt('', 'All beats', S.filter.beat) + beatList().map(function (b) { return opt(b.id, b.name + ' (' + (bc[b.id] || 0) + ')', S.filter.beat); }).join('');
@@ -1112,7 +1184,64 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     if (S.filter.outlet) { out += '<button class="btn btn-small" type="button" data-act="scan-this">Ask for a scan of ' + esc(S.filter.outlet) + '</button>'; }
     return out + '</div>';
   }
+  var ET_BEATS = { 'World News': 'geopol', 'China': 'geopol', 'Business': 'finance', 'Economy': 'finance', 'Markets': 'finance', 'Tech': 'tech', 'Health': 'health', 'Science': 'health', 'US': 'politics' };
+  function wireAge(it) { return (Date.now() - new Date(it.published).getTime()) / 60000; }
+  function wireList() {
+    var items = (S.wire && S.wire.items) || [];
+    return items.filter(function (it) {
+      if (S.wf.section && it.section !== S.wf.section) { return false; }
+      if (S.wf.hideZh && it.on_zh) { return false; }
+      if (S.wf.hideDesk && onDesk(it.url)) { return false; }
+      if (S.wf.hideCanada && /canada/i.test((it.subsection || '') + ' ' + (it.section || ''))) { return false; }
+      return true;
+    });
+  }
+  function wireFresh() { return ((S.wire && S.wire.items) || []).filter(function (it) { return wireAge(it) < 180 && !it.on_zh && !onDesk(it.url) && !(S.wf.hideCanada && /canada/i.test((it.subsection || '') + ' ' + (it.section || ''))); }).length; }
+  function wireHtml() {
+    var lane = LANES[0], items = (S.wire && S.wire.items) || [], list = wireList(), secs = {};
+    items.forEach(function (it) { if (it.section) { secs[it.section] = (secs[it.section] || 0) + 1; } });
+    var out = '<div class="lane-head"><h2>' + esc(lane.name) + '</h2><p>' + esc(lane.blurb) + (S.wire && S.wire.updated ? ' Last checked ' + esc(relTime(S.wire.updated)) + '.' : '') + '</p></div>';
+    out += '<div class="tools"><label>Section <select data-wf="section"><option value="">All sections</option>' + Object.keys(secs).sort().map(function (k) { return '<option value="' + esc(k) + '"' + (S.wf.section === k ? ' selected' : '') + '>' + esc(k) + ' (' + secs[k] + ')</option>'; }).join('') + '</select></label>' +
+      '<label class="flag"><input type="checkbox" data-wf="hideZh"' + (S.wf.hideZh ? ' checked' : '') + '> Hide what ZH ran</label>' +
+      '<label class="flag"><input type="checkbox" data-wf="hideDesk"' + (S.wf.hideDesk ? ' checked' : '') + '> Hide what\'s on the desk</label>' +
+      '<label class="flag"><input type="checkbox" data-wf="hideCanada"' + (S.wf.hideCanada ? ' checked' : '') + '> Hide Canada</label>' +
+      '<span class="count">' + list.length + ' of ' + items.length + '</span></div>';
+    if (!S.wire) { return out + '<div class="empty">The wire hasn\'t run yet. It fills in within 20 minutes.</div>'; }
+    if (!list.length) { return out + '<div class="empty">Nothing here matches the filters.</div>'; }
+    return out + list.map(function (it) {
+      var age = wireAge(it), d = onDesk(it.url), fresh = age < 60 && !it.on_zh && !d;
+      var chipsHtml = [];
+      if (age < 60) { chipsHtml.push('<span class="chip chip-breaking">New</span>'); }
+      if (it.on_zh) { chipsHtml.push('<a class="chip chip-ok" href="' + esc(it.on_zh.url) + '" target="_blank" rel="noopener" title="' + esc(it.on_zh.title) + '">On ZH</a>'); }
+      if (d) { chipsHtml.push('<a class="chip chip-blue" href="#" data-goto="' + d.number + '">On the desk: #' + d.number + ' (' + esc(STATUS_WORD[statusOf(d)]) + ')</a>'); }
+      var acts = d ? '' : '<div class="actions"><button class="btn btn-go btn-small" type="button" data-act="wire-add" data-mode="approved" data-wid="' + it.id + '">Approve</button>' +
+        '<button class="btn btn-small" type="button" data-act="wire-add" data-mode="priority" data-wid="' + it.id + '">Approve as priority</button>' +
+        '<button class="btn btn-quiet btn-small" type="button" data-act="wire-add" data-mode="scouted" data-wid="' + it.id + '">Add to New scans</button></div>';
+      return '<article class="wire-row' + (fresh ? ' fresh' : '') + (it.on_zh || d ? ' done' : '') + '"><div class="meta"><span class="num" title="' + esc(new Date(it.published).toLocaleString()) + '">' + esc(shortClock(it.published)) + ' &middot; ' + esc(relTime(it.published)) + '</span>' +
+        (it.section ? '<span class="outlet">' + esc(it.section) + '</span>' : '') + (it.subsection ? '<span>' + esc(it.subsection) + '</span>' : '') + ((it.authors || []).length ? '<span>' + esc(it.authors.join(', ')) + '</span>' : '') + '</div>' +
+        '<h3 class="hed"><a href="' + esc(it.url) + '" target="_blank" rel="noopener">' + esc(it.title) + '</a></h3>' + (it.summary ? '<p class="sum">' + esc(it.summary) + '</p>' : '') +
+        (chipsHtml.length ? '<div class="chips">' + chipsHtml.join('') + '</div>' : '') + acts + '</article>';
+    }).join('');
+  }
+  function addFromWire(it, mode, btn) {
+    var me = S.me ? S.me.login : 'desk', pub = new Date(it.published);
+    var day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(pub);
+    var meta = { url: it.url, origin: 'wire', source: 'ET wire', outlet: 'The Epoch Times', headline: it.title, author: (it.authors || []).join(', '),
+                 published: day, description: it.summary || '', fetched: new Date().toISOString(), added_by: me, added: new Date().toISOString() };
+    var labels = [mode === 'scouted' ? 'scouted' : 'approved', 'origin:wire'];
+    if (mode === 'priority') { labels.push('priority'); }
+    var beat = ET_BEATS[it.section] || ET_BEATS[it.subsection];
+    if (beat) { labels.push('beat:' + beat); }
+    if (wireAge(it) < 180) { labels.push('beat:breaking'); }
+    btn.disabled = true;
+    var body = '<!-- desk:item ' + markerJson(meta) + ' -->\nAdded from the ET wire on the desk page.';
+    return api(BASE + '/issues', { method: 'POST', body: { title: it.title.slice(0, 250), body: body, labels: labels } }).then(function (iss) {
+      S.issues[iss.number] = iss; toast('Added as #' + iss.number + (mode === 'scouted' ? ' in New scans' : mode === 'priority' ? ', approved as priority' : ', approved'));
+      S.sig = ''; renderAll(true);
+    }).catch(function (e) { btn.disabled = false; toast('Couldn\'t add it: ' + e.message, true); });
+  }
   function renderLane() {
+    if (S.lane === 'wire') { $('lane').innerHTML = wireHtml(); return; }
     var lane = LANES.filter(function (l) { return l.id === S.lane; })[0], list = itemsIn(S.lane), main = $('lane');
     var html = '<div class="lane-head"><h2>' + esc(lane.name) + '</h2><p>' + esc(lane.blurb) + '</p></div>' + toolsHtml(list);
     html += list.length ? list.map(cardHtml).join('') : '<div class="empty">' + (S.filter.outlet || S.filter.origin || S.filter.beat ? 'Nothing here matches the filters.' : 'Nothing here right now.') + '</div>';
@@ -1232,6 +1361,11 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     var n = +el.dataset.n, act = el.dataset.act, p = S.packages[n];
     if (act === 'clear-filter') { setTool('outlet', ''); setTool('origin', ''); setTool('beat', ''); S.sig = ''; renderAll(true); return; }
     if (act === 'scan-this') { openScan(S.filter.outlet); return; }
+    if (act === 'wire-add') {
+      var wit = ((S.wire && S.wire.items) || []).filter(function (x) { return String(x.id) === el.dataset.wid; })[0];
+      if (wit) { addFromWire(wit, el.dataset.mode, el); }
+      return;
+    }
     if (act === 'copy-html' && p) { copyText(compose(p)).then(function (ok) { flash(el, ok); }); }
     else if (act === 'copy-hed') { copyText(S.issues[n].title).then(function (ok) { flash(el, ok); }); }
     else if (act === 'copy-fix' && p) { copyText(p.dropins[+el.dataset.i].code).then(function (ok) { flash(el, ok); }); }
@@ -1281,6 +1415,19 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
   document.addEventListener('change', function (ev) {
     var el = ev.target;
     if (el.matches && el.matches('select[data-tool]')) { setTool(el.dataset.tool, el.value); S.sig = ''; renderAll(true); return; }
+    if (el.matches && el.matches('[data-wf]')) {
+      var k = el.dataset.wf; S.wf[k] = el.type === 'checkbox' ? el.checked : el.value; store('wf', JSON.stringify(S.wf)); S.sig = ''; renderAll(true); return;
+    }
+    if (el.matches && el.matches('input[data-act="hybrid"]')) {
+      var hn = +el.dataset.n, on = el.checked;
+      el.disabled = true;
+      (on ? api(BASE + '/issues/' + hn + '/labels', { method: 'POST', body: { labels: ['hybrid'] } })
+          : api(BASE + '/issues/' + hn + '/labels/hybrid', { method: 'DELETE' }).catch(function (e) { if (e.status !== 404) { throw e; } }))
+        .then(function () { return api(BASE + '/issues/' + hn); })
+        .then(function (fresh) { S.issues[hn] = fresh; toast('#' + hn + (on ? ' will be prepped as a hybrid' : ': hybrid off')); S.sig = ''; rerenderCard(hn); })
+        .catch(function (e) { el.disabled = false; el.checked = !on; toast('Couldn\'t change it: ' + e.message, true); });
+      return;
+    }
     if (!el.matches || !el.matches('input[data-act="fix"]')) { return; }
     var n = +el.dataset.n, i = +el.dataset.i, p = S.packages[n];
     if (!p) { return; }
@@ -1355,7 +1502,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     meta.added = new Date().toISOString();
     if (note) { meta.note = note; }
     meta.provisional_title = true;
-    var labels = [o.mode, o.originLabel].concat(o.beat ? ['beat:' + o.beat] : []);
+    var labels = [o.mode, o.originLabel].concat(o.beat ? ['beat:' + o.beat] : []).concat(o.hybrid ? ['hybrid'] : []);
     var body = '<!-- desk:item ' + markerJson(meta) + ' -->\n' + (note ? note + '\n\n' : '') + o.footer;
     return api(BASE + '/issues', { method: 'POST', body: { title: (it.headline || it.url).slice(0, 250), body: body, labels: labels } }).then(function (iss) {
       S.issues[iss.number] = iss; return iss;
@@ -1486,6 +1633,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     el.list.addEventListener('change', function (ev) { var i = ev.target.dataset && ev.target.dataset.bi; if (i != null) { self.items[+i].on = ev.target.checked; render(); } });
     el.cancel.addEventListener('click', function () { el.dlg.close(); });
     el.form.addEventListener('submit', function (ev) {
+      if (opts.active && !opts.active()) { return; }
       ev.preventDefault();
       var todo = self.items.filter(function (x) { return x.on; });
       if (!todo.length) { return; }
@@ -1514,11 +1662,109 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     });
     return self;
   }
+  var addTab = 'links', dropped = null;
+  function setAddTab(t) {
+    addTab = t;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-addtab]'), function (b) { b.setAttribute('aria-selected', String(b.dataset.addtab === t)); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-addpanel]'), function (d) { d.hidden = d.dataset.addpanel !== t; });
+    var sub = $('add-submit');
+    if (t === 'links') { var on = addIntake.items.filter(function (x) { return x.on; }).length; sub.disabled = !on; sub.textContent = on ? 'Add ' + on + ' stor' + (on === 1 ? 'y' : 'ies') : 'Add stories'; }
+    else { sub.disabled = false; sub.textContent = t === 'paste' ? 'Add the article' : 'Upload and add'; }
+    $('add-err').hidden = true;
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-addtab]'), function (b) { b.addEventListener('click', function () { setAddTab(b.dataset.addtab); }); });
   var addIntake = Intake({ dlg: 'add-dialog', form: 'add-form', text: 'add-text', list: 'add-list', sum: 'add-sum', submit: 'add-submit', err: 'add-err', cancel: 'add-cancel', beat: 'add-beat' }, {
+    active: function () { return addTab === 'links'; },
+    onOpen: function () { dropped = null; $('add-file-name').textContent = 'Drop a file here, or click to choose one'; setTimeout(function () { setAddTab('links'); }, 0); },
     settings: function () {
       return { mode: (document.querySelector('input[name="add-mode"]:checked') || {}).value || 'approved', origin: S.me ? S.me.login : 'desk',
-               originLabel: 'origin:desk', footer: 'Added on the desk page.', note: $('add-note').value.trim() };
+               originLabel: 'origin:desk', footer: 'Added on the desk page.', note: $('add-note').value.trim(), hybrid: $('add-hybrid').checked };
     }
+  });
+
+  // a pasted article, or an uploaded file (.docx, .html, .txt): stored in pastes/ and prepped from as is
+  function b64(bytes) {
+    var out = '', b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    for (var i = 0; i < b.length; i += 0x8000) { out += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); }
+    return btoa(out);
+  }
+  function guessTitle(text, isHtml) {
+    if (isHtml) {
+      var d = document.createElement('div'); d.innerHTML = text.replace(/<script[\s\S]*?<\/script>/gi, '');
+      var h = d.querySelector('h1, h2'); if (h && h.textContent.trim()) { return h.textContent.trim().slice(0, 160); }
+      text = d.textContent;
+    }
+    var first = (text.split(/\n/).map(function (l) { return l.trim(); }).filter(Boolean)[0] || '');
+    var sent = first.split(/(?<=[.!?])\s/)[0];
+    return (sent.length > 140 ? sent.slice(0, 137) + '...' : sent) || 'Pasted article';
+  }
+  var drop = $('add-drop');
+  ['dragenter', 'dragover'].forEach(function (e) { drop.addEventListener(e, function (ev) { ev.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function (e) { drop.addEventListener(e, function () { drop.classList.remove('over'); }); });
+  drop.addEventListener('drop', function (ev) { ev.preventDefault(); dropped = ev.dataTransfer.files[0] || null; if (dropped) { $('add-file-name').textContent = dropped.name + ' (' + Math.ceil(dropped.size / 1024) + ' KB)'; } });
+  $('add-file').addEventListener('change', function () { dropped = this.files[0] || null; if (dropped) { $('add-file-name').textContent = dropped.name + ' (' + Math.ceil(dropped.size / 1024) + ' KB)'; } });
+  $('add-form').addEventListener('submit', function (ev) {
+    if (addTab === 'links') { return; }
+    ev.preventDefault();
+    var isFile = addTab === 'file', err = $('add-err'), btn = $('add-submit');
+    var src = stripTracking(($(isFile ? 'add-file-url' : 'add-paste-url').value || '').trim()), title = $(isFile ? 'add-file-title' : 'add-paste-title').value.trim();
+    function fail(m) { err.textContent = m; err.hidden = false; }
+    if (src && !isHttp(src)) { return fail('The source link should start with https://'); }
+    var job;
+    if (isFile) {
+      if (!dropped) { return fail('Choose or drop a file first.'); }
+      var ext = ((dropped.name.match(/\.([a-z0-9]+)$/i) || [])[1] || '').toLowerCase();
+      if (['docx', 'html', 'htm', 'txt', 'md'].indexOf(ext) < 0) { return fail('Use a .docx, .html or .txt file. For a .doc, save it as .docx first.'); }
+      if (dropped.size > 15 * 1048576) { return fail('That file is over 15 MB.'); }
+      job = dropped.arrayBuffer().then(function (buf) {
+        var name = dropped.name, guess = name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ');
+        if (ext === 'html' || ext === 'htm' || ext === 'txt' || ext === 'md') { var txt = new TextDecoder().decode(buf); guess = guessTitle(txt, ext !== 'txt' && ext !== 'md') || guess; }
+        return { data: b64(buf), ext: ext === 'htm' ? 'html' : ext, name: name, guess: guess };
+      });
+    } else {
+      var text = $('add-paste').value;
+      if (!text.trim()) { return fail('Paste the article first.'); }
+      var isHtml = /<\/?(p|div|h[1-6]|a|span|article|blockquote|ul|ol|li|br)\b/i.test(text);
+      job = Promise.resolve({ data: b64(new TextEncoder().encode(text)), ext: isHtml ? 'html' : 'txt', name: isHtml ? 'pasted HTML' : 'pasted text', guess: guessTitle(text, isHtml) });
+    }
+    btn.disabled = true; err.hidden = true; btn.textContent = 'Uploading...';
+    var me = S.me ? S.me.login : 'desk', mode = (document.querySelector('input[name="add-mode"]:checked') || {}).value || 'approved';
+    job.then(function (f) {
+      var slug = (title || f.guess).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) || 'article';
+      var path = 'pastes/upload-' + new Date().toISOString().replace(/[:.]/g, '-') + '-' + slug + '.' + f.ext;
+      return api(BASE + '/contents/' + path, { method: 'PUT', body: { message: 'Upload for the desk: ' + f.name, content: f.data } }).then(function () {
+        var meta = { source_file: path, source_kind: f.ext, file_name: f.name, origin: me, added_by: me, added: new Date().toISOString(), fetched: new Date().toISOString() };
+        if (src) { meta.url = src; }
+        var note = $('add-note').value.trim();
+        if (note) { meta.note = note; }
+        if (!title) { meta.provisional_title = true; }
+        var labels = [mode, 'origin:desk'].concat($('add-beat').value ? ['beat:' + $('add-beat').value] : []).concat($('add-hybrid').checked ? ['hybrid'] : []);
+        var body = '<!-- desk:item ' + markerJson(meta) + ' -->\n' + (note ? note + '\n\n' : '') + 'Uploaded on the desk page (' + f.name + ').';
+        return api(BASE + '/issues', { method: 'POST', body: { title: (title || f.guess).slice(0, 250), body: body, labels: labels } });
+      });
+    }).then(function (iss) {
+      S.issues[iss.number] = iss; $('add-dialog').close();
+      toast('Added as #' + iss.number + '. The ' + (mode === 'approved' ? 'next run preps it' : 'desk lists it') + ' from your ' + (isFile ? 'file' : 'paste') + '.', false, null, 5000);
+      S.lane = laneOf(mode); store('lane', S.lane); S.sig = ''; renderAll(true);
+    }).catch(function (e) { fail('Couldn\'t add it: ' + e.message); }).then(function () { btn.disabled = false; setAddTab(addTab); });
+  });
+
+  // Run now: a GitHub workflow starts the Claude run (see tools/run_now.py)
+  function plainMd(t) { return String(t || '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[*`_]/g, ''); }
+  function waitForAnswer(n, tries) {
+    return new Promise(function (r) { setTimeout(r, 4000); }).then(function () { return apiAll(BASE + '/issues/' + n + '/comments?per_page=20'); }).then(function (cs) {
+      var c = cs.filter(function (x) { return x.user && x.user.login === BOT; }).slice(-1)[0];
+      if (c) { toast(plainMd(c.body), false, null, 12000); load(); return; }
+      if (tries < 20) { return waitForAnswer(n, tries + 1); }
+      toast('Run requested. If nothing starts in a few minutes, use Run now at claude.ai/code/routines.', false, null, 9000);
+    });
+  }
+  $('run-now').addEventListener('click', function () {
+    var b = this; b.disabled = true; b.textContent = 'Starting...';
+    api(BASE + '/issues', { method: 'POST', body: { title: 'Run now', labels: ['run-request'], body: 'Requested on the desk page by ' + (S.me ? S.me.login : 'someone') + '.' } })
+      .then(function (iss) { toast('Starting a run...', false, null, 6000); return waitForAnswer(iss.number, 0); })
+      .catch(function (e) { toast('Couldn\'t request a run: ' + e.message, true); })
+      .then(function () { b.disabled = false; b.textContent = 'Run now'; });
   });
   var batchIntake = Intake({ dlg: 'batch-dialog', form: 'batch-form', text: 'batch-text', list: 'batch-list', sum: 'batch-sum', submit: 'batch-submit', err: 'batch-err', cancel: 'batch-cancel', beat: 'batch-beat' }, {
     onOpen: function () { $('batch-source').value = 'GPT'; },
@@ -1755,6 +2001,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     }).then(function () {
       store('token', token); showDesk(true);
       S.lane = store('lane') || 'ready';
+      try { var wf = JSON.parse(store('wf') || 'null'); if (wf) { Object.keys(wf).forEach(function (k) { S.wf[k] = wf[k]; }); } } catch (e) { /* keep defaults */ }
       return load();
     });
   }
