@@ -14,7 +14,7 @@
   --paper: #f3f5f8; --panel: #ffffff; --ink: #17202c; --muted: #586271; --rule: #d9dee6;
   --pencil: #2456a8; --pencil-hover: #1b4486; --pencil-soft: #e7eefa;
   --proof: #ad2a20; --proof-soft: #fbecea; --done: #1c7148; --done-soft: #e3f2e9;
-  --amber: #8a5a00; --amber-soft: #fbf1dc;
+  --amber: #8a5a00; --amber-soft: #fbf1dc; --violet: #6b3fc4; --violet-soft: #efe7fb;
   --sheet: #232830; --sheet-ink: #dfe4ea; --code-bg: #eef1f5; --on-pencil: #ffffff;
   --serif: "Newsreader", Georgia, "Times New Roman", serif;
   --sans: "Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -26,7 +26,7 @@
     --paper: #11151b; --panel: #19202a; --ink: #e5e9ef; --muted: #a1abb9; --rule: #2d3643;
     --pencil: #86aaf0; --pencil-hover: #a7c1f5; --pencil-soft: #1d2a40;
     --proof: #f0948a; --proof-soft: #3a2020; --done: #74c79c; --done-soft: #17301f;
-    --amber: #e8b45a; --amber-soft: #33270f;
+    --amber: #e8b45a; --amber-soft: #33270f; --violet: #c3a6f5; --violet-soft: #2a2140;
     --sheet: #0c0f13; --sheet-ink: #dfe4ea; --code-bg: #121820; --on-pencil: #0d1422;
     color-scheme: dark;
   }
@@ -35,7 +35,7 @@
   --paper: #11151b; --panel: #19202a; --ink: #e5e9ef; --muted: #a1abb9; --rule: #2d3643;
   --pencil: #86aaf0; --pencil-hover: #a7c1f5; --pencil-soft: #1d2a40;
   --proof: #f0948a; --proof-soft: #3a2020; --done: #74c79c; --done-soft: #17301f;
-  --amber: #e8b45a; --amber-soft: #33270f;
+  --amber: #e8b45a; --amber-soft: #33270f; --violet: #c3a6f5; --violet-soft: #2a2140;
   --sheet: #0c0f13; --sheet-ink: #dfe4ea; --code-bg: #121820; --on-pencil: #0d1422;
   color-scheme: dark;
 }
@@ -122,6 +122,15 @@ main { min-width: 0; }
 .chip-prep { background: var(--amber-soft); color: var(--amber); }
 .chip-ok { background: var(--done-soft); color: var(--done); }
 .chip-blue { background: var(--pencil-soft); color: var(--pencil); }
+.chip-beat { background: var(--pencil-soft); color: var(--pencil); }
+.chip-breaking { background: var(--proof); color: #fff; }
+.chip-obscure { background: var(--violet-soft); color: var(--violet); }
+.beat-edit { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 0; padding: 9px 10px; border: 1px dashed var(--rule); border-radius: 6px; }
+.beat-edit .k { font-size: 0.8rem; font-weight: 700; color: var(--muted); margin-right: 2px; }
+.beat-edit button { font: 700 0.8rem/1.2 var(--sans); padding: 5px 11px; border-radius: 999px; border: 1px solid var(--rule); background: var(--panel); color: var(--muted); cursor: pointer; min-height: 30px; }
+.beat-edit button:hover { border-color: var(--pencil); color: var(--pencil); }
+.beat-edit button[aria-pressed="true"] { background: var(--pencil); border-color: var(--pencil); color: var(--on-pencil); }
+.batch-row .nolink { display: block; color: var(--violet); font-weight: 700; font-size: 0.8rem; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0 0; }
 .actions .spacer { flex: 1 1 auto; }
 
@@ -287,7 +296,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
   <div class="banner" id="banner" hidden></div>
   <div class="bar">
     <div class="lanes" role="tablist" aria-label="Lanes" id="lanes"></div>
-    <button class="btn btn-strong" type="button" id="add-open">Add a story</button>
+    <button class="btn btn-strong" type="button" id="add-open">Add stories</button>
     <button class="btn" type="button" id="batch-open">Bring in a batch</button>
     <button class="btn" type="button" id="scan-open">Scan an outlet</button>
   </div>
@@ -318,19 +327,23 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
 </div>
 
 <dialog id="add-dialog" aria-labelledby="add-h">
-  <h3 id="add-h">Add a story</h3>
+  <h3 id="add-h">Add stories</h3>
   <form id="add-form" method="dialog">
-    <label>Link<input id="add-url" type="url" required placeholder="https://..."></label>
-    <label>Headline <span style="font-weight:400;color:var(--muted)">(optional; the next run fills it in)</span><input id="add-title" type="text"></label>
-    <label>Note for the run <span style="font-weight:400;color:var(--muted)">(optional)</span><textarea id="add-note" class="field-input" placeholder="e.g. Prep as a hybrid."></textarea></label>
-    <div class="choice" role="radiogroup" aria-label="Where it goes">
+    <p class="hint">Paste links, headlines, or both, one per line. For a headline without a link, the hourly sweep finds the article.</p>
+    <label for="add-text" class="sr-only">Links or headlines</label>
+    <textarea id="add-text" class="field-input big" placeholder="https://...&#10;Pentagon fails its seventh straight audit&#10;Fed holds rates - https://..."></textarea>
+    <p class="batch-sum" id="add-sum" aria-live="polite"></p>
+    <div class="batch-list" id="add-list" hidden></div>
+    <label>Note for the run <span style="font-weight:400;color:var(--muted)">(optional; goes on each story)</span><textarea id="add-note" class="field-input" placeholder="e.g. Prep as a hybrid."></textarea></label>
+    <label>Beat <span style="font-weight:400;color:var(--muted)">(optional)</span><select id="add-beat"></select></label>
+    <div class="choice" role="radiogroup" aria-label="Where they go">
       <label><input type="radio" name="add-mode" value="approved" checked> Approve for prep now</label>
       <label><input type="radio" name="add-mode" value="scouted"> Add to New scans</label>
     </div>
-    <p class="err" id="add-err" role="alert" hidden style="color:var(--proof);font-weight:700;margin:0"></p>
+    <p class="err" id="add-err" role="alert" hidden></p>
     <div class="row">
       <button class="btn" type="button" id="add-cancel">Cancel</button>
-      <button class="btn btn-primary" type="submit" id="add-submit">Add story</button>
+      <button class="btn btn-primary" type="submit" id="add-submit" disabled>Add stories</button>
     </div>
   </form>
 </dialog>
@@ -354,7 +367,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
 <dialog id="batch-dialog" aria-labelledby="batch-h">
   <h3 id="batch-h">Bring in a batch</h3>
   <form id="batch-form" method="dialog">
-    <p class="hint">Paste a list of stories, such as GPT's scan, as it is. The page pulls out the links, skips anything already on the desk, and adds the rest. Within half an hour the desk fills in headlines and outlets, and the sweep checks each one against ZH.</p>
+    <p class="hint">Paste a list of stories, such as GPT's scan, as it is. The page pulls out the links (and headlines that have no link), skips anything already on the desk, and adds the rest. Within half an hour the desk fills in headlines and outlets; the hourly sweep finds articles for bare headlines and checks everything against ZH.</p>
     <label for="batch-text" class="sr-only">Stories to bring in</label>
     <textarea id="batch-text" class="field-input big" placeholder="1. Headline - https://...&#10;   Why it fits...&#10;2. https://..."></textarea>
     <p class="batch-sum" id="batch-sum" aria-live="polite"></p>
@@ -364,6 +377,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
       <label><input type="radio" name="batch-mode" value="approved"> Approve all for prep</label>
     </div>
     <label>Where they came from<input id="batch-source" type="text" value="GPT"></label>
+    <label>Beat <span style="font-weight:400;color:var(--muted)">(optional)</span><select id="batch-beat"></select></label>
     <p class="err" id="batch-err" role="alert" hidden></p>
     <div class="row">
       <button class="btn" type="button" id="batch-cancel">Cancel</button>
@@ -419,7 +433,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
   var S = {
     token: null, me: null, issues: {}, index: {}, lastRun: null, events: [], notesIssue: null, notes: [],
     packages: {}, comments: {}, lane: 'ready', open: {}, previews: {}, sig: '', loading: false,
-    requests: [], reqComments: {}, config: null, watch: null, filter: { outlet: '', origin: '' }, sort: 'default'
+    requests: [], reqComments: {}, config: null, watch: null, filter: { outlet: '', origin: '', beat: '' }, sort: 'default', beatEdit: {}
   };
 
   // ---------- small helpers
@@ -684,6 +698,17 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     if (meta.origin === 'gpt' || hasLabel(issue, 'origin:gpt')) { return 'gpt'; }
     return 'people';
   }
+  function beatList() { return (S.config && S.config.beats) || []; }
+  function beatName(id) { var b = beatList().filter(function (x) { return x.id === id; })[0]; return b ? b.name : id; }
+  function beatsOf(issue) {
+    var have = (issue.labels || []).map(function (l) { return l.name; }).filter(function (n) { return n.indexOf('beat:') === 0; }).map(function (n) { return n.slice(5); });
+    var order = beatList().map(function (b) { return b.id; });
+    return have.sort(function (a, b) { return (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99); });
+  }
+  function beatOptions(cur, blank) {
+    return '<option value="">' + esc(blank) + '</option>' + beatList().map(function (b) { return '<option value="' + esc(b.id) + '"' + (b.id === cur ? ' selected' : '') + '>' + esc(b.name) + '</option>'; }).join('');
+  }
+  function normTitle(t) { return String(t || '').toLowerCase().replace(/[\u2018\u2019']/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); }
   function byApp(x) { return !!(x && x.performed_via_github_app) || (x && x.body && x.body.indexOf(CLAUDE_MARK) === 0); }
   function who(x, login) {
     if (byApp(x)) { return 'Claude'; }
@@ -845,6 +870,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
   function passes(i) {
     if (S.filter.outlet && outletOf(i) !== S.filter.outlet) { return false; }
     if (S.filter.origin && originOf(i) !== S.filter.origin) { return false; }
+    if (S.filter.beat && !hasLabel(i, 'beat:' + S.filter.beat)) { return false; }
     return true;
   }
   function itemsIn(laneId, unfiltered) {
@@ -866,6 +892,8 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
       if (laneId === 'prep' || laneId === 'scans') {
         var pa = hasLabel(a, 'priority') ? 0 : 1, pb = hasLabel(b, 'priority') ? 0 : 1;
         if (pa !== pb) { return pa - pb; }
+        var ba = hasLabel(a, 'beat:breaking') ? 0 : 1, bb = hasLabel(b, 'beat:breaking') ? 0 : 1;
+        if (ba !== bb) { return ba - bb; }
       }
       if (laneId === 'done') { return new Date(b.closed_at || b.updated_at) - new Date(a.closed_at || a.updated_at); }
       if (laneId === 'ready') {
@@ -914,14 +942,22 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     return '<h3 class="hed">' + (isHttp(url) ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + t + '</a>' : t) + '</h3>';
   }
   function chips(issue, extra) {
-    var c = [];
+    var c = [], meta = metaOf(issue);
     if (hasLabel(issue, 'priority')) { c.push('<span class="chip chip-pri">Priority</span>'); }
+    beatsOf(issue).forEach(function (b) { c.push('<span class="chip ' + (b === 'breaking' ? 'chip-breaking' : b === 'obscure' ? 'chip-obscure' : 'chip-beat') + '">' + esc(beatName(b)) + '</span>'); });
+    if (!meta.url && meta.headline_only) { c.push(meta.link_not_found ? '<span class="chip chip-pri">Couldn\'t find the article</span>' : '<span class="chip chip-obscure">Finding the article</span>'); }
     var st = statusOf(issue);
     if (st === 'prepping') { c.push('<span class="chip chip-prep">Prepping now</span>'); }
     if (st === 'approved') { c.push('<span class="chip chip-prep">Waiting for the next run</span>'); }
     if (laneOf(st) === 'done') { c.push('<span class="chip ' + (st === 'posted' ? 'chip-ok' : '') + '">' + esc(STATUS_WORD[st]) + '</span>'); }
     (extra || []).forEach(function (x) { c.push(x); });
     return c.length ? '<div class="chips">' + c.join('') + '</div>' : '';
+  }
+  function beatEditHtml(issue) {
+    var n = issue.number, have = beatsOf(issue);
+    return '<div class="beat-edit" role="group" aria-label="Beats for #' + n + '"><span class="k">Beats</span>' + beatList().map(function (b) {
+      return '<button type="button" data-act="beat-toggle" data-n="' + n + '" data-beat="' + esc(b.id) + '" aria-pressed="' + (have.indexOf(b.id) >= 0) + '" title="' + esc(b.hint || '') + '">' + esc(b.name) + '</button>';
+    }).join('') + '</div>';
   }
   function threadHtml(n) {
     var cs = S.comments[n];
@@ -1011,7 +1047,9 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
         '<span class="spacer"></span>' +
         '<button class="btn btn-go" type="button" data-act="status" data-st="posted" data-n="' + n + '">Posted</button>' +
         '<button class="btn btn-stop" type="button" data-act="status" data-st="skipped" data-n="' + n + '">Skip</button>' +
+        '<button class="btn btn-quiet" type="button" data-act="beats" data-n="' + n + '" aria-expanded="' + !!S.beatEdit[n] + '">Beats</button>' +
         '<button class="btn btn-quiet" type="button" data-act="toggle" data-n="' + n + '" aria-expanded="' + open + '">' + (open ? 'Collapse' : 'Open package') + '</button></div>');
+      if (S.beatEdit[n]) { out.push(beatEditHtml(issue)); }
       out.push('<p class="fix-state" data-fixstate="' + n + '">' + esc(fixState(n)) + '</p>');
       out.push('<div class="popup-note" role="status" hidden></div>');
       if (S.previews[n]) { out.push('<div class="preview-wrap"><iframe class="preview" data-preview="' + n + '" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" title="Preview"></iframe></div>'); }
@@ -1022,6 +1060,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
       out.push(chips(issue));
       var acts = [];
       if (isHttp(meta.url)) { acts.push('<a class="btn" href="' + esc(meta.url) + '" target="_blank" rel="noopener">Open article</a>'); }
+      else if (meta.headline_only) { acts.push('<a class="btn" href="https://www.google.com/search?q=' + encodeURIComponent(meta.query || issue.title) + '" target="_blank" rel="noopener">Search the web</a>'); }
       if (lane === 'scans') {
         acts.push('<button class="btn btn-go" type="button" data-act="status" data-st="approved" data-n="' + n + '">Approve</button>');
         acts.push('<button class="btn btn-stop" type="button" data-act="status" data-st="rejected" data-n="' + n + '">Reject</button>');
@@ -1037,8 +1076,13 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
         var back = (metaOf(issue).packages || []).length ? 'ready' : 'scouted';
         acts.push('<button class="btn" type="button" data-act="status" data-st="' + back + '" data-n="' + n + '">Reopen</button>');
       }
-      acts.push('<span class="spacer"></span><button class="btn btn-quiet" type="button" data-act="toggle" data-n="' + n + '" aria-expanded="' + open + '">' + (open ? 'Hide notes' : 'Notes' + (issue.comments ? ' (' + issue.comments + ')' : '')) + '</button>');
+      acts.push('<span class="spacer"></span><button class="btn btn-quiet" type="button" data-act="beats" data-n="' + n + '" aria-expanded="' + !!S.beatEdit[n] + '">Beats</button>');
+      acts.push('<button class="btn btn-quiet" type="button" data-act="toggle" data-n="' + n + '" aria-expanded="' + open + '">' + (open ? 'Hide notes' : 'Notes' + (issue.comments ? ' (' + issue.comments + ')' : '')) + '</button>');
       out.push('<div class="actions">' + acts.join('') + '</div>');
+      if (S.beatEdit[n]) { out.push(beatEditHtml(issue)); }
+      if (!isHttp(meta.url) && meta.headline_only && lane !== 'done') {
+        out.push('<form class="compose" data-act="add-link" data-n="' + n + '"><div class="row"><input type="url" class="field-input" style="min-height:0;flex:1 1 260px" placeholder="Have the link? Paste it here"><button class="btn btn-small" type="submit">Save link</button></div></form>');
+      }
       if (lane === 'paste') {
         out.push('<form class="compose" data-act="paste" data-n="' + n + '"><textarea class="mono" placeholder="Paste the page source (View page source, select all, copy) or the article text"></textarea><div class="row"><button class="btn btn-small btn-primary" type="submit">Send paste</button><span class="hint">Big pastes are saved as a file in the repo.</span></div></form>');
       }
@@ -1056,8 +1100,12 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     function opt(v, label, cur) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(label) + '</option>'; }
     var outlets = opt('', 'All outlets', S.filter.outlet) + names.map(function (o) { return opt(o, o + ' (' + (counts[o] || 0) + ')', S.filter.outlet); }).join('');
     var origins = [['', 'Anyone'], ['claude', 'Claude'], ['gpt', 'GPT'], ['people', 'People']].map(function (x) { return opt(x[0], x[1], S.filter.origin); }).join('');
+    var bc = {};
+    all.forEach(function (i) { beatsOf(i).forEach(function (b) { bc[b] = (bc[b] || 0) + 1; }); });
+    var beats = opt('', 'All beats', S.filter.beat) + beatList().map(function (b) { return opt(b.id, b.name + ' (' + (bc[b.id] || 0) + ')', S.filter.beat); }).join('');
     var sorts = [['default', 'Newest first'], ['oldest', 'Oldest first'], ['outlet', 'Outlet A-Z']].map(function (x) { return opt(x[0], x[1], S.sort); }).join('');
-    var out = '<div class="tools"><label>Outlet <select data-tool="outlet">' + outlets + '</select></label>' +
+    var out = '<div class="tools"><label>Beat <select data-tool="beat">' + beats + '</select></label>' +
+      '<label>Outlet <select data-tool="outlet">' + outlets + '</select></label>' +
       '<label>Found by <select data-tool="origin">' + origins + '</select></label>' +
       '<label>Sort <select data-tool="sort">' + sorts + '</select></label>';
     if (list.length !== all.length) { out += '<span class="count">Showing ' + list.length + ' of ' + all.length + '</span><button class="btn btn-small btn-quiet" type="button" data-act="clear-filter">Clear filters</button>'; }
@@ -1067,7 +1115,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
   function renderLane() {
     var lane = LANES.filter(function (l) { return l.id === S.lane; })[0], list = itemsIn(S.lane), main = $('lane');
     var html = '<div class="lane-head"><h2>' + esc(lane.name) + '</h2><p>' + esc(lane.blurb) + '</p></div>' + toolsHtml(list);
-    html += list.length ? list.map(cardHtml).join('') : '<div class="empty">' + (S.filter.outlet || S.filter.origin ? 'Nothing here matches the filters.' : 'Nothing here right now.') + '</div>';
+    html += list.length ? list.map(cardHtml).join('') : '<div class="empty">' + (S.filter.outlet || S.filter.origin || S.filter.beat ? 'Nothing here matches the filters.' : 'Nothing here right now.') + '</div>';
     main.innerHTML = html;
     Array.prototype.forEach.call(main.querySelectorAll('.thumb img'), function (img) {
       img.addEventListener('error', function () { img.parentNode.classList.add('fail'); });
@@ -1085,7 +1133,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
   function rerenderCard(n) {
     var el = document.querySelector('.card[data-n="' + n + '"]');
     if (!el || !S.issues[n]) { return; }
-    var dirty = Array.prototype.some.call(el.querySelectorAll('textarea'), function (t) { return t.value.trim(); });
+    var dirty = Array.prototype.some.call(el.querySelectorAll('textarea, input[type=url]'), function (t) { return t.value.trim(); });
     if (dirty) { return; }
     var tmp = document.createElement('div'); tmp.innerHTML = cardHtml(S.issues[n]);
     var fresh = tmp.firstChild;
@@ -1148,7 +1196,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     var sig = signature();
     var main = $('lane');
     var busy = main.contains(document.activeElement) && /TEXTAREA|INPUT/.test(document.activeElement.tagName);
-    var dirty = Array.prototype.some.call(main.querySelectorAll('textarea'), function (t) { return t.value.trim(); });
+    var dirty = Array.prototype.some.call(main.querySelectorAll('textarea, input[type=url]'), function (t) { return t.value.trim(); });
     if (force || (sig !== S.sig && !busy && !dirty) || !main.innerHTML) { renderLane(); S.sig = sig; }
   }
 
@@ -1182,7 +1230,7 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     var el = ev.target.closest('button[data-act]');
     if (!el) { return; }
     var n = +el.dataset.n, act = el.dataset.act, p = S.packages[n];
-    if (act === 'clear-filter') { setTool('outlet', ''); setTool('origin', ''); S.sig = ''; renderAll(true); return; }
+    if (act === 'clear-filter') { setTool('outlet', ''); setTool('origin', ''); setTool('beat', ''); S.sig = ''; renderAll(true); return; }
     if (act === 'scan-this') { openScan(S.filter.outlet); return; }
     if (act === 'copy-html' && p) { copyText(compose(p)).then(function (ok) { flash(el, ok); }); }
     else if (act === 'copy-hed') { copyText(S.issues[n].title).then(function (ok) { flash(el, ok); }); }
@@ -1191,6 +1239,16 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     else if (act === 'copy-cred' && p) { copyText(p.images[+el.dataset.i].creditCopy).then(function (ok) { flash(el, ok); }); }
     else if (act === 'open') { openAll(n, el.closest('.card')); }
     else if (act === 'preview') { S.previews[n] = !S.previews[n]; rerenderCard(n); }
+    else if (act === 'beats') { S.beatEdit[n] = !S.beatEdit[n]; rerenderCard(n); }
+    else if (act === 'beat-toggle') {
+      var beat = el.dataset.beat, on = el.getAttribute('aria-pressed') !== 'true', label = 'beat:' + beat;
+      el.disabled = true;
+      (on ? api(BASE + '/issues/' + n + '/labels', { method: 'POST', body: { labels: [label] } })
+          : api(BASE + '/issues/' + n + '/labels/' + encodeURIComponent(label), { method: 'DELETE' }).catch(function (e) { if (e.status !== 404) { throw e; } }))
+        .then(function () { return api(BASE + '/issues/' + n); })
+        .then(function (fresh) { S.issues[n] = fresh; S.sig = ''; rerenderCard(n); renderTabs(); })
+        .catch(function (e) { el.disabled = false; toast('Couldn\'t change the beat: ' + e.message, true); });
+    }
     else if (act === 'toggle') {
       S.open[n] = !S.open[n];
       if (S.open[n] && !S.comments[n]) { loadComments(n).then(function () { rerenderCard(n); }); }
@@ -1248,6 +1306,22 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
         .then(function () { f.querySelector('button').disabled = false; });
       return;
     }
+    if (f.dataset && f.dataset.act === 'add-link') {
+      ev.preventDefault();
+      var ln = +f.dataset.n, inp = f.querySelector('input'), link = stripTracking(inp.value.trim()), iss = S.issues[ln];
+      if (!isHttp(link)) { toast('Paste a full link starting with https://', true); return; }
+      var dupe = onDesk(link);
+      if (dupe && dupe.number !== ln) { toast('That link is already on the desk as #' + dupe.number, true); return; }
+      var meta = bodyMeta(iss);
+      meta.url = link; meta.provisional_title = true; delete meta.fetched; delete meta.fetch_error;
+      var tag = '<!-- desk:item ' + markerJson(meta) + ' -->';
+      var body = ITEM_RE.test(iss.body || '') ? iss.body.replace(ITEM_RE, function () { return tag; }) : tag + '\n' + (iss.body || '');
+      f.querySelector('button').disabled = true;
+      api(BASE + '/issues/' + ln, { method: 'PATCH', body: { body: body } }).then(function (fresh) {
+        S.issues[ln] = fresh; toast('Link saved. The desk fills in the headline and outlet within half an hour.'); S.sig = ''; rerenderCard(ln);
+      }).catch(function (e) { f.querySelector('button').disabled = false; toast('Couldn\'t save the link: ' + e.message, true); });
+      return;
+    }
     if (f.dataset && (f.dataset.act === 'comment' || f.dataset.act === 'paste')) {
       ev.preventDefault();
       var n = +f.dataset.n, ta = f.querySelector('textarea'), body = ta.value.trim();
@@ -1261,81 +1335,118 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     }
   });
 
-  // add a story
-  var dlg = $('add-dialog');
-  $('add-open').addEventListener('click', function () { $('add-err').hidden = true; $('add-form').reset(); if (dlg.showModal) { dlg.showModal(); } else { dlg.setAttribute('open', ''); } $('add-url').focus(); });
-  $('add-cancel').addEventListener('click', function () { dlg.close(); });
-  $('add-form').addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var url = stripTracking($('add-url').value.trim()), title = $('add-title').value.trim(), note = $('add-note').value.trim();
-    var mode = (document.querySelector('input[name="add-mode"]:checked') || {}).value || 'approved';
-    if (!isHttp(url)) { $('add-err').textContent = 'Paste a full link starting with https://'; $('add-err').hidden = false; return; }
-    var dupe = onDesk(url);
-    if (dupe) { $('add-err').textContent = 'That link is already on the desk as #' + dupe.number + '.'; $('add-err').hidden = false; return; }
-    var meta = { url: url, origin: S.me ? S.me.login : 'desk', added: new Date().toISOString(), note: note };
-    $('add-submit').disabled = true;
-    createStory(url, title, meta, mode, 'origin:desk', 'Added on the desk page.').then(function (iss) {
-      dlg.close(); toast('Added as #' + iss.number);
-      S.lane = laneOf(mode); store('lane', S.lane); S.sig = ''; renderAll(true);
-    }).catch(function (e) { $('add-err').textContent = 'Couldn\'t add it: ' + e.message; $('add-err').hidden = false; })
-      .then(function () { $('add-submit').disabled = false; });
-  });
-
+  // ---------- adding stories: links, bare headlines, or a whole list such as GPT's scan
   function markerJson(o) { return JSON.stringify(o).replace(/</g, '\\u003c').replace(/>/g, '\\u003e'); }
   function onDesk(url) {
     var key = normUrl(url);
     return Object.keys(S.issues).map(function (k) { return S.issues[k]; }).filter(function (i) { var u = metaOf(i).url; return u && normUrl(u) === key; })[0];
   }
-  function createStory(url, title, meta, mode, originLabel, footer) {
-    if (!title) { meta.provisional_title = true; }
-    var body = '<!-- desk:item ' + markerJson(meta) + ' -->\n' + (meta.note ? meta.note + '\n\n' : '') + footer;
-    return api(BASE + '/issues', { method: 'POST', body: { title: (title || url).slice(0, 250), body: body, labels: [mode, originLabel] } }).then(function (iss) {
+  function onDeskTitle(t) {
+    var key = normTitle(t);
+    if (!key) { return null; }
+    return Object.keys(S.issues).map(function (k) { return S.issues[k]; }).filter(function (i) { return normTitle(i.title) === key || normTitle(metaOf(i).headline) === key; })[0];
+  }
+  function createStory(it, o) {
+    var note = [it.note, o.note].filter(Boolean).join(' ').trim();
+    var meta = it.url ? { url: it.url } : { headline_only: true, query: it.headline + (it.hint ? ' ' + it.hint : '') };
+    meta.origin = o.origin;
+    if (o.source) { meta.source = o.source; }
+    meta.added_by = S.me ? S.me.login : 'desk';
+    meta.added = new Date().toISOString();
+    if (note) { meta.note = note; }
+    meta.provisional_title = true;
+    var labels = [o.mode, o.originLabel].concat(o.beat ? ['beat:' + o.beat] : []);
+    var body = '<!-- desk:item ' + markerJson(meta) + ' -->\n' + (note ? note + '\n\n' : '') + o.footer;
+    return api(BASE + '/issues', { method: 'POST', body: { title: (it.headline || it.url).slice(0, 250), body: body, labels: labels } }).then(function (iss) {
       S.issues[iss.number] = iss; return iss;
     });
   }
 
-  // bring in a batch (GPT's scan, or any list of links)
   var URL_RE = /\[([^\]\n]{3,300})\]\((https?:\/\/[^\s)]+)\)|<(https?:\/\/[^\s>]+)>|(https?:\/\/[^\s<>"'`|\])]+)/g;
+  var MARK = /^\s*(?:\*\*|__)?\s*(?:\d{1,3}[.)]|[-*\u2022\u25cf\u25aa]|#{1,4}|\|)\s*/;
+  var LIST_MARK = /^\s*(?:\*\*|__)?\s*(?:\d{1,3}[.)]|[-*\u2022\u25cf\u25aa])\s+/;
+  var LABEL_RE = /^\s*(?:[-*\u2022]\s*)?(?:\*\*)?\s*(?:why(?: it fits)?|outlet|source|sources|note|notes|angle|pitch|summary|date|published|author|by|link|url|article|context|reason|primary source|zh angle|lane|urgency|first reported|traffic|views)\s*(?:\*\*)?\s*[:\u2014]/i;
   function cleanUrl(u) { return u.replace(/[.,;:!?*_'"\u201d\u2019]+$/, ''); }
-  function parseBatch(text) {
-    var lines = String(text || '').replace(/\r\n?/g, '\n').split('\n'), blocks = [], cur = [];
-    var MARK = /^\s*(?:\*\*|__)?\s*(?:\d{1,3}[.)]|[-*\u2022\u25cf\u25aa]|#{1,4}|\|)\s*/;
-    function urlsIn(ln) { var out = [], m; URL_RE.lastIndex = 0; while ((m = URL_RE.exec(ln))) { out.push(m); } return out; }
+  function urlsIn(ln) { var out = [], m; URL_RE.lastIndex = 0; while ((m = URL_RE.exec(ln))) { out.push(m); } return out; }
+  function isUrlOnly(ln) {
+    var t = ln.replace(MARK, '').replace(/^\s*(?:link|url|source)\s*:\s*/i, '').trim(), ms = urlsIn(t);
+    return ms.length === 1 && ms[0].index === 0 && ms[0][0].length >= t.replace(/[.,;]$/, '').length;
+  }
+  function entriesOf(text) {
+    var lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
+    var listy = lines.filter(function (l) { return LIST_MARK.test(l); }).length >= 2, blocks = [], cur = [], out = [];
     function flush() { if (cur.length) { blocks.push(cur); cur = []; } }
     lines.forEach(function (ln) {
       if (!ln.trim()) { flush(); return; }
-      if (MARK.test(ln) && cur.some(function (l) { return urlsIn(l).length; })) { flush(); }
-      if (/^\s*\|/.test(ln)) { flush(); }
+      if (/^\s*\|/.test(ln)) { flush(); blocks.push([ln]); return; }
+      if (listy && LIST_MARK.test(ln)) { flush(); }
       cur.push(ln);
     });
     flush();
-    var items = [];
+    function perLine(b) {
+      for (var i = 0; i < b.length; i++) {
+        if (!urlsIn(b[i]).length && i + 1 < b.length && isUrlOnly(b[i + 1])) { out.push([b[i], b[i + 1]]); i++; } else { out.push([b[i]]); }
+      }
+    }
     blocks.forEach(function (b) {
-      var withUrl = b.filter(function (l) { return urlsIn(l).length; });
-      if (!withUrl.length) { return; }
-      var groups = (!MARK.test(b[0]) && withUrl.length > 1) ? withUrl.map(function (l) { return [l]; }) : [b];
-      groups.forEach(function (g) {
-        var text = g.join('\n'), ms = urlsIn(text), first = ms[0];
-        var url = stripTracking(cleanUrl(first[2] || first[3] || first[4]));
-        var hl = first[1] && !/^https?:/i.test(first[1]) ? first[1] : '';
-        if (!hl) { var bm = /\*\*([^*\n]{8,240})\*\*/.exec(text); if (bm) { hl = bm[1]; } }
-        var rest = text;
-        ms.forEach(function (m) { rest = rest.replace(m[0], ' '); });
-        rest = rest.replace(MARK, '').replace(/\*\*/g, '').replace(/\b(Link|URL|Source|Article|Headline|Title|Outlet)\s*:\s*/gi, '');
-        if (!hl) {
-          var firstLine = rest.split('\n').map(function (l) { return l.replace(MARK, '').replace(/\s*[|\u2014\u2013]\s*$/, '').trim(); }).filter(Boolean)[0] || '';
-          firstLine = firstLine.split(/\s[\u2014\u2013|]\s|\s-\s/)[0].replace(/^["\u201c]|["\u201d]$/g, '').trim();
-          if (firstLine.length >= 12 && firstLine.length <= 240) { hl = firstLine; }
-        }
-        var note = rest.replace(hl, ' ').replace(/[|]/g, ' ').replace(/\s+/g, ' ').replace(/(\s*[\u2014\u2013]\s*|\s+-\s+){2,}/g, ' \u2014 ').replace(/^[\s\-\u2014\u2013:,.]+|[\s\-\u2014\u2013:,]+$/g, '').trim();
-        items.push({ url: url, headline: hl.replace(/[\s:;,\u2014\u2013-]+$/, '').trim(), note: note.slice(0, 500) });
-      });
+      if (b.length === 1) { out.push(b); return; }
+      var listEntry = listy && LIST_MARK.test(b[0]);
+      var labeled = b.slice(1).some(function (l) { return LABEL_RE.test(l) || /^\s{2,}\S/.test(l) || isUrlOnly(l); });
+      var urlLines = b.filter(function (l) { return urlsIn(l).length; }).length;
+      if (listEntry || (labeled && urlLines <= 1)) { out.push(b); } else { perLine(b); }
+    });
+    return out;
+  }
+  function tidyNote(t, hl) {
+    return t.replace(hl || '\u0000', ' ').replace(/\*\*/g, '').replace(/[|]/g, ' ').replace(/\s+/g, ' ')
+      .replace(/(\s*[\u2014\u2013]\s*|\s+-\s+){2,}/g, ' \u2014 ').replace(/^[\s\-\u2014\u2013:,.]+|[\s\-\u2014\u2013:,]+$/g, '').trim().slice(0, 500);
+  }
+  function itemOf(lines) {
+    var text = lines.join('\n'), ms = urlsIn(text), hl = '', rest;
+    if (ms.length) {
+      var first = ms[0], url = stripTracking(cleanUrl(first[2] || first[3] || first[4]));
+      hl = first[1] && !/^https?:/i.test(first[1]) ? first[1] : '';
+      if (!hl) { var bm = /\*\*([^*\n]{8,240})\*\*/.exec(text); if (bm) { hl = bm[1]; } }
+      rest = text;
+      ms.forEach(function (m) { rest = rest.replace(m[0], ' '); });
+      rest = rest.replace(MARK, '').replace(/\*\*/g, '').replace(/\b(Link|URL|Source|Article|Headline|Title|Outlet)\s*:\s*/gi, '');
+      if (!hl) {
+        var fl = rest.split('\n').map(function (l) { return l.replace(MARK, '').replace(/\s*[|\u2014\u2013]\s*$/, '').trim(); }).filter(Boolean)[0] || '';
+        fl = fl.split(/\s[\u2014\u2013|]\s|\s-\s/)[0].replace(/^["\u201c]|["\u201d]$/g, '').trim();
+        if (fl.length >= 12 && fl.length <= 240) { hl = fl; }
+      }
+      hl = hl.replace(/[\s:;,\u2014\u2013-]+$/, '').trim();
+      return { url: url, headline: hl, note: tidyNote(rest, hl) };
+    }
+    var raw = lines[0], bm2 = /\*\*([^*\n]{6,240})\*\*/.exec(raw);
+    hl = (bm2 ? bm2[1] : raw).replace(MARK, '').replace(/\*\*/g, '').trim();
+    var hint = '', parts = hl.split(/\s[\u2014\u2013|]\s|\s-\s/);
+    if (parts.length > 1 && parts[parts.length - 1].split(/\s+/).length <= 4) { hint = parts.pop().trim(); hl = parts.join(' - ').trim(); }
+    if (bm2 && !hint) {
+      var after = raw.replace(bm2[0], ' ').replace(MARK, '').replace(/^[\s\-\u2014\u2013|:,(]+|[\s)]+$/g, '').trim();
+      if (after && after.split(/\s+/).length <= 4 && !LABEL_RE.test(after)) { hint = after; }
+    }
+    hl = hl.replace(/^["\u201c]|["\u201d]$/g, '').replace(/[\s:;,\u2014\u2013-]+$/, '').trim();
+    rest = (bm2 ? raw.replace(bm2[0], ' ').replace(MARK, '') : '') + ' ' + lines.slice(1).join(' ');
+    return { url: '', headline: hl, hint: hint, note: tidyNote(rest.replace(hint, ' '), hl), raw: raw };
+  }
+  function parseIntake(text) {
+    var items = [];
+    entriesOf(text).forEach(function (lines) {
+      var it = itemOf(lines);
+      if (!it.url) {
+        var raw = it.raw.trim();
+        if (/^\|/.test(raw) || /:\s*$/.test(raw) || LABEL_RE.test(raw) || raw.length > 300 || !it.headline) { return; }
+        if (it.headline.split(/\s+/).length < 3) { it.skip = 'Too short to search for'; }
+      }
+      items.push(it);
     });
     var seen = {};
     items.forEach(function (it) {
-      var key = normUrl(it.url), on = onDesk(it.url);
-      if (!isHttp(it.url)) { it.skip = 'Not a full link'; }
-      else if (/(^|\.)zerohedge\.com$/.test(hostOf(it.url))) { it.skip = 'A ZeroHedge link'; }
+      if (it.skip) { it.on = false; return; }
+      var key = it.url ? normUrl(it.url) : 'h:' + normTitle(it.headline), on = it.url ? onDesk(it.url) : onDeskTitle(it.headline);
+      if (it.url && !isHttp(it.url)) { it.skip = 'Not a full link'; }
+      else if (it.url && /(^|\.)zerohedge\.com$/.test(hostOf(it.url))) { it.skip = 'A ZeroHedge link'; }
       else if (on) { it.skip = 'Already on the desk as #' + on.number; }
       else if (seen[key]) { it.skip = 'Listed twice'; }
       seen[key] = true;
@@ -1343,55 +1454,82 @@ textarea.big { min-height: 150px; font: 0.84rem/1.4 var(--mono); }
     });
     return items;
   }
-  var batch = [], bdlg = $('batch-dialog');
-  function renderBatch() {
-    var fresh = batch.filter(function (x) { return !x.skip; }), on = batch.filter(function (x) { return x.on; });
-    $('batch-sum').textContent = batch.length ? 'Found ' + batch.length + ' link' + (batch.length === 1 ? '' : 's') + ': ' + fresh.length + ' new' + (batch.length - fresh.length ? ', ' + (batch.length - fresh.length) + ' skipped' : '') + '.' : '';
-    $('batch-list').hidden = !batch.length;
-    $('batch-list').innerHTML = batch.map(function (x, i) {
-      return '<label class="batch-row' + (x.skip ? ' skip' : '') + '"><input type="checkbox" data-bi="' + i + '"' + (x.on ? ' checked' : '') + (x.skip ? ' disabled' : '') + '><span>' +
-        '<span class="t">' + esc(x.headline || hostOf(x.url) || x.url) + '</span><span class="u">' + esc(x.url) + '</span>' +
-        (x.skip ? '<span class="why">' + esc(x.skip) + '</span>' : (x.note ? '<span class="u">' + esc(x.note.length > 160 ? x.note.slice(0, 158) + '...' : x.note) + '</span>' : '')) + '</span></label>';
-    }).join('');
-    $('batch-submit').disabled = !on.length;
-    $('batch-submit').textContent = on.length ? 'Add ' + on.length + ' stor' + (on.length === 1 ? 'y' : 'ies') : 'Add stories';
-  }
-  $('batch-open').addEventListener('click', function () {
-    batch = []; $('batch-form').reset(); $('batch-source').value = 'GPT'; $('batch-err').hidden = true; renderBatch();
-    if (bdlg.showModal) { bdlg.showModal(); } else { bdlg.setAttribute('open', ''); }
-    $('batch-text').focus();
-  });
-  $('batch-cancel').addEventListener('click', function () { bdlg.close(); });
-  $('batch-text').addEventListener('input', function () { batch = parseBatch(this.value); renderBatch(); });
-  $('batch-list').addEventListener('change', function (ev) { var i = ev.target.dataset && ev.target.dataset.bi; if (i != null) { batch[+i].on = ev.target.checked; renderBatch(); } });
-  $('batch-form').addEventListener('submit', function (ev) {
-    ev.preventDefault();
-    var todo = batch.filter(function (x) { return x.on; });
-    if (!todo.length) { return; }
-    var mode = (document.querySelector('input[name="batch-mode"]:checked') || {}).value || 'scouted';
-    var source = $('batch-source').value.trim() || 'GPT', gpt = /gpt|openai/i.test(source);
-    var me = S.me ? S.me.login : 'desk', made = [], btn = $('batch-submit');
-    btn.disabled = true; $('batch-err').hidden = true;
-    var chain = Promise.resolve();
-    todo.forEach(function (x, k) {
-      chain = chain.then(function () {
-        btn.textContent = 'Adding ' + (k + 1) + ' of ' + todo.length + '...';
-        var meta = { url: x.url, origin: gpt ? 'gpt' : me, source: source, added_by: me, added: new Date().toISOString(), note: x.note, provisional_title: true };
-        return createStory(x.url, x.headline, meta, mode, gpt ? 'origin:gpt' : 'origin:desk', 'Brought in from ' + source + ' on the desk page.')
-          .then(function (iss) { made.push(iss.number); x.on = false; x.skip = 'Added as #' + iss.number; })
-          .then(function () { return new Promise(function (r) { setTimeout(r, 400); }); });
+
+  // One intake routine behind two dialogs: Add stories (yours) and Bring in a batch (GPT's or anyone's list).
+  function Intake(ids, opts) {
+    var self = { items: [] }, el = {};
+    Object.keys(ids).forEach(function (k) { el[k] = $(ids[k]); });
+    function render() {
+      var items = self.items, on = items.filter(function (x) { return x.on; }), fresh = items.filter(function (x) { return !x.skip; });
+      var nl = items.filter(function (x) { return x.url; }).length, nh = items.length - nl;
+      var what = [nl ? nl + ' link' + (nl === 1 ? '' : 's') : '', nh ? nh + ' headline' + (nh === 1 ? '' : 's') : ''].filter(Boolean).join(' and ');
+      el.sum.textContent = items.length ? 'Found ' + what + ': ' + fresh.length + ' new' + (items.length - fresh.length ? ', ' + (items.length - fresh.length) + ' skipped' : '') + '.' : '';
+      el.list.hidden = !items.length;
+      el.list.innerHTML = items.map(function (x, i) {
+        var sub = x.url ? '<span class="u">' + esc(x.url) + '</span>' : '<span class="nolink">No link' + (x.hint ? ' (' + esc(x.hint) + ')' : '') + ': the sweep will find the article</span>';
+        return '<label class="batch-row' + (x.skip ? ' skip' : '') + '"><input type="checkbox" data-bi="' + i + '"' + (x.on ? ' checked' : '') + (x.skip ? ' disabled' : '') + '><span>' +
+          '<span class="t">' + esc(x.headline || hostOf(x.url) || x.url) + '</span>' + sub +
+          (x.skip ? '<span class="why">' + esc(x.skip) + '</span>' : (x.note ? '<span class="u">' + esc(x.note.length > 160 ? x.note.slice(0, 158) + '...' : x.note) + '</span>' : '')) + '</span></label>';
+      }).join('');
+      el.submit.disabled = !on.length;
+      el.submit.textContent = on.length ? 'Add ' + on.length + ' stor' + (on.length === 1 ? 'y' : 'ies') : 'Add stories';
+    }
+    self.open = function () {
+      self.items = []; el.form.reset(); el.err.hidden = true;
+      if (el.beat) { el.beat.innerHTML = beatOptions('', 'No beat'); }
+      if (opts.onOpen) { opts.onOpen(); }
+      render();
+      if (el.dlg.showModal) { el.dlg.showModal(); } else { el.dlg.setAttribute('open', ''); }
+      el.text.focus();
+    };
+    el.text.addEventListener('input', function () { self.items = parseIntake(this.value); render(); });
+    el.list.addEventListener('change', function (ev) { var i = ev.target.dataset && ev.target.dataset.bi; if (i != null) { self.items[+i].on = ev.target.checked; render(); } });
+    el.cancel.addEventListener('click', function () { el.dlg.close(); });
+    el.form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var todo = self.items.filter(function (x) { return x.on; });
+      if (!todo.length) { return; }
+      var o = opts.settings(), made = [];
+      o.beat = el.beat ? el.beat.value : '';
+      el.submit.disabled = true; el.err.hidden = true;
+      var chain = Promise.resolve();
+      todo.forEach(function (x, k) {
+        chain = chain.then(function () {
+          el.submit.textContent = 'Adding ' + (k + 1) + ' of ' + todo.length + '...';
+          return createStory(x, o).then(function (iss) { made.push(iss.number); x.on = false; x.skip = 'Added as #' + iss.number; })
+            .then(function () { return new Promise(function (r) { setTimeout(r, 400); }); });
+        });
+      });
+      chain.then(function () {
+        el.dlg.close();
+        var nh = todo.filter(function (x) { return !x.url; }).length;
+        toast('Added ' + made.length + ' stor' + (made.length === 1 ? 'y' : 'ies') + (o.source ? ' from ' + o.source : '') + (nh ? '. The sweep will find ' + (nh === 1 ? 'the article' : 'the articles') + ' for ' + nh + ' headline' + (nh === 1 ? '' : 's') + '.' : ''));
+        S.lane = laneOf(o.mode); store('lane', S.lane); S.sig = ''; renderAll(true);
+      }).catch(function (e) {
+        render();
+        el.err.textContent = 'Stopped after ' + made.length + ': ' + e.message + '. The rest are still ticked; try again in a minute.';
+        el.err.hidden = false;
+        S.sig = ''; renderAll(true);
       });
     });
-    chain.then(function () {
-      bdlg.close(); toast('Added ' + made.length + ' stor' + (made.length === 1 ? 'y' : 'ies') + ' from ' + source);
-      S.lane = laneOf(mode); store('lane', S.lane); S.sig = ''; renderAll(true);
-    }).catch(function (e) {
-      renderBatch();
-      $('batch-err').textContent = 'Stopped after ' + made.length + ': ' + e.message + '. The rest are still ticked; try again in a minute.';
-      $('batch-err').hidden = false;
-      S.sig = ''; renderAll(true);
-    });
+    return self;
+  }
+  var addIntake = Intake({ dlg: 'add-dialog', form: 'add-form', text: 'add-text', list: 'add-list', sum: 'add-sum', submit: 'add-submit', err: 'add-err', cancel: 'add-cancel', beat: 'add-beat' }, {
+    settings: function () {
+      return { mode: (document.querySelector('input[name="add-mode"]:checked') || {}).value || 'approved', origin: S.me ? S.me.login : 'desk',
+               originLabel: 'origin:desk', footer: 'Added on the desk page.', note: $('add-note').value.trim() };
+    }
   });
+  var batchIntake = Intake({ dlg: 'batch-dialog', form: 'batch-form', text: 'batch-text', list: 'batch-list', sum: 'batch-sum', submit: 'batch-submit', err: 'batch-err', cancel: 'batch-cancel', beat: 'batch-beat' }, {
+    onOpen: function () { $('batch-source').value = 'GPT'; },
+    settings: function () {
+      var source = $('batch-source').value.trim() || 'GPT', gpt = /gpt|openai/i.test(source);
+      return { mode: (document.querySelector('input[name="batch-mode"]:checked') || {}).value || 'scouted', origin: gpt ? 'gpt' : (S.me ? S.me.login : 'desk'),
+               source: source, originLabel: gpt ? 'origin:gpt' : 'origin:desk', footer: 'Brought in from ' + source + ' on the desk page.', note: '' };
+    }
+  });
+  $('add-open').addEventListener('click', addIntake.open);
+  $('batch-open').addEventListener('click', batchIntake.open);
 
   // scan an outlet
   var sdlg = $('scan-dialog');
