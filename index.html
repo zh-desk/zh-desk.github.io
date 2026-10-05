@@ -8,10 +8,13 @@
 <title>Desk</title>
 <!--
   The desk page loader (published as index.html in the public zh-desk.github.io repo; its source lives in
-  zh-desk/desk at page/loader.html). It signs in with the person's own GitHub key and runs the desk page from
-  the private repo: page/index.html (live), or page/preview.html (?v=preview) or page/previous.html (?v=previous).
+  zh-desk/desk at page/loader.html). It signs the person in, then runs the desk page from the private repo:
+  page/index.html (live), or page/preview.html (?v=preview) or page/previous.html (?v=previous).
+  Two ways to sign in: Sign in with GitHub (a GitHub App plus the small Cloudflare Worker in tools/signin-worker.js,
+  set in desk-signin below; empty means off), or a GitHub access key pasted once per browser.
   Keep it small and stable: the desk page changes; this doesn't.
 -->
+<script id="desk-signin" type="application/json">{"clientId": "", "worker": "", "redirect": "https://zh-desk.github.io/"}</script>
 <style>
 :root { --paper: #f3f5f8; --panel: #fff; --ink: #17202c; --muted: #586271; --rule: #d9dee6; --pencil: #2456a8; --proof: #ad2a20; color-scheme: light; }
 @media (prefers-color-scheme: dark) { :root { --paper: #11151b; --panel: #19202a; --ink: #e5e9ef; --muted: #a1abb9; --rule: #2d3643; --pencil: #86aaf0; --proof: #f0948a; color-scheme: dark; } }
@@ -23,11 +26,17 @@ p { margin: 0 0 14px; }
 form { display: grid; gap: 10px; margin: 18px 0; }
 input { font: 1rem ui-monospace, Consolas, "Courier New", monospace; padding: 11px 12px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); width: 100%; }
 button, .btn { font: 700 0.95rem/1.2 "Segoe UI", system-ui, sans-serif; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--pencil); background: var(--pencil); color: #fff; cursor: pointer; min-height: 40px; text-decoration: none; display: inline-block; }
+@media (prefers-color-scheme: dark) { button, .btn { color: #0d1422; } }
+.gh-btn { font-size: 1.05rem; padding: 13px 22px; min-height: 48px; width: 100%; }
 a { color: var(--pencil); }
 :focus-visible { outline: 3px solid var(--pencil); outline-offset: 2px; }
 .err { color: var(--proof); font-weight: 700; }
 .muted { color: var(--muted); }
+.small { font-size: 0.9rem; }
+details { margin-top: 18px; }
 details summary { cursor: pointer; color: var(--pencil); font-weight: 700; }
+details.plain > summary { display: none; }
+details.plain { margin-top: 0; }
 ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 [hidden] { display: none !important; }
@@ -39,26 +48,35 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
   <p id="msg" class="muted" role="status">Loading the desk...</p>
   <p id="again" hidden><button type="button" id="retry">Try again</button></p>
   <section id="signin" hidden>
-    <p>Sign in with your GitHub access key for the desk. It stays in this browser only.</p>
-    <form id="signin-form">
-      <input class="sr-only" type="text" name="username" autocomplete="username" value="zh-desk" tabindex="-1" aria-hidden="true">
-      <label for="key" class="sr-only">Access key</label>
-      <input id="key" name="password" type="password" autocomplete="current-password" spellcheck="false" placeholder="github_pat_...">
-      <button type="submit">Sign in</button>
-      <p class="err" id="err" role="alert" hidden></p>
-    </form>
-    <details>
-      <summary>How do I get a key?</summary>
-      <ol>
-        <li>On github.com, click your profile picture (top right), then <strong>Settings</strong>.</li>
-        <li>At the bottom of the left menu, click <strong>Developer settings</strong>, then <strong>Personal access tokens</strong>, then <strong>Fine-grained tokens</strong>.</li>
-        <li>Click <strong>Generate new token</strong>. Name it <code>ZH desk</code> and pick an expiration.</li>
-        <li>Under <strong>Resource owner</strong>, choose <strong>zh-desk</strong>.</li>
-        <li>Under <strong>Repository access</strong>, choose <strong>Only select repositories</strong> and pick <strong>desk</strong>.</li>
-        <li>Under <strong>Permissions</strong>, set <strong>Contents</strong> and <strong>Issues</strong> to <strong>Read and write</strong>.</li>
-        <li>Click <strong>Generate token</strong>, copy it, and paste it above.</li>
-      </ol>
-      <p style="margin-top:10px">Already signed in on another device? Open the desk there and use <strong>Other devices</strong> at the top to sign this one in with a QR code or a link.</p>
+    <div id="gh" hidden>
+      <p>Sign in with your GitHub account. This browser stays signed in.</p>
+      <p><button type="button" id="gh-go" class="gh-btn">Sign in with GitHub</button></p>
+      <p class="err" id="gh-err" role="alert" hidden></p>
+      <p class="muted small">The first time, GitHub asks you to authorize ZH Desk. You need a GitHub account with access to the desk; Dan adds people.</p>
+    </div>
+    <details id="keys" class="plain" open>
+      <summary>Use an access key instead</summary>
+      <p id="key-intro">Sign in with your GitHub access key for the desk. It stays in this browser only.</p>
+      <form id="signin-form">
+        <input class="sr-only" type="text" name="username" autocomplete="username" value="zh-desk" tabindex="-1" aria-hidden="true">
+        <label for="key" class="sr-only">Access key</label>
+        <input id="key" name="password" type="password" autocomplete="current-password" spellcheck="false" placeholder="github_pat_...">
+        <button type="submit">Sign in</button>
+        <p class="err" id="err" role="alert" hidden></p>
+      </form>
+      <details>
+        <summary>How do I get a key?</summary>
+        <ol>
+          <li>On github.com, click your profile picture (top right), then <strong>Settings</strong>.</li>
+          <li>At the bottom of the left menu, click <strong>Developer settings</strong>, then <strong>Personal access tokens</strong>, then <strong>Fine-grained tokens</strong>.</li>
+          <li>Click <strong>Generate new token</strong>. Name it <code>ZH desk</code> and pick an expiration.</li>
+          <li>Under <strong>Resource owner</strong>, choose <strong>zh-desk</strong>.</li>
+          <li>Under <strong>Repository access</strong>, choose <strong>Only select repositories</strong> and pick <strong>desk</strong>.</li>
+          <li>Under <strong>Permissions</strong>, set <strong>Contents</strong> and <strong>Issues</strong> to <strong>Read and write</strong>.</li>
+          <li>Click <strong>Generate token</strong>, copy it, and paste it above.</li>
+        </ol>
+        <p style="margin-top:10px">Already signed in on another device? Open the desk there and use <strong>Other devices</strong> at the top to sign this one in with a QR code or a link.</p>
+      </details>
     </details>
   </section>
 </div>
@@ -68,21 +86,40 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
   var PAGE = 'https://api.github.com/repos/zh-desk/desk/contents/page/';
   var FILES = { live: 'index.html', preview: 'preview.html', previous: 'previous.html' };
   var NAMES = { preview: 'a preview of a desk page change', previous: 'the previous version of the desk page' };
-  var v = new URLSearchParams(location.search).get('v');
+  var CFG = {};
+  try { CFG = JSON.parse(document.getElementById('desk-signin').textContent) || {}; } catch (e) { CFG = {}; }
+  var GH = !!(CFG.clientId && CFG.worker);
+  var REDIRECT = CFG.redirect || (location.origin + '/');
+  var query = new URLSearchParams(location.search);
+  var v = query.get('v');
   var which = FILES[v] ? v : 'live';
   function $(id) { return document.getElementById(id); }
-  function store(k, val) {
+  function keep(area, k, val) {
     try {
-      if (val === undefined) { return window.localStorage.getItem('desk.' + k); }
-      if (val === null) { window.localStorage.removeItem('desk.' + k); } else { window.localStorage.setItem('desk.' + k, val); }
+      var s = window[area];
+      if (val === undefined) { return s.getItem('desk.' + k); }
+      if (val === null) { s.removeItem('desk.' + k); } else { s.setItem('desk.' + k, val); }
     } catch (e) { return null; }
     return null;
   }
-  function say(text, retry) { $('msg').textContent = text; $('msg').hidden = false; $('again').hidden = !retry; }
-  function askKey(why) {
+  function store(k, val) { return keep('localStorage', k, val); }
+  function sess(k, val) { return keep('sessionStorage', k, val); }
+  // The desk page reads this to renew GitHub sign-ins and to know where Sign out goes.
+  store('signin', GH ? JSON.stringify({ worker: CFG.worker, clientId: CFG.clientId }) : null);
+
+  function say(text, retry) { $('signin').hidden = true; $('msg').textContent = text; $('msg').hidden = false; $('again').hidden = !retry; }
+  function askKey(why, keyProblem) {
     $('msg').hidden = true; $('again').hidden = true; $('signin').hidden = false;
-    if (why) { $('err').textContent = why; $('err').hidden = false; }
-    $('key').focus();
+    $('gh').hidden = !GH;
+    var keys = $('keys');
+    keys.className = GH ? '' : 'plain';
+    keys.open = !GH || !!keyProblem;
+    $('err').hidden = true; $('gh-err').hidden = true;
+    if (why) {
+      var box = GH && !keyProblem ? $('gh-err') : $('err');
+      box.textContent = why; box.hidden = false;
+    }
+    if (GH && !keyProblem) { $('gh-go').focus(); } else { $('key').focus(); }
   }
   function getPage(token) {
     return fetch(PAGE + FILES[which] + '?ref=main', {
@@ -93,6 +130,59 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
       var e = new Error('GitHub said ' + r.status); e.status = r.status; throw e;
     });
   }
+
+  // ---- GitHub sign-in
+  function saveAuth(t) {
+    store('token', t.access_token);
+    store('refresh', t.refresh_token || null);
+    store('expires', t.expires_in ? String(Date.now() + t.expires_in * 1000) : null);
+    store('auth', 'github');
+  }
+  function clearAuth() { ['token', 'refresh', 'expires', 'auth'].forEach(function (k) { store(k, null); }); }
+  function helper(body) {
+    return fetch(CFG.worker, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store' })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (b) {
+          if (!r.ok || !b.access_token) { throw new Error(b.error_description || b.error || ('the sign-in helper said ' + r.status)); }
+          return b;
+        });
+      });
+  }
+  function renew() {
+    var rt = store('refresh');
+    if (!GH || !rt) { return Promise.reject(new Error('nothing to renew')); }
+    return helper({ refresh_token: rt }).then(function (t) { saveAuth(t); return t.access_token; });
+  }
+  function b64url(bytes) {
+    var s = '';
+    for (var i = 0; i < bytes.length; i++) { s += String.fromCharCode(bytes[i]); }
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function random() { var a = new Uint8Array(32); crypto.getRandomValues(a); return b64url(a); }
+  function startGitHub() {
+    var state = random(), verifier = random();
+    sess('state', state); sess('verifier', verifier); sess('v', which !== 'live' ? which : null);
+    $('gh-go').disabled = true;
+    crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)).then(function (h) {
+      var p = new URLSearchParams({ client_id: CFG.clientId, redirect_uri: REDIRECT, state: state,
+                                    code_challenge: b64url(new Uint8Array(h)), code_challenge_method: 'S256' });
+      location.assign('https://github.com/login/oauth/authorize?' + p.toString());
+    }).catch(function (e) { $('gh-go').disabled = false; askKey('Couldn\'t start the GitHub sign-in: ' + e.message); });
+  }
+  function finishGitHub(code, state, error) {
+    var back = sess('v'), want = sess('state'), verifier = sess('verifier');
+    sess('v', null); sess('state', null); sess('verifier', null);
+    if (back && FILES[back]) { which = back; }
+    try { history.replaceState(null, '', location.pathname + (which !== 'live' ? '?v=' + which : '')); } catch (e) { /* fine */ }
+    if (error) { askKey(error === 'access_denied' ? 'Sign-in was cancelled.' : 'GitHub didn\'t sign you in (' + error + '). Try again.'); return; }
+    if (!GH || !want || state !== want) { askKey('That sign-in didn\'t start on this page. Press Sign in with GitHub again.'); return; }
+    say('Signing in...');
+    helper({ code: code, code_verifier: verifier || undefined, redirect_uri: REDIRECT }).then(function (t) {
+      saveAuth(t); go(t.access_token, false);
+    }).catch(function (e) { askKey('GitHub sign-in didn\'t finish: ' + e.message + '. Try again.'); });
+  }
+
+  // ---- running the desk page
   function started() {
     var d = document.getElementById('desk'), s = document.getElementById('signin');
     return window.__deskStarted || (d && !d.hidden) || (s && !s.hidden && !document.getElementById('signin-form').dataset.loader);
@@ -117,34 +207,44 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
       note('The desk page didn\'t start. <a href="/?v=previous" style="color:#fff">Open the previous version</a>, where "Undo the last page change" puts it back, or <a href="" style="color:#fff">reload</a>.', '#ad2a20');
     }, 15000);
   }
-  function go(token, fromLink) {
+  function go(token, fromLink, renewed) {
     say('Loading the desk...');
     getPage(token).then(function (html) {
       if (fromLink) { try { sessionStorage.setItem('desk.linked', '1'); } catch (e) { /* fine */ } }
       run(html, token);
     }).catch(function (e) {
+      if (e.status === 401 && !renewed && !fromLink && store('auth') === 'github' && store('refresh')) {
+        renew().then(function (t) { go(t, false, true); }).catch(function () { clearAuth(); askKey('Your GitHub sign-in ran out. Sign in again.'); });
+        return;
+      }
       if (e.status === 401) {
         if (fromLink && saved && saved !== token) { go(saved, false); return; }
-        store('token', null);
-        askKey(fromLink ? 'That sign-in link has a key GitHub no longer accepts. Make a new link on a signed-in device, or paste a new key.' : 'That access key stopped working. Sign in with a new one.');
+        var wasGitHub = store('auth') === 'github';
+        clearAuth();
+        askKey(fromLink ? 'That sign-in link has a key GitHub no longer accepts. Make a new link on a signed-in device, or paste a new key.' :
+          wasGitHub ? 'Your GitHub sign-in ran out. Sign in again.' : 'That access key stopped working. Sign in with a new one.', !wasGitHub);
       } else if (e.status === 404 && which !== 'live') {
         say('There\'s no ' + (which === 'preview' ? 'preview to try' : 'earlier version') + ' right now.');
         $('msg').insertAdjacentHTML('beforeend', ' <a href="/">Open the live desk</a>');
       } else if (e.status === 404 || e.status === 403) {
-        askKey('That key works, but it can\'t see the desk. Make sure its resource owner is zh-desk and it includes the desk repository. If GitHub shows it as pending, an owner has to approve it first.');
+        var gh = store('auth') === 'github';
+        clearAuth();
+        askKey(gh ? 'You\'re signed in to GitHub, but your account can\'t see the desk yet. Ask Dan to add you to zh-desk, then sign in again.' :
+          'That key works, but it can\'t see the desk. Make sure its resource owner is zh-desk and it includes the desk repository. If GitHub shows it as pending, an owner has to approve it first.', !gh);
       } else {
         say('Couldn\'t reach GitHub: ' + e.message + '.', true);
       }
     });
   }
   $('retry').addEventListener('click', function () { var t = store('token'); if (t) { go(t, false); } else { askKey(); } });
+  $('gh-go').addEventListener('click', startGitHub);
   $('signin-form').dataset.loader = '1';
   $('signin-form').addEventListener('submit', function (ev) {
     ev.preventDefault();
     var key = $('key').value.trim();
     $('err').hidden = true;
     if (!key) { return; }
-    getPage(key).then(function (html) { run(html, key); }).catch(function (e) {
+    getPage(key).then(function (html) { clearAuth(); run(html, key); }).catch(function (e) {
       $('err').textContent = e.status === 401 ? 'GitHub didn\'t accept that key. Check that you copied all of it.' :
         (e.status === 404 || e.status === 403) ? 'That key works, but it can\'t see the desk. Make sure its resource owner is zh-desk and it includes the desk repository. If GitHub shows it as pending, an owner has to approve it first.' :
         'Couldn\'t sign in: ' + e.message;
@@ -153,13 +253,21 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
   });
 
   var link = /^#key=([^&]+)/.exec(location.hash || ''), saved = store('token');
-  if (link) {
+  var parting = sess('msg');
+  if (parting) { sess('msg', null); }
+  var expires = +store('expires') || 0;
+  if (query.get('code') || query.get('error')) {
+    finishGitHub(query.get('code'), query.get('state'), query.get('error'));
+  } else if (link) {
     try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { location.hash = ''; }
     go(decodeURIComponent(link[1]), true);
+  } else if (saved && store('auth') === 'github' && expires && expires - Date.now() < 120000 && store('refresh') && GH) {
+    say('Loading the desk...');
+    renew().then(function (t) { go(t, false, true); }).catch(function () { clearAuth(); askKey('Your GitHub sign-in ran out. Sign in again.'); });
   } else if (saved) {
     go(saved, false);
   } else {
-    askKey();
+    askKey(parting || '');
   }
 })();
 </script>
