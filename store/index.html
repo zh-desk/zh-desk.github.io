@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>ZH Store board</title>
+<!--
+  Loader for the ZH Store board (https://zh-desk.github.io/store/). Like the desk loader next door (../index.html),
+  it holds no data: it uses the sign-in the desk already saved in this browser (or an access key pasted here), reads
+  store/board.html from the private zh-desk/desk repo with that key, and runs it. The board then reads
+  store/latest.json the same way. Source of truth for the board itself: zh-desk/desk, store/.
+-->
+<style>
+:root { --paper: #f3f5f8; --panel: #fff; --ink: #17202c; --muted: #586271; --rule: #d9dee6; --pencil: #2456a8; --proof: #ad2a20; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --paper: #11151b; --panel: #19202a; --ink: #e5e9ef; --muted: #a1abb9; --rule: #2d3643; --pencil: #86aaf0; --proof: #f0948a; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+.box { max-width: 560px; margin: 10vh auto 0; padding: 0 20px; }
+h1 { font: 600 2.2rem/1.1 Georgia, "Times New Roman", serif; margin: 0 0 10px; }
+p { margin: 0 0 14px; }
+form { display: grid; gap: 10px; margin: 18px 0; }
+input { font: 1rem ui-monospace, Consolas, "Courier New", monospace; padding: 11px 12px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); width: 100%; }
+button, .btn { font: 700 0.95rem/1.2 "Segoe UI", system-ui, sans-serif; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--pencil); background: var(--pencil); color: #fff; cursor: pointer; min-height: 40px; text-decoration: none; display: inline-block; }
+@media (prefers-color-scheme: dark) { button, .btn { color: #0d1422; } }
+a { color: var(--pencil); }
+:focus-visible { outline: 3px solid var(--pencil); outline-offset: 2px; }
+.err { color: var(--proof); font-weight: 600; }
+.muted { color: var(--muted); font-size: 0.92rem; }
+details summary { cursor: pointer; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="box" id="signin" hidden>
+  <h1>ZH Store board</h1>
+  <p>The board uses the same sign-in as the desk.</p>
+  <p><a class="btn" href="/">Sign in at the desk, then come back</a></p>
+  <p class="err" id="err" hidden></p>
+  <details id="keys"><summary>Or paste an access key</summary>
+    <form id="signin-form"><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" aria-label="GitHub access key"><button type="submit">Open the board</button></form>
+    <p class="muted">A fine-grained GitHub key with resource owner zh-desk, the desk repository, and read access to Contents. It stays in this browser.</p>
+  </details>
+</div>
+<div class="box" id="msg" hidden></div>
+<script>
+(function () {
+  'use strict';
+  var PAGE = 'https://api.github.com/repos/zh-desk/desk/contents/store/board.html?ref=main';
+  function $(id) { return document.getElementById(id); }
+  function store(k, val) {
+    try { var s = window.localStorage; if (val === undefined) { return s.getItem('desk.' + k); } if (val === null) { s.removeItem('desk.' + k); } else { s.setItem('desk.' + k, val); } } catch (e) { return null; }
+    return null;
+  }
+  function cfg() { try { return JSON.parse(store('signin') || '{}') || {}; } catch (e) { return {}; } }
+  function say(text) { $('signin').hidden = true; $('msg').textContent = text; $('msg').hidden = false; }
+  function ask(why) { $('msg').hidden = true; $('signin').hidden = false; if (why) { $('err').textContent = why; $('err').hidden = false; } }
+  function getPage(token) {
+    return fetch(PAGE, { headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github.raw+json', 'X-GitHub-Api-Version': '2022-11-28' }, cache: 'no-cache' })
+      .then(function (r) { if (r.ok) { return r.text(); } var e = new Error('GitHub said ' + r.status); e.status = r.status; throw e; });
+  }
+  function saveAuth(t) { store('token', t.access_token); store('refresh', t.refresh_token || null); store('expires', t.expires_in ? String(Date.now() + t.expires_in * 1000) : null); store('auth', 'github'); }
+  function renew() {
+    var c = cfg(), rt = store('refresh');
+    if (!c.worker || !rt) { return Promise.reject(new Error('nothing to renew')); }
+    return fetch(c.worker, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }), cache: 'no-store' })
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (b) { if (!r.ok || !b.access_token) { throw new Error(b.error_description || b.error || ('the sign-in helper said ' + r.status)); } saveAuth(b); return b.access_token; }); });
+  }
+  function run(html) { document.open(); document.write(html); document.close(); }
+  function go(token, renewed) {
+    say('Loading the store board…');
+    getPage(token).then(run).catch(function (e) {
+      if (e.status === 401 && !renewed && store('auth') === 'github' && store('refresh')) {
+        renew().then(function (t) { go(t, true); }).catch(function () { ask('Your GitHub sign-in ran out. Sign in at the desk again.'); });
+        return;
+      }
+      if (e.status === 401) { ask(store('auth') === 'github' ? 'Your GitHub sign-in ran out. Sign in at the desk again.' : 'That key stopped working. Sign in again.'); }
+      else if (e.status === 404) { say('There\'s no store board right now (store/board.html is missing from the desk repo).'); }
+      else if (e.status === 403) { ask('You\'re signed in, but your account can\'t see the desk repo. Ask Dan to add you to zh-desk.'); }
+      else { say('Couldn\'t reach GitHub: ' + e.message + '. Reload to try again.'); }
+    });
+  }
+  $('signin-form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var key = $('key').value.trim(); if (!key) { return; }
+    $('err').hidden = true;
+    getPage(key).then(function (html) { ['refresh', 'expires', 'auth'].forEach(function (k) { store(k, null); }); store('token', key); run(html); })
+      .catch(function (e) { ask(e.status === 401 ? 'GitHub didn\'t accept that key. Check that you copied all of it.' : (e.status === 404 || e.status === 403) ? 'That key works, but it can\'t see the desk repo. Its resource owner must be zh-desk and it must include the desk repository.' : 'Couldn\'t sign in: ' + e.message); });
+  });
+  var saved = store('token'), expires = +store('expires') || 0;
+  if (saved && store('auth') === 'github' && expires && expires - Date.now() < 120000 && store('refresh') && cfg().worker) {
+    say('Loading the store board…');
+    renew().then(function (t) { go(t, true); }).catch(function () { ask('Your GitHub sign-in ran out. Sign in at the desk again.'); });
+  } else if (saved) { go(saved, false); } else { ask(''); }
+})();
+</script>
+</body>
+</html>
