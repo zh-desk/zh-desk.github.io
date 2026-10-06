@@ -7,8 +7,8 @@
 <meta name="referrer" content="no-referrer">
 <title>ZH Store board</title>
 <!--
-  Loader for the ZH Store board (https://zh-desk.github.io/store/). Like the desk loader next door (../index.html),
-  it holds no data: it uses the sign-in the desk already saved in this browser (or an access key pasted here), reads
+  Loader for the ZH Store board (https://zh-desk.github.io/store/; ?v=preview and ?v=previous open store/board.preview.html
+  and store/board.previous.html). Like the desk loader next door (../index.html), it holds no data: it uses the sign-in the desk already saved in this browser (or an access key pasted here), reads
   store/board.html from the private zh-desk/desk repo with that key, and runs it. The board then reads
   store/latest.json the same way. Source of truth for the board itself: zh-desk/desk, store/.
 -->
@@ -46,7 +46,10 @@ details summary { cursor: pointer; color: var(--muted); }
 <script>
 (function () {
   'use strict';
-  var PAGE = 'https://api.github.com/repos/zh-desk/desk/contents/store/board.html?ref=main';
+  var FILES = { live: 'store/board.html', preview: 'store/board.preview.html', previous: 'store/board.previous.html' };
+  var NAMES = { preview: 'a preview of a board change', previous: 'the previous version of the board' };
+  var v = new URLSearchParams(location.search).get('v'), which = FILES[v] ? v : 'live';
+  var PAGE = 'https://api.github.com/repos/zh-desk/desk/contents/' + FILES[which] + '?ref=main';
   function $(id) { return document.getElementById(id); }
   function store(k, val) {
     try { var s = window.localStorage; if (val === undefined) { return s.getItem('desk.' + k); } if (val === null) { s.removeItem('desk.' + k); } else { s.setItem('desk.' + k, val); } } catch (e) { return null; }
@@ -66,7 +69,15 @@ details summary { cursor: pointer; color: var(--muted); }
     return fetch(c.worker, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }), cache: 'no-store' })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (b) { if (!r.ok || !b.access_token) { throw new Error(b.error_description || b.error || ('the sign-in helper said ' + r.status)); } saveAuth(b); return b.access_token; }); });
   }
-  function run(html) { document.open(); document.write(html); document.close(); }
+  function run(html) {
+    document.open(); document.write(html); document.close();
+    if (which !== 'live') {
+      var bar = document.createElement('div'); bar.setAttribute('role', 'status');
+      bar.style.cssText = 'position:sticky;top:0;z-index:9999;padding:9px 16px;font:700 14px/1.4 "Segoe UI",system-ui,sans-serif;color:#fff;background:' + (which === 'preview' ? '#6b3fc4' : '#8a5a00');
+      bar.innerHTML = 'You\'re looking at ' + NAMES[which] + '. <a href="/store/" style="color:#fff">Back to the live board</a>';
+      document.body.insertBefore(bar, document.body.firstChild);
+    }
+  }
   function go(token, renewed) {
     say('Loading the store board…');
     getPage(token).then(run).catch(function (e) {
@@ -75,6 +86,7 @@ details summary { cursor: pointer; color: var(--muted); }
         return;
       }
       if (e.status === 401) { ask(store('auth') === 'github' ? 'Your GitHub sign-in ran out. Sign in at the desk again.' : 'That key stopped working. Sign in again.'); }
+      else if (e.status === 404 && which !== 'live') { say('There\'s no ' + (which === 'preview' ? 'preview to try' : 'earlier version') + ' right now.'); $('msg').insertAdjacentHTML('beforeend', ' <a href="/store/">Open the live board</a>'); }
       else if (e.status === 404) { say('There\'s no store board right now (store/board.html is missing from the desk repo).'); }
       else if (e.status === 403) { ask('You\'re signed in, but your account can\'t see the desk repo. Ask Dan to add you to zh-desk.'); }
       else { say('Couldn\'t reach GitHub: ' + e.message + '. Reload to try again.'); }
