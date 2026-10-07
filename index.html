@@ -161,7 +161,7 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
   function random() { var a = new Uint8Array(32); crypto.getRandomValues(a); return b64url(a); }
   function startGitHub() {
     var state = random(), verifier = random();
-    sess('state', state); sess('verifier', verifier); sess('v', which !== 'live' ? which : null);
+    sess('state', state); sess('verifier', verifier); sess('v', which !== 'live' ? which : null); sess('after', null);
     $('gh-go').disabled = true;
     crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)).then(function (h) {
       var p = new URLSearchParams({ client_id: CFG.clientId, redirect_uri: REDIRECT, state: state,
@@ -177,8 +177,11 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
     if (error) { askKey(error === 'access_denied' ? 'Sign-in was cancelled.' : 'GitHub didn\'t sign you in (' + error + '). Try again.'); return; }
     if (!GH || !want || state !== want) { askKey('That sign-in didn\'t start on this page. Press Sign in with GitHub again.'); return; }
     say('Signing in...');
+    var after = sess('after'); sess('after', null);   // a sign-in started on another desk page (the author desk, /write/) goes back there
     helper({ code: code, code_verifier: verifier || undefined, redirect_uri: REDIRECT }).then(function (t) {
-      saveAuth(t); go(t.access_token, false);
+      saveAuth(t);
+      if (after && /^\/[a-z]+\/$/.test(after)) { location.replace(after); return; }
+      go(t.access_token, false);
     }).catch(function (e) { askKey('GitHub sign-in didn\'t finish: ' + e.message + '. Try again.'); });
   }
 

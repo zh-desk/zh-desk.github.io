@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>ZH Author Desk</title>
+<!--
+  The author portal (Oct. 7, 2026). Part-time authors sign in with GitHub and write house originals here; each sees only
+  their own articles. Authors have no access to the desk repository: the desk's sign-in helper (tools/signin-worker.js in
+  zh-desk/desk, routes /author/*) checks who they are against config/authors.json and reads and writes only
+  authors/<their login>/ for them. Submitting sends the article to the desk's House lane and a Claude prep run.
+  Everything here is in this one file: no outside scripts.
+-->
+<script id="desk-signin" type="application/json">{"clientId": "Iv23li3HIxBazcHkRTlw", "worker": "https://zh-desk-signin.zeropointnowagain.workers.dev/", "redirect": "https://zh-desk.github.io/"}</script>
+<style>
+:root { --paper: #f4f5f7; --panel: #fff; --ink: #171b22; --muted: #5d6673; --rule: #d8dde5; --accent: #b4520f; --accent-ink: #fff; --good: #1f7a45; --warn: #9a5b00; --bad: #ad2a20; --code: #f0f2f5; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper: #11141a; --panel: #191e26; --ink: #e6e9ee; --muted: #a0a9b6; --rule: #2c3440; --accent: #f08a3c; --accent-ink: #1a1206; --good: #6fcf97; --warn: #f2c26b; --bad: #f0948a; --code: #12161c; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+a { color: var(--accent); }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 1px solid var(--rule); background: var(--panel); border-radius: 6px; padding: 6px 12px; }
+button:disabled { opacity: .55; cursor: default; }
+.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+header { display: flex; align-items: center; gap: 14px; padding: 12px 20px; border-bottom: 1px solid var(--rule); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+header h1 { font: 700 1.25rem/1.1 Georgia, "Times New Roman", serif; margin: 0; flex: 1; }
+header .who { color: var(--muted); font-size: .9rem; }
+.wrap { display: grid; grid-template-columns: 260px 1fr; gap: 0; min-height: calc(100vh - 54px); }
+aside { border-right: 1px solid var(--rule); padding: 14px; background: var(--panel); }
+aside h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 10px; }
+.list { list-style: none; margin: 10px 0 0; padding: 0; }
+.list li { padding: 8px 10px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.list li:hover { background: var(--paper); }
+.list li.on { border-color: var(--accent); background: var(--paper); }
+.list .t { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip { display: inline-block; font-size: .72rem; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--rule); color: var(--muted); }
+.chip.returned { color: var(--bad); border-color: var(--bad); }
+.chip.prep, .chip.ready { color: var(--warn); border-color: var(--warn); }
+.chip.posted { color: var(--good); border-color: var(--good); }
+main { padding: 18px 24px 60px; max-width: 980px; width: 100%; }
+.title { width: 100%; font: 700 1.7rem/1.2 Georgia, "Times New Roman", serif; border: 0; border-bottom: 1px solid var(--rule); background: transparent; padding: 6px 0; outline: none; }
+.banner { margin: 12px 0; padding: 10px 12px; border-radius: 6px; border-left: 4px solid var(--warn); background: var(--panel); }
+.banner.returned { border-left-color: var(--bad); }
+.banner.posted { border-left-color: var(--good); }
+.tabs { display: flex; gap: 4px; margin: 14px 0 0; }
+.tabs button { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0; }
+.tabs button[aria-selected="true"] { background: var(--panel); font-weight: 600; box-shadow: inset 0 3px 0 var(--accent); }
+.tabs button[aria-selected="false"] { background: transparent; }
+.pane { border: 1px solid var(--rule); background: var(--panel); border-radius: 0 6px 6px 6px; }
+.bar { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; border-bottom: 1px solid var(--rule); position: sticky; top: 54px; background: var(--panel); z-index: 2; }
+.bar button { padding: 4px 9px; min-width: 32px; }
+.bar .sep { width: 1px; background: var(--rule); margin: 2px 4px; }
+#write { min-height: 420px; padding: 16px 20px; outline: none; font: 17px/1.6 Georgia, "Times New Roman", serif; }
+#write img, #preview img { max-width: 100%; height: auto; }
+#write blockquote, #preview blockquote { border-left: 3px solid var(--rule); margin: 1em 0; padding: 0 0 0 14px; color: var(--muted); }
+#write .embed, #preview .embed { border: 1px dashed var(--rule); padding: 8px; font: 12px/1.4 ui-monospace, Consolas, monospace; color: var(--muted); white-space: pre-wrap; word-break: break-all; }
+#html { width: 100%; min-height: 460px; border: 0; padding: 14px; font: 13px/1.5 ui-monospace, Consolas, monospace; background: var(--code); resize: vertical; }
+#preview { padding: 16px 20px; font: 17px/1.6 Georgia, "Times New Roman", serif; }
+#preview h1 { font-size: 1.8rem; line-height: 1.2; }
+.drop { margin: 12px 0; padding: 14px; border: 2px dashed var(--rule); border-radius: 8px; text-align: center; color: var(--muted); }
+.drop.over { border-color: var(--accent); color: var(--ink); }
+.pics { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 8px; }
+.pic { border: 1px solid var(--rule); border-radius: 6px; padding: 8px; background: var(--panel); }
+.pic img { width: 100%; height: 120px; object-fit: cover; border-radius: 4px; background: var(--paper); }
+.pic input[type=text] { width: 100%; margin-top: 4px; padding: 4px 6px; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); }
+.notes { margin-top: 18px; }
+.notes .n { border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; margin: 6px 0; background: var(--panel); white-space: pre-wrap; }
+.notes .n.author { border-style: dashed; }
+.box { max-width: 520px; margin: 12vh auto 0; padding: 0 20px; text-align: center; }
+.box h1 { font: 700 2rem/1.15 Georgia, "Times New Roman", serif; margin: 0 0 10px; }
+.toast { position: fixed; right: 18px; bottom: 18px; background: var(--ink); color: var(--paper); padding: 10px 14px; border-radius: 6px; max-width: 420px; z-index: 20; }
+.toast.bad { background: var(--bad); color: #fff; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (max-width: 760px) { .wrap { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 1px solid var(--rule); } main { padding: 14px 16px 60px; } .bar { top: 0; position: static; } }
+</style>
+</head>
+<body>
+<div class="box" id="gate">
+  <h1>ZH Author Desk</h1>
+  <p class="muted" id="gate-msg">Write and submit articles for ZeroHedge. Sign in with your GitHub account.</p>
+  <p><button class="primary" type="button" id="gh-go">Sign in with GitHub</button></p>
+  <p class="muted small">The first time, GitHub asks you to authorize ZH Desk. You'll only ever see your own articles here.</p>
+</div>
+
+<div id="app" hidden>
+  <header>
+    <h1>ZH Author Desk</h1>
+    <span class="who" id="who"></span>
+    <button type="button" id="signout">Sign out</button>
+  </header>
+  <div class="wrap">
+    <aside>
+      <button class="primary" type="button" id="new" style="width:100%">+ New article</button>
+      <h2 style="margin-top:18px">My articles</h2>
+      <ul class="list" id="list"></ul>
+      <p class="muted small" id="list-empty" hidden>Nothing yet. Start a new article, or drop a Word file or HTML onto the page.</p>
+    </aside>
+    <main>
+      <input class="title" id="title" placeholder="Headline" aria-label="Headline" autocomplete="off">
+      <div id="banner" class="banner" hidden></div>
+      <div class="drop" id="drop">Drop a Word file (.docx), an HTML file or a text file here to load it, or <button type="button" id="open-file">choose a file</button>.
+        <input type="file" id="file" accept=".docx,.html,.htm,.txt,.md" hidden></div>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="write" aria-selected="true">Write</button>
+        <button type="button" role="tab" data-tab="html" aria-selected="false">HTML</button>
+        <button type="button" role="tab" data-tab="preview" aria-selected="false">Preview</button>
+      </div>
+      <div class="pane">
+        <div id="pane-write">
+          <div class="bar" id="bar">
+            <button type="button" data-cmd="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+            <button type="button" data-cmd="italic" title="Italic (Ctrl+I)"><em>I</em></button>
+            <span class="sep"></span>
+            <button type="button" data-block="h2" title="Subhead">H2</button>
+            <button type="button" data-block="h3" title="Smaller subhead">H3</button>
+            <button type="button" data-block="p" title="Plain paragraph">¶</button>
+            <button type="button" data-block="blockquote" title="Quote">“ ”</button>
+            <span class="sep"></span>
+            <button type="button" data-cmd="insertUnorderedList" title="Bulleted list">• List</button>
+            <button type="button" data-cmd="insertOrderedList" title="Numbered list">1. List</button>
+            <span class="sep"></span>
+            <button type="button" id="link" title="Link (Ctrl+K)">Link</button>
+            <button type="button" data-cmd="unlink" title="Remove link">Unlink</button>
+            <button type="button" id="pic-btn" title="Insert a picture">Picture</button>
+            <button type="button" id="embed-btn" title="Paste embed code (a tweet, a YouTube video)">Embed</button>
+            <span class="sep"></span>
+            <button type="button" data-cmd="removeFormat" title="Clear formatting">Clear</button>
+            <button type="button" data-cmd="undo" title="Undo (Ctrl+Z)">↶</button>
+            <button type="button" data-cmd="redo" title="Redo (Ctrl+Y)">↷</button>
+            <input type="file" id="pic-file" accept="image/jpeg,image/png,image/gif,image/webp" multiple hidden>
+          </div>
+          <div id="write" contenteditable="true" aria-label="Article"></div>
+        </div>
+        <div id="pane-html" hidden><textarea id="html" spellcheck="false" aria-label="Article HTML"></textarea></div>
+        <div id="pane-preview" hidden><div id="preview"></div></div>
+      </div>
+      <h2 class="muted small" style="margin:18px 0 0;text-transform:uppercase;letter-spacing:.06em">Pictures</h2>
+      <p class="muted small" style="margin:4px 0">Add a caption and credit for each. Mark the one that should lead the article.</p>
+      <div class="pics" id="pics"></div>
+      <h2 class="muted small" style="margin:18px 0 4px;text-transform:uppercase;letter-spacing:.06em">Note to the editors</h2>
+      <textarea class="note" id="note" placeholder="Anything the editors should know: sources, timing, what to check."></textarea>
+      <div class="row">
+        <button type="button" id="save">Save draft</button>
+        <button type="button" class="primary" id="submit">Submit to the editors</button>
+        <span class="muted small" id="saved"></span>
+      </div>
+      <div class="notes" id="notes" hidden>
+        <h2 class="muted small" style="text-transform:uppercase;letter-spacing:.06em">Notes</h2>
+        <div id="notes-list"></div>
+        <textarea class="note" id="reply" placeholder="Reply to the editors"></textarea>
+        <div class="row"><button type="button" id="reply-send">Send reply</button></div>
+      </div>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+(function () {
+  'use strict';
+  var CFG = {};
+  try { CFG = JSON.parse(document.getElementById('desk-signin').textContent) || {}; } catch (e) { CFG = {}; }
+  var WORKER = String(CFG.worker || '').replace(/\/?$/, '/');
+  var REDIRECT = CFG.redirect || (location.origin + '/');
+  function $(id) { return document.getElementById(id); }
+  function keep(area, k, val) {
+    try {
+      var s = window[area];
+      if (val === undefined) { return s.getItem('desk.' + k); }
+      if (val === null) { s.removeItem('desk.' + k); } else { s.setItem('desk.' + k, val); }
+    } catch (e) { return null; }
+    return null;
+  }
+  function store(k, v) { return keep('localStorage', k, v); }
+  function sess(k, v) { return keep('sessionStorage', k, v); }
+  function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  var toastT = null;
+  function toast(text, bad, ms) {
+    var t = $('toast'); t.textContent = text; t.className = 'toast' + (bad ? ' bad' : ''); t.hidden = false;
+    clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, ms || (bad ? 9000 : 4000));
+  }
+
+  // ---------- sign-in (GitHub, through the desk's sign-in helper; the desk loader at / finishes it and sends people back)
+  function b64url(bytes) { var s = ''; for (var i = 0; i < bytes.length; i++) { s += String.fromCharCode(bytes[i]); } return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function random() { var a = new Uint8Array(32); crypto.getRandomValues(a); return b64url(a); }
+  function startGitHub() {
+    var state = random(), verifier = random();
+    sess('state', state); sess('verifier', verifier); sess('v', null); sess('after', '/write/');
+    $('gh-go').disabled = true;
+    crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)).then(function (h) {
+      var p = new URLSearchParams({ client_id: CFG.clientId, redirect_uri: REDIRECT, state: state, code_challenge: b64url(new Uint8Array(h)), code_challenge_method: 'S256' });
+      location.assign('https://github.com/login/oauth/authorize?' + p.toString());
+    }).catch(function (e) { $('gh-go').disabled = false; gate('Couldn\'t start the GitHub sign-in: ' + e.message); });
+  }
+  function gate(msg) { $('app').hidden = true; $('gate').hidden = false; if (msg) { $('gate-msg').textContent = msg; } }
+  function renew() {
+    var rt = store('refresh');
+    if (!rt) { return Promise.reject(new Error('signed out')); }
+    return fetch(WORKER, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) })
+      .then(function (r) { return r.json(); }).then(function (t) {
+        if (!t.access_token) { throw new Error('signed out'); }
+        store('token', t.access_token); store('refresh', t.refresh_token || null);
+        store('expires', t.expires_in ? String(Date.now() + t.expires_in * 1000) : null); store('auth', 'github');
+        return t.access_token;
+      });
+  }
+  function call(route, body, retried) {
+    var payload = Object.assign({ github_token: store('token') || '' }, body || {});
+    return fetch(WORKER + 'author/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), cache: 'no-store' })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (r.status === 401 && !retried) { return renew().then(function () { return call(route, body, true); }); }
+          if (!r.ok) { var e = new Error(j.error_description || j.error || ('the helper said ' + r.status)); e.code = j.error; e.status = r.status; throw e; }
+          return j;
+        });
+      });
+  }
+
+  // ---------- state
+  var S = { me: null, list: [], cur: null, dirty: false, tab: 'write', pics: [], blobs: {}, busy: false };
+  function editable() { return !S.cur || S.cur.editable !== false; }
+
+  // Pictures live in the repository next to the article (img/NAME). In the editor they show from local copies
+  // (blob links), marked data-name so saving turns them back into img/NAME.
+  function blobFor(name) { return S.blobs[name] || ''; }
+  function toStored(html) {
+    var d = document.createElement('div'); d.innerHTML = html;
+    d.querySelectorAll('img[data-name]').forEach(function (im) { im.setAttribute('src', 'img/' + im.getAttribute('data-name')); im.removeAttribute('data-name'); });
+    d.querySelectorAll('b, i').forEach(function (x) { var y = document.createElement(x.tagName === 'B' ? 'strong' : 'em'); y.innerHTML = x.innerHTML; x.replaceWith(y); });
+    d.querySelectorAll('.embed[data-html]').forEach(function (el) { var t = document.createElement('template'); t.innerHTML = el.getAttribute('data-html'); el.replaceWith(t.content); });
+    return d.innerHTML.replace(/ /g, ' ').replace(/<p><br><\/p>/g, '').trim();
+  }
+  function toEditor(html) {
+    var d = document.createElement('div'); d.innerHTML = html || '';
+    d.querySelectorAll('img').forEach(function (im) {
+      var m = /^img\/([\w.-]+)$/.exec(im.getAttribute('src') || '');
+      if (m) { im.setAttribute('data-name', m[1]); im.setAttribute('src', blobFor(m[1]) || 'data:image/gif;base64,R0lGODlhAQABAAAAACw='); }
+    });
+    // Scripts and embeds can't run inside the editor: show them as a marked block that saves back unchanged.
+    d.querySelectorAll('script').forEach(function (s) {
+      var box = document.createElement('div'); box.className = 'embed'; box.contentEditable = 'false';
+      box.setAttribute('data-html', s.outerHTML); box.textContent = 'Script: ' + (s.getAttribute('src') || 'inline') + ' (kept as is)'; s.replaceWith(box);
+    });
+    return d.innerHTML;
+  }
+  function bodyHtml() { return S.tab === 'html' ? $('html').value : toStored($('write').innerHTML); }
+  function setBody(html) { $('write').innerHTML = toEditor(html); $('html').value = html; renderPreview(); }
+  function renderPreview() {
+    var html = toEditor(bodyHtml());
+    $('preview').innerHTML = '<h1>' + esc($('title').value) + '</h1>' + html;
+  }
+  function markDirty() { if (!S.dirty) { S.dirty = true; $('saved').textContent = 'Unsaved changes'; } }
+
+  // ---------- the list
+  function renderList() {
+    var ul = $('list');
+    ul.innerHTML = S.list.map(function (a) {
+      return '<li data-id="' + esc(a.id) + '"' + (S.cur && S.cur.id === a.id ? ' class="on"' : '') + '><span class="t">' + esc(a.title || 'Untitled') + '</span>' +
+        '<span class="chip ' + esc(a.status) + '">' + esc(a.word || a.status) + '</span> <span class="muted small">' + esc(when(a.updated)) + '</span></li>';
+    }).join('');
+    $('list-empty').hidden = S.list.length > 0;
+  }
+  function when(iso) {
+    if (!iso) { return ''; }
+    var d = new Date(iso); return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+  function loadList() {
+    return call('me').then(function (j) {
+      S.me = j; S.list = j.articles || [];
+      $('who').textContent = 'Signed in as ' + j.name + (j.editor ? ' (editor)' : '');
+      renderList();
+    });
+  }
+
+  // ---------- one article
+  function blank() {
+    S.cur = { id: null, status: 'draft', word: 'Draft', editable: true, images: [] };
+    S.pics = []; $('title').value = ''; $('note').value = ''; setBody(''); S.dirty = false; $('saved').textContent = '';
+    renderState(); renderPics(); renderList(); $('title').focus();
+  }
+  function open(id) {
+    if (S.dirty && !confirm('You have unsaved changes. Leave them?')) { return; }
+    $('saved').textContent = 'Opening...';
+    call('get', { id: id }).then(function (j) {
+      var a = j.article;
+      S.cur = Object.assign({}, a, { status: j.status, word: j.word, editable: j.editable, notes: j.notes || [] });
+      S.pics = (a.images || []).map(function (im) { return Object.assign({}, im); });
+      $('title').value = a.title || ''; $('note').value = a.note_to_editors || '';
+      setBody(a.html || ''); S.dirty = false; $('saved').textContent = 'Saved ' + when(a.updated);
+      renderState(); renderPics(); renderList();
+      S.pics.forEach(function (p) { fetchPic(p.name); });
+    }).catch(function (e) { $('saved').textContent = ''; toast('Couldn\'t open it: ' + e.message, true); });
+  }
+  function fetchPic(name) {
+    if (!S.cur || !S.cur.id || S.blobs[name]) { return; }
+    call('img', { id: S.cur.id, name: name }).then(function (j) {
+      var bin = atob(j.data), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }
+      S.blobs[name] = URL.createObjectURL(new Blob([bytes], { type: j.type }));
+      document.querySelectorAll('img[data-name="' + name + '"]').forEach(function (im) { im.src = S.blobs[name]; });
+      renderPics();
+    }).catch(function () { /* the picture shows once it loads */ });
+  }
+  function renderState() {
+    var c = S.cur, b = $('banner'), lock = !editable();
+    $('write').contentEditable = lock ? 'false' : 'true';
+    $('html').readOnly = lock; $('title').readOnly = lock; $('note').readOnly = lock;
+    ['save', 'submit', 'pic-btn', 'embed-btn', 'link', 'open-file'].forEach(function (id) { $(id).disabled = lock; });
+    document.querySelectorAll('#bar button').forEach(function (x) { x.disabled = lock; });
+    $('drop').hidden = lock;
+    var text = '';
+    if (c.status === 'returned') { text = '<strong>Sent back to you.</strong> Read the editors\' note below, make the changes and submit again.'; }
+    else if (c.status === 'prep') { text = '<strong>With the editors.</strong> It\'s locked while they work on it. You\'ll see their notes below.'; }
+    else if (c.status === 'ready') { text = '<strong>Ready to run.</strong> The editors have prepared it for publishing.'; }
+    else if (c.status === 'posted') { text = '<strong>Published.</strong>'; }
+    else if (c.status === 'declined') { text = '<strong>Not taken this time.</strong> See the editors\' note, if any.'; }
+    b.className = 'banner ' + c.status; b.innerHTML = text; b.hidden = !text;
+    $('submit').textContent = c.status === 'returned' ? 'Submit again' : 'Submit to the editors';
+    var notes = c.notes || [];
+    $('notes').hidden = !c.issue;
+    $('notes-list').innerHTML = notes.length ? notes.map(function (n) {
+      return '<div class="n ' + n.from + '"><span class="muted small">' + (n.from === 'desk' ? 'Editors' : 'You') + ', ' + esc(when(n.at)) + '</span>\n' + esc(n.text) + '</div>';
+    }).join('') : '<p class="muted small">No notes yet.</p>';
+  }
+  function save(submit) {
+    if (S.busy) { return Promise.resolve(); }
+    if (submit && !$('title').value.trim()) { toast('Add a headline first.', true); $('title').focus(); return Promise.resolve(); }
+    if (submit && !confirm('Submit "' + ($('title').value.trim() || 'Untitled') + '" to the editors? It locks until they send it back.')) { return Promise.resolve(); }
+    S.busy = true; $('saved').textContent = submit ? 'Submitting...' : 'Saving...';
+    var body = { title: $('title').value, html: bodyHtml(), note: $('note').value,
+                 images: S.pics.map(function (p) { return { name: p.name, caption: p.caption || '', credit: p.credit || '', hero: !!p.hero }; }) };
+    if (S.cur && S.cur.id) { body.id = S.cur.id; }
+    var first = submit && !(S.cur && S.cur.id) ? call('save', body).then(function (j) { body.id = j.id; S.cur.id = j.id; }) : Promise.resolve();
+    return first.then(function () { return call(submit ? 'submit' : 'save', body); }).then(function (j) {
+      S.busy = false; S.dirty = false;
+      S.cur.id = j.id; S.cur.issue = j.issue; S.cur.status = j.status; S.cur.word = j.word; S.cur.editable = j.editable;
+      $('saved').textContent = (submit ? 'Submitted ' : 'Saved ') + when(j.updated);
+      if (submit) { toast('Sent to the editors. You\'ll see their notes here.'); }
+      renderState();
+      return loadList();
+    }).catch(function (e) { S.busy = false; $('saved').textContent = ''; toast((submit ? 'Couldn\'t submit: ' : 'Couldn\'t save: ') + e.message, true); throw e; });
+  }
+  function ensureSaved() { return S.cur && S.cur.id ? Promise.resolve() : save(false); }
+
+  // ---------- pictures
+  function cleanName(name, type) {
+    var ext = (/\.(jpe?g|png|gif|webp)$/i.exec(name || '') || [])[1] || ({ 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' }[type] || 'jpg');
+    var base = String(name || 'picture').replace(/\.[^.]*$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'picture';
+    var n = base + '.' + ext.toLowerCase(), k = 2;
+    while (S.pics.some(function (p) { return p.name === n; })) { n = base + '-' + (k++) + '.' + ext.toLowerCase(); }
+    return n;
+  }
+  function readB64(blob) {
+    return new Promise(function (ok, bad) { var r = new FileReader(); r.onload = function () { ok(String(r.result).split(',')[1] || ''); }; r.onerror = bad; r.readAsDataURL(blob); });
+  }
+  function uploadPic(blob, name) {
+    if (!/^image\/(jpeg|png|gif|webp)$/.test(blob.type)) { return Promise.reject(new Error('pictures must be JPEG, PNG, GIF or WebP')); }
+    if (blob.size > 8 * 1024 * 1024) { return Promise.reject(new Error('pictures can be up to 8 MB')); }
+    var nm = cleanName(name, blob.type);
+    return ensureSaved().then(function () { return readB64(blob); }).then(function (data) {
+      return call('image', { id: S.cur.id, name: nm, data: data });
+    }).then(function () {
+      S.blobs[nm] = URL.createObjectURL(blob);
+      S.pics.push({ name: nm, caption: '', credit: '', hero: !S.pics.length });
+      renderPics(); markDirty();
+      return nm;
+    });
+  }
+  function insertHtmlAtCursor(html) {
+    $('write').focus();
+    if (!document.execCommand('insertHTML', false, html)) { $('write').insertAdjacentHTML('beforeend', html); }
+    markDirty();
+  }
+  function addPictures(files) {
+    var list = Array.prototype.slice.call(files || []);
+    if (!list.length) { return; }
+    $('saved').textContent = 'Uploading ' + list.length + ' picture' + (list.length === 1 ? '' : 's') + '...';
+    list.reduce(function (p, f) {
+      return p.then(function () { return uploadPic(f, f.name).then(function (nm) { insertHtmlAtCursor('<p><img src="' + S.blobs[nm] + '" data-name="' + nm + '" alt=""></p>'); }); });
+    }, Promise.resolve()).then(function () { $('saved').textContent = 'Picture added. Remember to save.'; })
+      .catch(function (e) { $('saved').textContent = ''; toast('Couldn\'t add the picture: ' + e.message, true); });
+  }
+  function renderPics() {
+    $('pics').innerHTML = S.pics.length ? S.pics.map(function (p, i) {
+      var lock = !editable() ? ' disabled' : '';
+      return '<div class="pic" data-i="' + i + '"><img alt="" src="' + esc(blobFor(p.name) || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=') + '">' +
+        '<div class="muted small">' + esc(p.name) + '</div>' +
+        '<input type="text" data-f="caption" placeholder="Caption" value="' + esc(p.caption) + '"' + lock + '>' +
+        '<input type="text" data-f="credit" placeholder="Credit" value="' + esc(p.credit) + '"' + lock + '>' +
+        '<label class="small"><input type="radio" name="hero" data-f="hero"' + (p.hero ? ' checked' : '') + lock + '> Lead picture</label> ' +
+        '<button type="button" class="small" data-act="pic-remove"' + lock + '>Remove</button></div>';
+    }).join('') : '<p class="muted small">No pictures yet. Use Picture in the toolbar, drop an image into the article, or load a Word file with pictures in it.</p>';
+  }
+
+  // ---------- files: Word, HTML, text
+  function loadFile(file) {
+    if (!file) { return; }
+    if (!editable()) { toast('This article is locked while the editors have it.', true); return; }
+    var name = file.name || '', lower = name.toLowerCase();
+    if (/^image\//.test(file.type)) { addPictures([file]); return; }
+    var hasText = $('write').textContent.trim() || $('write').querySelector('img');
+    if (hasText && !confirm('Replace what\'s in the editor with ' + name + '?')) { return; }
+    $('saved').textContent = 'Reading ' + name + '...';
+    var done = function (res) {
+      if (res.title && !$('title').value.trim()) { $('title').value = res.title; }
+      return (res.images || []).reduce(function (p, im) {
+        return p.then(function () { return uploadPic(new Blob([im.bytes], { type: im.type }), im.name).then(function (nm) { im.stored = nm; }); });
+      }, Promise.resolve()).then(function () {
+        var html = res.html;
+        (res.images || []).forEach(function (im) { html = html.split('data-docx="' + im.name + '"').join('src="img/' + im.stored + '"'); });
+        setBody(html); markDirty();
+        $('saved').textContent = 'Loaded ' + name + '. Check it over, then save.';
+      });
+    };
+    var job;
+    if (/\.docx$/.test(lower)) { job = file.arrayBuffer().then(docxToHtml); }
+    else if (/\.html?$/.test(lower)) { job = file.text().then(htmlFromFile); }
+    else { job = file.text().then(function (t) { return { html: t.split(/\n\s*\n/).map(function (para) { return para.trim() ? '<p>' + esc(para.trim()).replace(/\n/g, '<br>') + '</p>' : ''; }).join('\n') }; }); }
+    job.then(done).catch(function (e) { $('saved').textContent = ''; toast('Couldn\'t read ' + name + ': ' + e.message, true); });
+  }
+  function htmlFromFile(text) {
+    var doc = new DOMParser().parseFromString(text, 'text/html');
+    var root = doc.querySelector('article') || doc.body, title = '';
+    var h1 = root.querySelector('h1');
+    if (h1) { title = h1.textContent.trim(); h1.remove(); }
+    return { html: root.innerHTML.trim(), title: title || ((doc.querySelector('title') || {}).textContent || '').trim() };
+  }
+
+  // A Word file is a zip of XML. Read it in the browser (no outside code): paragraphs, headings, bold and italic, links,
+  // lists, quotes, line breaks and pictures.
+  function unzip(buf) {
+    var dv = new DataView(buf), u8 = new Uint8Array(buf), end = -1;
+    for (var i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) { if (dv.getUint32(i, true) === 0x06054b50) { end = i; break; } }
+    if (end < 0) { return Promise.reject(new Error('it isn\'t a Word (.docx) file')); }
+    var count = dv.getUint16(end + 10, true), off = dv.getUint32(end + 16, true), entries = {};
+    for (var k = 0; k < count; k++) {
+      if (dv.getUint32(off, true) !== 0x02014b50) { break; }
+      var method = dv.getUint16(off + 10, true), csize = dv.getUint32(off + 20, true), nlen = dv.getUint16(off + 28, true),
+          elen = dv.getUint16(off + 30, true), clen = dv.getUint16(off + 32, true), local = dv.getUint32(off + 42, true);
+      var name = new TextDecoder().decode(u8.subarray(off + 46, off + 46 + nlen));
+      entries[name] = { method: method, csize: csize, local: local };
+      off += 46 + nlen + elen + clen;
+    }
+    function read(name) {
+      var e = entries[name];
+      if (!e) { return Promise.resolve(null); }
+      var l = e.local, start = l + 30 + dv.getUint16(l + 26, true) + dv.getUint16(l + 28, true), data = u8.slice(start, start + e.csize);
+      if (e.method === 0) { return Promise.resolve(data); }
+      var ds = new DecompressionStream('deflate-raw');
+      return new Response(new Blob([data]).stream().pipeThrough(ds)).arrayBuffer().then(function (b) { return new Uint8Array(b); });
+    }
+    return Promise.resolve({ names: Object.keys(entries), read: read });
+  }
+  function docxToHtml(buf) {
+    var zip, rels = {}, styles = {}, numFmt = {}, images = [], imgSeen = {};
+    var W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    var R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    function xml(bytes) { return bytes ? new DOMParser().parseFromString(new TextDecoder().decode(bytes), 'application/xml') : null; }
+    function wattr(el, name) { return el ? (el.getAttributeNS(W, name) || el.getAttribute('w:' + name)) : null; }
+    function kids(el, name) { return Array.prototype.filter.call(el.childNodes, function (c) { return c.nodeType === 1 && c.localName === name; }); }
+    function kid(el, name) { return kids(el, name)[0] || null; }
+    return unzip(buf).then(function (z) {
+      zip = z;
+      return Promise.all(['word/document.xml', 'word/_rels/document.xml.rels', 'word/styles.xml', 'word/numbering.xml'].map(zip.read));
+    }).then(function (parts) {
+      var doc = xml(parts[0]);
+      if (!doc) { throw new Error('it has no document in it'); }
+      var rd = xml(parts[1]);
+      if (rd) { Array.prototype.forEach.call(rd.getElementsByTagName('Relationship'), function (r) { rels[r.getAttribute('Id')] = { target: r.getAttribute('Target'), external: r.getAttribute('TargetMode') === 'External' }; }); }
+      var sd = xml(parts[2]);
+      if (sd) { Array.prototype.forEach.call(sd.getElementsByTagNameNS(W, 'style'), function (s) { var nm = s.getElementsByTagNameNS(W, 'name')[0]; styles[wattr(s, 'styleId')] = String(nm ? wattr(nm, 'val') : '').toLowerCase(); }); }
+      var nd = xml(parts[3]), abs = {};
+      if (nd) {
+        Array.prototype.forEach.call(nd.getElementsByTagNameNS(W, 'abstractNum'), function (a) {
+          var lvl = a.getElementsByTagNameNS(W, 'lvl')[0], f = lvl && lvl.getElementsByTagNameNS(W, 'numFmt')[0];
+          abs[wattr(a, 'abstractNumId')] = f ? wattr(f, 'val') : 'bullet';
+        });
+        Array.prototype.forEach.call(nd.getElementsByTagNameNS(W, 'num'), function (n) { var a = n.getElementsByTagNameNS(W, 'abstractNumId')[0]; numFmt[wattr(n, 'numId')] = abs[a ? wattr(a, 'val') : ''] || 'bullet'; });
+      }
+      var body = doc.getElementsByTagNameNS(W, 'body')[0], out = [], list = null, title = '';
+      function closeList() { if (list) { out.push('</' + list.tag + '>'); list = null; } }
+      function on(rPr, name) { var e = rPr && kid(rPr, name); if (!e) { return false; } var v = wattr(e, 'val'); return v !== '0' && v !== 'false' && v !== 'none'; }
+      function runs(p) {
+        var html = '', field = null;
+        function run(r, href) {
+          var rPr = kid(r, 'rPr'), t = '';
+          Array.prototype.forEach.call(r.childNodes, function (c) {
+            if (c.nodeType !== 1) { return; }
+            if (c.localName === 't') { t += esc(c.textContent); }
+            else if (c.localName === 'tab') { t += ' '; }
+            else if (c.localName === 'br' || c.localName === 'cr') { t += '<br>'; }
+            else if (c.localName === 'fldChar') { var ty = wattr(c, 'fldCharType'); if (ty === 'begin') { field = { instr: '', open: false }; } else if (ty === 'separate' && field) { field.open = true; var m = /HYPERLINK\s+"([^"]+)"/.exec(field.instr); field.href = m ? m[1] : ''; } else if (ty === 'end') { field = null; } }
+            else if (c.localName === 'instrText' && field) { field.instr += c.textContent; }
+            else if (c.localName === 'drawing' || c.localName === 'pict') {
+              var blip = c.getElementsByTagNameNS('http://schemas.openxmlformats.org/drawingml/2006/main', 'blip')[0];
+              var rid = blip ? (blip.getAttributeNS(R, 'embed') || blip.getAttribute('r:embed')) : null;
+              if (!rid) { var im = c.getElementsByTagName('v:imagedata')[0]; rid = im ? (im.getAttributeNS(R, 'id') || im.getAttribute('r:id')) : null; }
+              var rel = rid && rels[rid];
+              if (rel && !rel.external) {
+                var path = 'word/' + rel.target.replace(/^\.?\//, '').replace(/^word\//, ''), nm = path.split('/').pop();
+                if (!imgSeen[nm]) { imgSeen[nm] = true; images.push({ name: nm, path: path }); }
+                t += '<img data-docx="' + esc(nm) + '" alt="">';
+              }
+            }
+          });
+          if (!t) { return ''; }
+          if (field && field.open && field.instr && !/HYPERLINK/.test(field.instr)) { /* a page number or similar: plain text */ }
+          if (on(rPr, 'b')) { t = '<strong>' + t + '</strong>'; }
+          if (on(rPr, 'i')) { t = '<em>' + t + '</em>'; }
+          var link = href || (field && field.open && field.href);
+          return link ? '<a href="' + esc(link) + '">' + t + '</a>' : t;
+        }
+        Array.prototype.forEach.call(p.childNodes, function (c) {
+          if (c.nodeType !== 1) { return; }
+          if (c.localName === 'r') { html += run(c); }
+          else if (c.localName === 'hyperlink') {
+            var rid = c.getAttributeNS(R, 'id') || c.getAttribute('r:id'), rel = rid && rels[rid], href = rel ? rel.target : (wattr(c, 'anchor') ? '' : '');
+            kids(c, 'r').forEach(function (r) { html += run(r, href); });
+          } else if (c.localName === 'fldSimple') {
+            var m = /HYPERLINK\s+"([^"]+)"/.exec(wattr(c, 'instr') || '');
+            kids(c, 'r').forEach(function (r) { html += run(r, m ? m[1] : ''); });
+          } else if (c.localName === 'ins' || c.localName === 'smartTag' || c.localName === 'sdt' || c.localName === 'sdtContent') {
+            html += runs(c);
+          }
+        });
+        return html.replace(/<\/strong><strong>/g, '').replace(/<\/em><em>/g, '');
+      }
+      function para(p) {
+        var pPr = kid(p, 'pPr'), sid = pPr && kid(pPr, 'pStyle') ? wattr(kid(pPr, 'pStyle'), 'val') : '', sname = styles[sid] || String(sid || '').toLowerCase();
+        var num = pPr && kid(pPr, 'numPr'), html = runs(p).trim();
+        if (!html) { closeList(); return; }
+        if (sname === 'title' || (!title && !out.length && /^heading ?1$/.test(sname))) { if (!title) { title = html.replace(/<[^>]+>/g, '').trim(); return; } }
+        var styleList = /^list (bullet|number)/.exec(sname);
+        if (styleList || (num && kid(num, 'numId') && wattr(kid(num, 'numId'), 'val') !== '0')) {
+          var tag = styleList ? (styleList[1] === 'bullet' ? 'ul' : 'ol') : /bullet|none/.test(numFmt[wattr(kid(num, 'numId'), 'val')] || 'bullet') ? 'ul' : 'ol';
+          if (!list || list.tag !== tag) { closeList(); list = { tag: tag }; out.push('<' + tag + '>'); }
+          out.push('<li>' + html + '</li>'); return;
+        }
+        closeList();
+        var h = /^heading ?([1-6])$/.exec(sname);
+        if (h) { var lv = Math.min(4, +h[1] + 1); out.push('<h' + lv + '>' + html.replace(/<\/?strong>/g, '') + '</h' + lv + '>'); return; }
+        if (/quote/.test(sname)) { out.push('<blockquote><p>' + html + '</p></blockquote>'); return; }
+        out.push('<p>' + html + '</p>');
+      }
+      Array.prototype.forEach.call(body.childNodes, function (c) {
+        if (c.nodeType !== 1) { return; }
+        if (c.localName === 'p') { para(c); }
+        else if (c.localName === 'tbl') { closeList(); Array.prototype.forEach.call(c.getElementsByTagNameNS(W, 'p'), para); closeList(); }
+        else if (c.localName === 'sdt') { Array.prototype.forEach.call(c.getElementsByTagNameNS(W, 'p'), para); }
+      });
+      closeList();
+      return Promise.all(images.map(function (im) {
+        return zip.read(im.path).then(function (bytes) {
+          var ext = im.name.split('.').pop().toLowerCase();
+          im.bytes = bytes; im.type = 'image/' + (ext === 'jpg' ? 'jpeg' : ext);
+        });
+      })).then(function () {
+        var ok = images.filter(function (im) { return im.bytes && /^image\/(jpeg|png|gif|webp)$/.test(im.type); });
+        var html = out.join('\n');
+        images.filter(function (im) { return ok.indexOf(im) < 0; }).forEach(function (im) { html = html.split('<img data-docx="' + esc(im.name) + '" alt="">').join(''); });
+        return { html: html, title: title, images: ok };
+      });
+    });
+  }
+
+  // ---------- editor wiring
+  function setTab(t) {
+    if (t === S.tab) { return; }
+    if (S.tab === 'html') { $('write').innerHTML = toEditor($('html').value); }
+    if (t === 'html') { $('html').value = toStored($('write').innerHTML); }
+    S.tab = t;
+    document.querySelectorAll('.tabs [data-tab]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === t)); });
+    ['write', 'html', 'preview'].forEach(function (x) { $('pane-' + x).hidden = x !== t; });
+    if (t === 'preview') { renderPreview(); }
+  }
+  document.querySelectorAll('.tabs [data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.dataset.tab); }); });
+  $('bar').addEventListener('mousedown', function (ev) { if (ev.target.closest('button')) { ev.preventDefault(); } });
+  $('bar').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button'); if (!b || b.disabled) { return; }
+    $('write').focus();
+    if (b.dataset.cmd) { document.execCommand(b.dataset.cmd, false, null); markDirty(); }
+    else if (b.dataset.block) { document.execCommand('formatBlock', false, b.dataset.block === 'p' ? 'p' : b.dataset.block); markDirty(); }
+  });
+  function addLink() {
+    var url = prompt('Link to (paste the full address):', 'https://');
+    if (!url || url === 'https://') { return; }
+    if (!/^(https?:\/\/|mailto:)/i.test(url)) { toast('Links need to start with https://', true); return; }
+    $('write').focus(); document.execCommand('createLink', false, url); markDirty();
+  }
+  $('link').addEventListener('click', addLink);
+  $('pic-btn').addEventListener('click', function () { $('pic-file').click(); });
+  $('pic-file').addEventListener('change', function () { addPictures(this.files); this.value = ''; });
+  $('embed-btn').addEventListener('click', function () {
+    var code = prompt('Paste the embed code (from X "Embed post", YouTube "Share > Embed", and so on):');
+    if (!code || !code.trim()) { return; }
+    var d = document.createElement('div'); d.innerHTML = code.trim();
+    if (!d.querySelector('blockquote, iframe, script')) { toast('That doesn\'t look like embed code.', true); return; }
+    insertHtmlAtCursor(toEditor(code.trim()) + '<p><br></p>');
+  });
+  $('write').addEventListener('input', markDirty);
+  $('html').addEventListener('input', markDirty);
+  $('title').addEventListener('input', markDirty);
+  $('note').addEventListener('input', markDirty);
+  $('write').addEventListener('keydown', function (ev) {
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); addLink(); }
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') { ev.preventDefault(); save(false).catch(function () {}); }
+  });
+  // Pasting from Word, Google Docs or a web page: keep the words, links, bold, italic, headings, lists and quotes; drop the rest.
+  var KEEP = { P: 1, H2: 1, H3: 1, H4: 1, STRONG: 1, EM: 1, B: 1, I: 1, A: 1, UL: 1, OL: 1, LI: 1, BLOCKQUOTE: 1, BR: 1 };
+  function cleanPaste(html) {
+    var d = document.createElement('div'); d.innerHTML = html;
+    d.querySelectorAll('style, script, meta, link, title, xml, o\\:p').forEach(function (x) { x.remove(); });
+    (function walk(el) {
+      Array.prototype.slice.call(el.childNodes).forEach(function (c) {
+        if (c.nodeType === 8) { c.remove(); return; }
+        if (c.nodeType !== 1) { return; }
+        walk(c);
+        var tag = c.tagName, bold = /font-weight:\s*(bold|[6-9]00)/i.test(c.getAttribute('style') || ''), ital = /font-style:\s*italic/i.test(c.getAttribute('style') || '');
+        if (tag === 'H1') { var p = document.createElement('h2'); p.innerHTML = c.innerHTML; c.replaceWith(p); return; }
+        if (tag === 'DIV') { var q = document.createElement('p'); q.innerHTML = c.innerHTML; c.replaceWith(q); return; }
+        if (!KEEP[tag]) {
+          var frag = document.createDocumentFragment();
+          var wrap = bold ? document.createElement('strong') : ital ? document.createElement('em') : null;
+          while (c.firstChild) { (wrap || frag).appendChild(c.firstChild); }
+          if (wrap) { frag.appendChild(wrap); }
+          c.replaceWith(frag); return;
+        }
+        var href = tag === 'A' ? c.getAttribute('href') : null;
+        Array.prototype.slice.call(c.attributes).forEach(function (a) { c.removeAttribute(a.name); });
+        if (href && /^(https?:|mailto:)/i.test(href)) { c.setAttribute('href', href); }
+        if (tag === 'B' || tag === 'I') { var s = document.createElement(tag === 'B' ? 'strong' : 'em'); s.innerHTML = c.innerHTML; c.replaceWith(s); }
+      });
+    })(d);
+    return d.innerHTML;
+  }
+  $('write').addEventListener('paste', function (ev) {
+    var dt = ev.clipboardData; if (!dt) { return; }
+    var files = Array.prototype.filter.call(dt.files || [], function (f) { return /^image\//.test(f.type); });
+    if (files.length) { ev.preventDefault(); addPictures(files); return; }
+    var html = dt.getData('text/html');
+    if (html) { ev.preventDefault(); insertHtmlAtCursor(cleanPaste(html)); }
+  });
+  // Dropping files: Word, HTML or text on the drop box (or anywhere outside the editor) loads it; pictures go in where dropped.
+  function dropHandler(ev) {
+    var fs = ev.dataTransfer && ev.dataTransfer.files;
+    if (!fs || !fs.length) { return; }
+    ev.preventDefault(); $('drop').classList.remove('over');
+    var pics = Array.prototype.filter.call(fs, function (f) { return /^image\//.test(f.type); });
+    if (pics.length) { addPictures(pics); return; }
+    loadFile(fs[0]);
+  }
+  ['dragenter', 'dragover'].forEach(function (t) { document.addEventListener(t, function (ev) { if (ev.dataTransfer && Array.prototype.indexOf.call(ev.dataTransfer.types || [], 'Files') >= 0) { ev.preventDefault(); $('drop').classList.add('over'); } }); });
+  document.addEventListener('dragleave', function (ev) { if (!ev.relatedTarget) { $('drop').classList.remove('over'); } });
+  document.addEventListener('drop', dropHandler);
+  $('open-file').addEventListener('click', function () { $('file').click(); });
+  $('file').addEventListener('change', function () { loadFile(this.files[0]); this.value = ''; });
+  $('pics').addEventListener('input', function (ev) {
+    var box = ev.target.closest('.pic'); if (!box) { return; }
+    var p = S.pics[+box.dataset.i], f = ev.target.dataset.f;
+    if (f === 'hero') { S.pics.forEach(function (x) { x.hero = false; }); p.hero = true; } else if (f) { p[f] = ev.target.value; }
+    markDirty();
+  });
+  $('pics').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act="pic-remove"]'); if (!b) { return; }
+    var p = S.pics[+b.closest('.pic').dataset.i];
+    if (!confirm('Remove ' + p.name + ' from the article?')) { return; }
+    S.pics.splice(S.pics.indexOf(p), 1);
+    document.querySelectorAll('#write img[data-name="' + p.name + '"]').forEach(function (im) { var par = im.parentNode; im.remove(); if (par && par.tagName === 'P' && !par.textContent.trim() && !par.querySelector('img')) { par.remove(); } });
+    renderPics(); markDirty();
+  });
+  $('save').addEventListener('click', function () { save(false).catch(function () {}); });
+  $('submit').addEventListener('click', function () { save(true).catch(function () {}); });
+  $('new').addEventListener('click', function () { if (S.dirty && !confirm('You have unsaved changes. Leave them?')) { return; } blank(); });
+  $('list').addEventListener('click', function (ev) { var li = ev.target.closest('li[data-id]'); if (li) { open(li.dataset.id); } });
+  $('reply-send').addEventListener('click', function () {
+    var t = $('reply').value.trim(); if (!t || !S.cur || !S.cur.id) { return; }
+    this.disabled = true; var btn = this;
+    call('reply', { id: S.cur.id, text: t }).then(function () {
+      btn.disabled = false; $('reply').value = ''; toast('Sent to the editors.');
+      S.cur.notes = (S.cur.notes || []).concat([{ from: 'author', at: new Date().toISOString(), text: S.me.name + ': ' + t }]); renderState();
+    }).catch(function (e) { btn.disabled = false; toast('Couldn\'t send it: ' + e.message, true); });
+  });
+  $('signout').addEventListener('click', function () {
+    if (S.dirty && !confirm('You have unsaved changes. Sign out anyway?')) { return; }
+    ['token', 'refresh', 'expires', 'auth'].forEach(function (k) { store(k, null); });
+    location.reload();
+  });
+  window.addEventListener('beforeunload', function (ev) { if (S.dirty) { ev.preventDefault(); ev.returnValue = ''; } });
+  // Save drafts every two minutes while there are changes.
+  setInterval(function () { if (S.dirty && editable() && !S.busy && S.cur && S.cur.id && S.tab !== 'html') { save(false).catch(function () {}); } }, 120000);
+
+  // ---------- start
+  $('gh-go').addEventListener('click', startGitHub);
+  function startApp() {
+    $('gate').hidden = true; $('app').hidden = false;
+    loadList().then(function () {
+      var first = S.list.filter(function (a) { return a.status === 'returned' || a.status === 'draft'; })[0];
+      if (first) { open(first.id); } else { blank(); }
+    }).catch(function (e) {
+      if (e.code === 'not_an_author') { gate(e.message); $('gh-go').hidden = true; }
+      else if (e.status === 401 || /signed out/.test(e.message)) { gate('Your GitHub sign-in ran out. Sign in again.'); }
+      else if (e.code === 'not_set_up') { gate('The author desk isn\'t switched on yet. Ask Dan.'); $('gh-go').hidden = true; }
+      else { gate('Couldn\'t load your articles: ' + e.message); }
+    });
+  }
+  window.__portal = { docxToHtml: docxToHtml, state: S };
+  if (store('token')) { startApp(); } else { gate(); }
+})();
+</script>
+</body>
+</html>
