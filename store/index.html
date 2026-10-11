@@ -6,6 +6,12 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>ZH Store board</title>
+<link rel="manifest" href="/store/manifest.webmanifest">
+<meta name="theme-color" content="#171b1d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ZH Store">
+<link rel="apple-touch-icon" href="/store/icon-180.png">
 <!--
   Loader for the ZH Store board (https://zh-desk.github.io/store/; ?v=preview and ?v=previous open store/board.preview.html
   and store/board.previous.html). Like the desk loader next door (../index.html), it holds no data: it uses the sign-in the desk already saved in this browser (or an access key pasted here), reads
@@ -44,6 +50,7 @@ details summary { cursor: pointer; color: var(--muted); }
 </div>
 <div class="box" id="msg" hidden></div>
 <script>
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/store/sw.js').catch(function () {}); }
 (function () {
   'use strict';
   var FILES = { live: 'store/board.html', preview: 'store/board.preview.html', previous: 'store/board.previous.html' };
