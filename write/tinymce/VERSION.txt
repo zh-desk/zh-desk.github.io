@@ -1,0 +1,1 @@
+TinyMCE 8.9.3 (tinymce/tinymce-dist a85d8ca), self-hosted under the GPL (license_key 'gpl'). Only the files the author desk loads.
