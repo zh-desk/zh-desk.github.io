@@ -61,6 +61,7 @@ aside h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; c
 .chip.posted { color: var(--good); border-color: var(--good); }
 main { padding: 18px 24px 60px; max-width: 1040px; width: 100%; min-width: 0; }
 .title { width: 100%; font: 700 1.7rem/1.2 Georgia, "Times New Roman", serif; border: 0; border-bottom: 1px solid var(--rule); background: transparent; padding: 6px 0; outline: none; }
+.deck { width: 100%; font: 600 1.08rem/1.4 Georgia, "Times New Roman", serif; border: 0; border-bottom: 1px solid var(--rule); background: transparent; padding: 8px 0 6px; outline: none; resize: none; overflow: hidden; display: block; }
 .banner { margin: 12px 0; padding: 10px 12px; border-radius: 6px; border-left: 4px solid var(--warn); background: var(--panel); }
 .banner.returned { border-left-color: var(--bad); }
 .banner.posted { border-left-color: var(--good); }
@@ -132,9 +133,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     </aside>
     <main>
       <input class="title" id="title" placeholder="Headline" aria-label="Headline" autocomplete="off">
+      <textarea class="deck" id="deck" rows="1" placeholder="Subheadline (optional)" aria-label="Subheadline"></textarea>
       <div id="banner" class="banner" hidden></div>
-      <div class="drop" id="drop">Drop a Word file (.docx), an HTML file or a text file here to load it, or <button type="button" id="open-file">choose a file</button>.
-        <input type="file" id="file" accept=".docx,.html,.htm,.txt,.md" hidden></div>
       <div class="tabs" role="tablist">
         <button type="button" role="tab" data-tab="write" aria-selected="true">Write</button>
         <button type="button" role="tab" data-tab="html" aria-selected="false">HTML</button>
@@ -149,6 +149,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
         <div id="pane-html" hidden><textarea id="html" spellcheck="false" aria-label="Article HTML"></textarea></div>
         <div id="pane-preview" hidden><div id="preview"></div></div>
       </div>
+      <div class="drop" id="drop">Drop a Word file (.docx), an HTML file or a text file here to load it, or <button type="button" id="open-file">choose a file</button>.
+        <input type="file" id="file" accept=".docx,.html,.htm,.txt,.md" hidden></div>
       <p class="hint">Tweets and videos: use <strong>X post</strong>, <strong>YouTube</strong> or <strong>Embed</strong> in the toolbar, or paste a post's link or embed code on its own line. They show here the way readers will see them.</p>
       <h2 class="muted small" style="margin:18px 0 0;text-transform:uppercase;letter-spacing:.06em">Pictures</h2>
       <p class="muted small" style="margin:4px 0">Add a caption and credit for each. Mark the one that should lead the article. <button type="button" class="small" id="lib-open">Picture library</button> reuses one you uploaded before.</p>
@@ -458,7 +460,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       if (LOADERS.test(s.getAttribute('src') || '')) { s.remove(); return; }
       var n = document.createElement('div'); n.className = 'script-note'; n.textContent = 'Script: ' + (s.getAttribute('src') || 'inline') + ' (kept as is)'; s.replaceWith(n);
     });
-    $('preview').innerHTML = '<h1>' + esc($('title').value) + '</h1>' + d.innerHTML;
+    $('preview').innerHTML = '<h1>' + esc($('title').value) + '</h1>' + ($('deck').value.trim() ? '<p><strong>' + esc($('deck').value.trim()) + '</strong></p>' : '') + d.innerHTML;
     if (S.tab === 'preview') { renderEmbeds(document, window); }
   }
   function markDirty() { if (!S.dirty) { S.dirty = true; $('saved').textContent = 'Unsaved changes'; } }
@@ -486,7 +488,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   // ---------- one article
   function blank() {
     S.cur = { id: null, status: 'draft', word: 'Draft', editable: true, images: [] };
-    S.pics = []; $('title').value = ''; $('note').value = ''; setBody(''); S.dirty = false; $('saved').textContent = '';
+    S.pics = []; $('title').value = ''; $('deck').value = ''; fitDeck(); $('note').value = ''; setBody(''); S.dirty = false; $('saved').textContent = '';
     renderState(); renderPics(); renderList(); $('title').focus();
   }
   function open(id) {
@@ -496,7 +498,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       var a = j.article;
       S.cur = Object.assign({}, a, { status: j.status, word: j.word, editable: j.editable, notes: j.notes || [] });
       S.pics = (a.images || []).map(function (im) { return Object.assign({}, im); });
-      $('title').value = a.title || ''; $('note').value = a.note_to_editors || '';
+      $('title').value = a.title || ''; $('deck').value = a.deck || ''; fitDeck(); $('note').value = a.note_to_editors || '';
       if (S.tab === 'html') { setTab('write'); }
       setBody(a.html || ''); S.dirty = false; $('saved').textContent = 'Saved ' + when(a.updated);
       renderState(); renderPics(); renderList();
@@ -516,7 +518,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   function renderState() {
     var c = S.cur, b = $('banner'), lock = !editable();
     if (ED) { ED.mode.set(lock ? 'readonly' : 'design'); }
-    $('html').readOnly = lock; $('title').readOnly = lock; $('note').readOnly = lock;
+    $('html').readOnly = lock; $('title').readOnly = lock; $('deck').readOnly = lock; $('note').readOnly = lock;
     ['save', 'submit', 'open-file', 'lib-open'].forEach(function (id) { $(id).disabled = lock; });
     $('drop').hidden = lock;
     var text = '';
@@ -538,7 +540,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     if (submit && !$('title').value.trim()) { toast('Add a headline first.', true); $('title').focus(); return Promise.resolve(); }
     if (submit && !confirm('Submit "' + ($('title').value.trim() || 'Untitled') + '" to the editors? It locks until they send it back.')) { return Promise.resolve(); }
     S.busy = true; $('saved').textContent = submit ? 'Submitting...' : 'Saving...';
-    var body = { title: $('title').value, html: bodyHtml(), note: $('note').value,
+    var body = { title: $('title').value, deck: $('deck').value, html: bodyHtml(), note: $('note').value,
                  images: S.pics.map(function (p) { return { name: p.name, caption: p.caption || '', credit: p.credit || '', hero: !!p.hero }; }) };
     if (S.cur && S.cur.id) { body.id = S.cur.id; }
     var first = submit && !(S.cur && S.cur.id) ? call('save', body).then(function (j) { body.id = j.id; S.cur.id = j.id; }) : Promise.resolve();
@@ -663,6 +665,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     $('saved').textContent = 'Reading ' + name + '...';
     var done = function (res) {
       if (res.title && !$('title').value.trim()) { $('title').value = res.title; }
+      var dm = /^\s*<p>\s*<strong>([^<]{10,600})<\/strong>\s*<\/p>\s*/.exec(res.html || '');
+      if (dm && res.title && !$('deck').value.trim()) { $('deck').value = new DOMParser().parseFromString(dm[1], 'text/html').documentElement.textContent; fitDeck(); res.html = res.html.slice(dm[0].length); }
       return (res.images || []).reduce(function (p, im) {
         return p.then(function () { return uploadPic(new Blob([im.bytes], { type: im.type }), im.name).then(function (nm) { im.stored = nm; }); });
       }, Promise.resolve()).then(function () {
@@ -838,6 +842,10 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   $('pic-file').addEventListener('change', function () { addPictures(this.files); this.value = ''; });
   $('html').addEventListener('input', markDirty);
   $('title').addEventListener('input', markDirty);
+  // The subheadline: one line that grows as it's typed, no line breaks (it runs as the deck under the headline).
+  function fitDeck() { var d = $('deck'); d.style.height = 'auto'; d.style.height = d.scrollHeight + 'px'; }
+  $('deck').addEventListener('input', function () { if (/\n/.test(this.value)) { this.value = this.value.replace(/\s*\n\s*/g, ' '); } fitDeck(); markDirty(); });
+  $('deck').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); } });
   $('note').addEventListener('input', markDirty);
   // Pasting from Word, Google Docs or a web page: keep the words, links, bold, italic, headings, lists, quotes and tables; drop the rest.
   var KEEP = { P: 1, H2: 1, H3: 1, H4: 1, STRONG: 1, EM: 1, B: 1, I: 1, U: 1, S: 1, SUP: 1, SUB: 1, A: 1, UL: 1, OL: 1, LI: 1, BLOCKQUOTE: 1, BR: 1, TABLE: 1, THEAD: 1, TBODY: 1, TR: 1, TH: 1, TD: 1, HR: 1 };
@@ -935,9 +943,9 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   function enterApp(me) {
     $('gate').hidden = true; $('app').hidden = false;
     showMe(me);
-    $('title').disabled = true;
+    $('title').disabled = true; $('deck').disabled = true;
     return initEditor().then(function () {
-      $('title').disabled = false;
+      $('title').disabled = false; $('deck').disabled = false;
       var first = S.list.filter(function (a) { return a.status === 'returned' || a.status === 'draft'; })[0];
       if (first) { open(first.id); } else { blank(); }
     }).catch(function (e) { toast('The editor didn\'t load: ' + e.message + '. Reload the page.', true, 20000); });
