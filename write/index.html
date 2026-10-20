@@ -109,6 +109,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 .chip.assigned { color: var(--accent); border-color: var(--accent); }
 .chip.p-open { color: var(--warn); border-color: var(--warn); } .chip.p-approved { color: var(--good); border-color: var(--good); } .chip.p-denied { color: var(--bad); border-color: var(--bad); }
 .view-as #pitch-new, .view-as #settings-open, .view-as #pitch-head { display: none !important; }
+.view-as:not(.coediting) .lib-hint { display: none; }
+.deck[hidden] { display: none; }
 .view-as.coediting .row { display: flex !important; } .view-as.coediting #submit { display: none !important; }
 .viewas button { margin-left: 10px; background: #fff; color: var(--warn); border-color: #fff; font-weight: 600; padding: 3px 10px; }
 .dlg-back { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 30; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px; overflow: auto; }
@@ -122,7 +124,29 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 .dlg .thread li.editors { border-left-color: var(--accent); }
 .brief { white-space: pre-wrap; }
 .dash { margin: 0 0 18px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); }
-.dash > summary { cursor: pointer; padding: 10px 14px; font-weight: 700; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.dash-head { padding: 10px 14px; font-weight: 700; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+/* Stats / Compose / My articles (Oct. 20, Dan: "At the top of the contributor portal, let's have tabs"; the article you
+   pick in the list opens in Compose, right beside the list, not under the numbers). */
+.vtabs { display: flex; gap: 0; margin: 0 0 16px; border-bottom: 1px solid var(--rule); }
+.vtabs button { border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: transparent; padding: 9px 16px 7px; font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.vtabs button:hover { color: var(--ink); }
+.vtabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.vtabs .cnt { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; background: var(--code); color: var(--ink); font-size: .7rem; letter-spacing: 0; }
+.solo aside, .solo .vtabs, .solo #v-stats, .solo #v-articles { display: none !important; }
+.solo .wrap { grid-template-columns: minmax(0, 1fr); }
+.solo main { max-width: none; padding-top: 12px; }
+.trk-sum { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; font-size: .84rem; }
+.trk-sum span { border: 1px solid var(--rule); border-radius: 12px; padding: 1px 10px; background: var(--panel); }
+.trk-sum b { font-variant-numeric: tabular-nums; }
+.trk tr.trow { cursor: pointer; }
+.trk tr.trow:hover, .trk tr.trow.open { background: var(--paper); }
+.trk .hl .t { font-weight: 600; }
+.tl { list-style: none; margin: 0 0 10px; padding: 0; font-size: .86rem; }
+.tl li { position: relative; padding: 2px 0 2px 18px; }
+.tl li::before { content: ''; position: absolute; left: 4px; top: .7em; width: 7px; height: 7px; border-radius: 50%; background: var(--rule); }
+.tl li.done::before { background: var(--accent); }
+.tl li.live::before { background: var(--good); }
+.tl .when { color: var(--muted); }
 .dash .upd { font-weight: 400; color: var(--muted); font-size: .78rem; margin-left: auto; }
 .dash-body { padding: 0 14px 14px; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 2px 0 14px; }
@@ -200,7 +224,16 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       <p class="small" style="margin-top:18px"><a href="#" id="settings-open">Email settings</a></p>
     </aside>
     <main>
-      <details class="dash" id="dash" open hidden><summary><span id="dash-title">Your numbers on ZeroHedge</span><span class="upd" id="dash-upd"></span></summary><div class="dash-body" id="dash-body"></div></details>
+      <nav class="vtabs" id="vtabs" role="tablist" aria-label="Author desk">
+        <button type="button" role="tab" data-view="stats" aria-selected="false">Stats</button>
+        <button type="button" role="tab" data-view="compose" aria-selected="true">Compose</button>
+        <button type="button" role="tab" data-view="articles" aria-selected="false">My articles<span class="cnt" id="vt-n"></span></button>
+      </nav>
+      <section id="v-stats" hidden>
+      <div class="dash" id="dash"><div class="dash-head"><span id="dash-title">Your numbers on ZeroHedge</span><span class="upd" id="dash-upd"></span></div><div class="dash-body" id="dash-body"></div></div>
+      </section>
+      <section id="v-articles" hidden><div id="tracker"></div></section>
+      <section id="v-compose">
       <input class="title" id="title" placeholder="Headline" aria-label="Headline" autocomplete="off">
       <textarea class="deck" id="deck" rows="1" placeholder="Subheadline (optional)" aria-label="Subheadline"></textarea>
       <div id="banner" class="banner" hidden></div>
@@ -222,7 +255,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
         <input type="file" id="file" accept=".docx,.html,.htm,.txt,.md" hidden></div>
       <p class="hint">Tweets and videos: use <strong>X post</strong>, <strong>YouTube</strong> or <strong>Embed</strong> in the toolbar, or paste a post's link or embed code on its own line. They show here the way readers will see them.</p>
       <h2 class="muted small" style="margin:18px 0 0;text-transform:uppercase;letter-spacing:.06em">Pictures</h2>
-      <p class="muted small" style="margin:4px 0">Add a caption and credit for each. Mark the one that should lead the article. <button type="button" class="small" id="lib-open">Picture library</button> reuses one you uploaded before.</p>
+      <p class="muted small" style="margin:4px 0">Add a caption and credit for each. Mark the one that should lead the article.<span class="lib-hint"> <button type="button" class="small" id="lib-open">Picture library</button> reuses one you uploaded before.</span></p>
       <div class="pics" id="pics"></div>
       <h2 class="muted small" style="margin:18px 0 4px;text-transform:uppercase;letter-spacing:.06em">Note to the editors</h2>
       <textarea class="note" id="note" placeholder="Anything the editors should know: sources, timing, what to check."></textarea>
@@ -237,6 +270,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
         <textarea class="note" id="reply" placeholder="Reply to the editors"></textarea>
         <div class="row"><button type="button" id="reply-send">Send reply</button></div>
       </div>
+      </section>
     </main>
   </div>
 </div>
@@ -313,6 +347,10 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   // desk's Contributors view shows it with &embed=1 (no header).
   var QS = new URLSearchParams(location.search), AS = (QS.get('as') || '').trim(), EMBED = QS.get('embed') === '1';
   if (EMBED) { document.documentElement.classList.add('embed'); }
+  // One article on its own (Oct. 20): the contributor dashboard opens a piece from its board with &solo=1&open=ID: just
+  // that article, compose and preview, no list, tabs or numbers.
+  var OPEN = (QS.get('open') || '').trim(), SOLO = QS.get('solo') === '1' && !!OPEN;
+  if (SOLO) { document.documentElement.classList.add('solo'); }
   function call(route, body, retried) {
     var payload = Object.assign({ github_token: store('token') || '' }, AS ? { as: AS } : {}, AS && S.coedit ? { coedit: true } : {}, body || {});
     return fetch(WORKER + 'author/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), cache: 'no-store' })
@@ -550,6 +588,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
         chip + ' <span class="muted small">' + esc(when(a.status === 'live' && a.zh && a.zh.published ? a.zh.published : a.updated)) + '</span></li>';
     }).join('');
     $('list-empty').hidden = S.list.length > 0;
+    $('vt-n').textContent = S.list.length ? String(S.list.length) : '';
+    if (S.view === 'articles') { renderTracker(); }
   }
   function when(iso) {
     if (!iso) { return ''; }
@@ -561,23 +601,27 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     document.documentElement.classList.toggle('view-as', S.viewing);
     $('viewas').hidden = !S.viewing;
     renderViewAs();
-    $('who').textContent = S.viewing ? 'Viewing ' + j.name : 'Signed in as ' + j.name + (j.editor ? ' (editor)' : '');
+    $('who').textContent = S.viewing ? 'Viewing ' + shown() : 'Signed in as ' + j.name + (j.editor ? ' (editor)' : '');
     renderList();
     renderDash();
     renderPitches();
   }
   // In View as, an editor can also work on the contributor's draft (a draft, an assignment, or one sent back): save,
   // never submit. The banner says which it is.
+  // The editors see a contributor by the name they gave them (config/author-nicknames.json), never their sign-up name.
+  function shown() { var v = (S.me && S.me.viewing_as) || {}; return v.nickname || (S.me && S.me.name) || ''; }
   function renderViewAs() {
     if (!S.viewing || !S.me) { return; }
-    var first = S.me.name.split(' ')[0], c = S.cur;
+    var nm = shown(), first = (S.me.viewing_as || {}).nickname ? nm : nm.split(' ')[0], c = S.cur;
     var can = c && c.id && c.editable !== false && ['draft', 'assigned', 'returned'].indexOf(c.status) >= 0;
     document.documentElement.classList.toggle('coediting', !!S.coedit);
-    $('viewas').innerHTML = S.coedit ? 'You\'re editing ' + esc(S.me.name) + '\'s draft. Save to keep your changes; ' + esc(first) + ' sees them the next time they open it. <button type="button" id="coedit-off">Stop editing</button>'
-      : 'You\'re seeing ' + esc(S.me.name) + '\'s author desk exactly as ' + esc(first) + ' sees it. Read-only: nothing can be changed from here.' + (can ? ' <button type="button" id="coedit-on">Work on this draft with ' + esc(first) + '</button>' : '');
+    $('viewas').innerHTML = S.coedit ? 'You\'re editing ' + esc(nm) + '\'s draft. Save to keep your changes; ' + esc(first) + ' sees them the next time they open it. <button type="button" id="coedit-off">Stop editing</button>'
+      : (SOLO ? 'This is ' + esc(nm) + '\'s article as ' + esc(first) + ' sees it. Read-only: nothing changes unless you choose to work on it.'
+              : 'You\'re seeing ' + esc(nm) + '\'s author desk exactly as ' + esc(first) + ' sees it. Read-only: nothing can be changed from here.') +
+        (can ? ' <button type="button" id="coedit-on">Work on this draft with ' + esc(first) + '</button>' : '');
   }
   $('viewas').addEventListener('click', function (ev) {
-    if (ev.target.id === 'coedit-on') { S.coedit = true; renderViewAs(); renderState(); }
+    if (ev.target.id === 'coedit-on') { S.coedit = true; renderViewAs(); renderState(); setView('compose'); if (S.tab === 'preview') { setTab('write'); } }
     if (ev.target.id === 'coedit-off') { if (S.dirty && !confirm('Leave without saving your changes?')) { return; } S.coedit = false; S.dirty = false; renderViewAs(); if (S.cur && S.cur.id) { open(S.cur.id); } }
   });
   function loadList() { return call('me').then(showMe); }
@@ -605,9 +649,12 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     var j = S.me || {}, base = j.stats_base, arts = j.articles || [];
     var sent = arts.filter(function (a) { return a.status && a.status !== 'draft' && a.status !== 'assigned'; });
     var live = arts.filter(function (a) { return a.status === 'live'; }), rows = live.filter(function (a) { return a.stats; });
-    $('dash').hidden = !sent.length;
-    if (!sent.length) { return; }
-    $('dash-title').textContent = S.viewing ? j.name + '\'s numbers on ZeroHedge' : 'Your numbers on ZeroHedge';
+    $('dash-title').textContent = S.viewing ? shown() + '\'s numbers on ZeroHedge' : 'Your numbers on ZeroHedge';
+    if (!sent.length) {
+      $('dash-upd').textContent = '';
+      $('dash-body').innerHTML = '<p class="muted">Nothing has gone to the editors yet. Once a piece runs on ZeroHedge, its views, comments and how it did against the other posts that day show here.</p>';
+      return;
+    }
     $('dash-upd').textContent = base && base.updated ? 'Updated ' + when(base.updated) + ', from ZeroHedge\'s own view counter' : 'The numbers show here within the hour';
     var st = rows.map(function (a) { return a.stats; });
     var views = st.reduce(function (t, x) { return t + (x.views || 0); }, 0), comments = st.reduce(function (t, x) { return t + (x.comments || 0); }, 0);
@@ -721,6 +768,70 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     if (tr) { D.open = D.open === tr.dataset.piece ? null : tr.dataset.piece; renderDash(); }
   });
 
+  // ---------- Stats / Compose / My articles (Oct. 20). The choice is remembered on this device; an assignment waiting
+  // always opens in Compose.
+  var VIEWS = ['stats', 'compose', 'articles'];
+  S.view = 'compose';
+  function setView(v, quiet) {
+    if (VIEWS.indexOf(v) < 0) { v = 'compose'; }
+    S.view = v;
+    document.querySelectorAll('.vtabs [data-view]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.view === v)); });
+    $('v-stats').hidden = v !== 'stats'; $('v-compose').hidden = v !== 'compose'; $('v-articles').hidden = v !== 'articles';
+    if (v === 'articles') { renderTracker(); }
+    if (v === 'compose') { try { window.dispatchEvent(new Event('resize')); } catch (e) { /* the editor redraws on its own */ } }
+    if (!quiet && !S.viewing) { store('wtab', v); }
+  }
+  $('vtabs').addEventListener('click', function (ev) { var b = ev.target.closest('[data-view]'); if (b) { setView(b.dataset.view); } });
+
+  // My articles: every piece with where it stands, when it moved and how it did, newest first. A row opens its timeline
+  // and numbers; "Open it" takes it to Compose.
+  var T = { open: null };
+  var GROUPS = [['assigned', 'assigned to you'], ['draft', 'draft', 'drafts'], ['returned', 'sent back'], ['prep', 'with the editors'], ['ready', 'ready to run'],
+                ['accepted', 'accepted, not live yet'], ['live', 'live on ZeroHedge'], ['declined', 'not taken']];
+  function lastMove(a) { return (a.status === 'live' && a.zh && a.zh.published) || a.submitted || a.updated || a.created || ''; }
+  function renderTracker() {
+    var arts = S.list.slice().sort(function (a, b) { return String(lastMove(b)).localeCompare(String(lastMove(a))); });
+    var n = {}; arts.forEach(function (a) { n[a.status] = (n[a.status] || 0) + 1; });
+    var h = '<div class="trk-sum">' + GROUPS.filter(function (g) { return n[g[0]]; }).map(function (g) { return '<span><b>' + n[g[0]] + '</b> ' + (n[g[0]] > 1 && g[2] ? g[2] : g[1]) + '</span>'; }).join('') +
+      (arts.length ? '' : '<span class="muted">No articles yet.</span>') + '</div>';
+    if (!arts.length) { $('tracker').innerHTML = h + '<p class="muted">Start one in Compose, or drop a Word file onto the page there.</p>'; return; }
+    h += '<div class="ptab-wrap"><table class="ptab trk"><thead><tr><th>Article</th><th>Where it stands</th><th class="opt">Started</th><th class="opt">Last saved</th><th>Sent to the editors</th><th>Ran on ZH</th>' +
+      '<th class="n">Views</th><th class="n">Vs. its slot</th><th class="n opt">That day</th><th class="n opt">Comments</th></tr></thead><tbody>';
+    arts.forEach(function (a) {
+      var x = a.stats || {}, open = T.open === a.id, isLive = a.status === 'live' && a.zh && /^https:\/\/(www\.)?zerohedge\.com\//.test(a.zh.url);
+      var chip = isLive ? '<a class="chip live" href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(a.word || 'Live on ZeroHedge') + ' &#8599;</a>' : '<span class="chip ' + esc(a.status) + '">' + esc(a.word || a.status) + '</span>';
+      h += '<tr class="trow' + (open ? ' open' : '') + '" data-trow="' + esc(a.id) + '"><td class="hl"><span class="t">' + esc(a.title || 'Untitled') + '</span>' +
+        '<span class="sub">' + (a.assigned ? 'Assigned by the editors' : 'Your own') + (x.channel ? ' &middot; ' + esc(secName(x.channel)) : '') + '</span></td>' +
+        '<td>' + chip + '</td><td class="opt">' + esc(when(a.created)) + '</td><td class="opt">' + esc(when(a.updated)) + '</td><td>' + esc(when(a.submitted)) + '</td>' +
+        '<td>' + (isLive ? esc(when(a.zh.published)) : '') + '</td><td class="n">' + (isLive ? nf(x.views) : '') + '</td><td class="n">' + (isLive ? idxHtml(x.idx) : '') + '</td>' +
+        '<td class="n opt">' + (x.day_rank ? '#' + x.day_rank + ' of ' + x.day_n : '') + '</td><td class="n opt">' + (isLive && x.comments != null ? nf(x.comments) : '') + '</td></tr>';
+      if (open) { h += '<tr class="pdetail"><td colspan="10">' + trackDetail(a, isLive) + '</td></tr>'; }
+    });
+    $('tracker').innerHTML = h + '</tbody></table></div>';
+  }
+  function trackDetail(a, isLive) {
+    var st = a.status, past = function (k) { return ['prep', 'ready', 'accepted', 'live'].indexOf(st) >= 0 && k; };
+    var step = function (cls, text, at) { return '<li class="' + cls + '">' + text + (at ? ' <span class="when">' + esc(when(at)) + '</span>' : '') + '</li>'; };
+    var tl = '<ul class="tl">' +
+      step('done', a.assigned ? 'Assigned to you by the editors' : 'Started', a.created) +
+      step('done', 'Last saved', a.updated) +
+      step(a.submitted ? 'done' : '', a.submitted ? 'Sent to the editors' : 'Not sent to the editors yet', a.submitted) +
+      (st === 'returned' ? step('done', 'Sent back to you with notes: open it to see them') : '') +
+      (past(1) ? step('done', 'With the editors') : '') +
+      (['accepted', 'live'].indexOf(st) >= 0 ? step('done', 'Accepted for ZeroHedge') : '') +
+      (isLive ? step('live', 'Live on ZeroHedge: <a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(a.zh.title || a.zh.url) + '</a>', a.zh.published) : '') +
+      (st === 'declined' ? step('', 'Not taken this time') : '') + '</ul>';
+    var stats = isLive && a.stats ? detailHtml(a, (S.me || {}).stats_base) : isLive ? '<p class="muted small">Its numbers show here within the hour.</p>' : '';
+    return tl + stats + '<div class="trk-acts" style="margin-top:8px"><button type="button" class="primary" data-topen="' + esc(a.id) + '">Open it</button></div>';
+  }
+  $('tracker').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-topen]');
+    if (b) { setView('compose'); if (!S.cur || S.cur.id !== b.dataset.topen) { open(b.dataset.topen); } return; }
+    if (ev.target.closest('a')) { return; }
+    var tr = ev.target.closest('tr[data-trow]');
+    if (tr) { T.open = T.open === tr.dataset.trow ? null : tr.dataset.trow; renderTracker(); }
+  });
+
   // ---------- pitches (Oct. 20): ideas for the editors, approved or turned down with a comment; an approved one may
   // come back as an assignment. They're kept on the record in the desk.
   var PSTATE = { open: ['p-open', 'Waiting'], approved: ['p-approved', 'Approved'], denied: ['p-denied', 'Not this time'], withdrawn: ['', 'Withdrawn'] };
@@ -803,6 +914,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       if (S.tab === 'html') { setTab('write'); }
       setBody(a.html || ''); S.dirty = false; $('saved').textContent = 'Saved ' + when(a.updated);
       renderState(); renderPics(); renderList(); renderViewAs();
+      if (SOLO && !editable() && S.tab !== 'preview') { setTab('preview'); }
       S.pics.forEach(function (p) { fetchPic(p.name); });
     }).catch(function (e) { $('saved').textContent = ''; toast('Couldn\'t open it: ' + e.message, true); });
   }
@@ -820,6 +932,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     var c = S.cur, b = $('banner'), lock = !editable();
     if (ED) { ED.mode.set(lock ? 'readonly' : 'design'); }
     $('html').readOnly = lock; $('title').readOnly = lock; $('deck').readOnly = lock; $('note').readOnly = lock;
+    $('deck').hidden = lock && !$('deck').value.trim();   // no empty "Subheadline (optional)" box on a locked piece
     ['save', 'submit', 'open-file', 'lib-open'].forEach(function (id) { $(id).disabled = lock; });
     $('drop').hidden = lock;
     var text = '';
@@ -1231,8 +1344,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   });
   $('save').addEventListener('click', function () { save(false).catch(function () {}); });
   $('submit').addEventListener('click', function () { save(true).catch(function () {}); });
-  $('new').addEventListener('click', function () { if (S.dirty && !confirm('You have unsaved changes. Leave them?')) { return; } blank(); });
-  $('list').addEventListener('click', function (ev) { if (ev.target.closest('a')) { return; } var li = ev.target.closest('li[data-id]'); if (li) { open(li.dataset.id); } });
+  $('new').addEventListener('click', function () { if (S.dirty && !confirm('You have unsaved changes. Leave them?')) { return; } blank(); setView('compose'); });
+  $('list').addEventListener('click', function (ev) { if (ev.target.closest('a')) { return; } var li = ev.target.closest('li[data-id]'); if (li) { setView('compose'); if (!S.cur || S.cur.id !== li.dataset.id) { open(li.dataset.id); } } });
   $('reply-send').addEventListener('click', function () {
     var t = $('reply').value.trim(); if (!t || !S.cur || !S.cur.id) { return; }
     this.disabled = true; var btn = this;
@@ -1265,9 +1378,12 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     $('title').disabled = true; $('deck').disabled = true;
     return initEditor().then(function () {
       $('title').disabled = false; $('deck').disabled = false;
-      var first = S.list.filter(function (a) { return a.status === 'assigned'; })[0] || S.list.filter(function (a) { return a.status === 'returned' || a.status === 'draft'; })[0];
+      var assigned = S.list.filter(function (a) { return a.status === 'assigned'; })[0];
+      var first = (OPEN && S.list.filter(function (a) { return a.id === OPEN; })[0]) || assigned || S.list.filter(function (a) { return a.status === 'returned' || a.status === 'draft'; })[0];
       S.dirty = false;   // the editor can flag its own empty start as a change; nothing has been typed yet
       if (first) { open(first.id); } else { blank(); }
+      var saved = S.viewing ? null : store('wtab'), live = S.list.some(function (a) { return a.status === 'live'; });
+      setView(SOLO || OPEN || assigned ? 'compose' : VIEWS.indexOf(saved) >= 0 ? saved : live ? 'stats' : 'compose', true);
     }).catch(function (e) { toast('The editor didn\'t load: ' + e.message + '. Reload the page.', true, 20000); });
   }
   function showJoin() {

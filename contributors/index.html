@@ -12,13 +12,16 @@
   ZeroHedge's own view and comment counts (the zh-stats worker), the board of who's on what, pitches to approve or turn
   down, assignments, notes, invites and email settings. Everything is recorded in the desk repo: pitches in
   authors/LOGIN/pitches.json, assignments and notes as contributor issues. "What they see" is the contributor's own
-  author desk (/write/?as=LOGIN), read-only.
+  author desk (/write/?as=LOGIN), read-only, folded under their pitches; any piece on the board or in a profile opens in
+  place (/write/?as=LOGIN&solo=1&open=ID). Contributors go by the name the editors give them, with their GitHub name.
+  Editors get the area switch (Desk / Charts / Store / Contributors) and ?view=owner, the dashboard as the owner sees it.
 -->
 <script id="desk-signin" type="application/json">{"clientId": "Iv23li3HIxBazcHkRTlw", "worker": "https://zh-desk-signin.zeropointnowagain.workers.dev/", "redirect": "https://zh-desk.github.io/"}</script>
 <style>
 :root { --paper: #f4f5f7; --panel: #fff; --ink: #171b22; --muted: #5d6673; --rule: #d8dde5; --accent: #b4520f; --accent-ink: #fff; --good: #1f7a45; --warn: #9a5b00; --bad: #ad2a20; --code: #f0f2f5; color-scheme: light; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper: #11141a; --panel: #191e26; --ink: #e6e9ee; --muted: #a0a9b6; --rule: #2c3440; --accent: #f08a3c; --accent-ink: #1a1206; --good: #6fcf97; --warn: #f2c26b; --bad: #f0948a; --code: #12161c; color-scheme: dark; } }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
 a { color: var(--accent); }
 button, input, textarea, select { font: inherit; color: inherit; }
@@ -31,10 +34,19 @@ button:disabled { opacity: .55; cursor: default; }
 .muted { color: var(--muted); }
 input[type=text], input[type=email], textarea, select { border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); padding: 6px 8px; width: 100%; }
 textarea { resize: vertical; min-height: 64px; }
-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; padding: 10px 20px; border-bottom: 1px solid var(--rule); background: var(--panel); position: sticky; top: 0; z-index: 5; }
-header .brand { justify-self: start; display: flex; align-items: center; }
-header h1 { font: 700 1.3rem/1.1 Georgia, "Times New Roman", serif; margin: 0; text-align: center; }
-header .right { justify-self: end; display: flex; align-items: center; gap: 12px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 20px; border-bottom: 1px solid var(--rule); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+header .brand { flex: 0 0 auto; display: flex; align-items: center; }
+header h1 { flex: 1 1 auto; font: 700 1.3rem/1.1 Georgia, "Times New Roman", serif; margin: 0; text-align: center; }
+header .right { flex: 0 0 auto; margin-left: auto; display: flex; align-items: center; gap: 12px; }
+/* The area switch (Oct. 20, Dan: only he and Tim get "the multiple area toggle (desk / charts / store / contributors) up
+   top"): editors only, never the owner or other admins, and never in the owner preview. */
+.areas { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; flex: 0 0 auto; }
+.areas a { padding: 7px 11px; font-size: .8rem; font-weight: 600; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.areas a + a { border-left: 1px solid var(--rule); }
+.areas a:hover { background: var(--paper); }
+.areas a[aria-current="page"] { background: var(--ink); color: var(--panel); }
+.preview-bar { background: var(--warn); color: #fff; padding: 8px 20px; font-weight: 600; font-size: .9rem; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.preview-bar a { color: #fff; }
 header .who { color: var(--muted); font-size: .9rem; }
 .zh-logo { display: block; height: 30px; width: auto; color: var(--ink); }
 .box { max-width: 460px; margin: 12vh auto; padding: 28px; text-align: center; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; }
@@ -95,6 +107,21 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
 .dlg { background: var(--panel); border-radius: 10px; width: min(760px, 100%); padding: 16px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
 .dlg h2 { margin: 0 0 6px; font-size: 1.1rem; }
 .seeas iframe { width: 100%; height: 900px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); }
+details.seeas { margin-top: 16px; border: 1px solid var(--rule); border-radius: 8px; }
+details.seeas > summary { cursor: pointer; padding: 8px 12px; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+details.seeas[open] > summary { border-bottom: 1px solid var(--rule); }
+details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
+/* Any piece on the board or in a profile opens in place (Oct. 20, Dan: "click on 'with the editors' (or any of the other
+   areas) and have it pop open the compose / preview area"). */
+.bitem[data-open], tr[data-open] { cursor: pointer; }
+.bitem[data-open]:hover .ttl, tr[data-open]:hover .ttl { text-decoration: underline; }
+.bitem.pitch .ptl { cursor: pointer; }
+.bitem.pitch .ptl:hover { text-decoration: underline; }
+.dlg.wide { width: min(1180px, 100%); padding: 0; overflow: hidden; }
+.dlg.wide .dhead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+.dlg.wide .dhead h2 { margin: 0; font: 700 1.05rem/1.25 Georgia, "Times New Roman", serif; flex: 1 1 300px; min-width: 0; }
+.dlg.wide iframe { display: block; width: 100%; height: 78vh; border: 0; background: var(--paper); }
+.dlg-back.piece { padding: 3vh 16px; }
 .toast { position: fixed; right: 18px; bottom: 18px; background: var(--ink); color: var(--paper); padding: 10px 14px; border-radius: 6px; max-width: 460px; z-index: 40; }
 .toast.bad { background: var(--bad); color: #fff; }
 .link-out { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px; border-radius: 6px; background: rgba(31,122,69,.12); margin: 8px 0; overflow-wrap: anywhere; }
@@ -102,7 +129,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
 .ptitle { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .ptitle h2 { margin: 0; font: 700 1.4rem/1.2 Georgia, "Times New Roman", serif; color: var(--ink); text-transform: none; letter-spacing: 0; }
 @media (max-width: 1050px) { .page { grid-template-columns: minmax(0, 1fr); } .board { position: static; max-height: none; } }
-@media (max-width: 760px) { header { grid-template-columns: auto 1fr auto; padding: 8px 12px; } header h1 { font-size: 1.05rem; } header .who { display: none; } .page { padding: 12px; } .tbl .opt { display: none; } .seeas iframe { height: 700px; } }
+@media (max-width: 1100px) { header.has-areas h1 { display: none; } }
+@media (max-width: 760px) { header { padding: 8px 12px; } header h1 { font-size: 1.05rem; } header .who { display: none; } .page { padding: 12px; } .tbl .opt { display: none; } .seeas iframe { height: 700px; }
+  .areas { order: 5; width: 100%; } .areas a { flex: 1 1 0; text-align: center; padding: 7px 4px; } .preview-bar { padding: 8px 12px; } .dlg.wide iframe { height: 82vh; } }
 </style>
 </head>
 <body>
@@ -120,11 +149,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
 </div>
 
 <div id="app" hidden>
-  <header>
+  <header id="head">
     <div class="brand" id="head-logo"></div>
+    <nav class="areas" id="areas" aria-label="Switch area" hidden><a href="https://zh-desk.github.io/">Desk</a><a href="https://zh-desk.github.io/#charts">Charts</a><a href="https://zh-desk.github.io/store/">Store</a><a href="/contributors/" aria-current="page">Contributors</a></nav>
     <h1>Contributor Dashboard</h1>
     <div class="right"><span class="who" id="who"></span><button type="button" id="signout">Sign out</button></div>
   </header>
+  <div class="preview-bar" id="preview-bar" hidden></div>
   <div class="page">
     <div>
       <section class="panel"><h2><span class="grow">All contributors</span><span class="small" style="text-transform:none;letter-spacing:0" id="upd"></span></h2><div class="tiles" id="totals"></div></section>
@@ -232,15 +263,27 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
     if (a.status === 'declined') { return { k: 'declined', w: 'Not taken' }; }
     return { k: 'prep', w: 'With the editors, in prep' };
   }
-  function nameOf(c) { return c.name + (c.nickname && c.nickname !== c.name ? ' (' + c.nickname + ')' : ''); }
+  // A contributor's name here is the one the editors give them (Dan, Oct. 20: "use whatever name I give a contributor";
+  // several sign up under other names), with their GitHub name beside it. Their own sign-up name only stands in until
+  // someone gives them one.
+  function nameOf(c) { return (c && (c.nickname || c.name || c.shown_login || c.login)) || ''; }
+  function short(c) { return c.nickname ? c.nickname : nameOf(c).split(' ')[0]; }
+  function ghOf(c) { return '@' + (c.shown_login || c.login); }
 
   // ---------- state
   var S = { data: null, sel: null, seeAs: false, pitchOpen: {}, busy: false };
+  // ?view=owner (editors only): the dashboard exactly as the owner sees it. The helper answers as it would for the owner;
+  // anything done from the page is still done as the editor.
+  var VIEW = new URLSearchParams(location.search).get('view') === 'owner' ? 'owner' : '';
   function load() {
-    return call('overview').then(function (j) {
+    return call('overview', VIEW ? { view: VIEW } : {}).then(function (j) {
       S.data = j; store('admin_invite', null);
       $('gate').hidden = true; $('app').hidden = false;
-      $('who').textContent = j.me.name + ' · ' + (j.me.role === 'editor' ? 'editor' : j.me.role);
+      var pv = j.preview, ed = j.me.role === 'editor';
+      $('areas').hidden = !ed; $('head').classList.toggle('has-areas', ed);
+      $('preview-bar').hidden = !pv;
+      if (pv) { $('preview-bar').innerHTML = '<span>Preview: this is the dashboard as ' + esc(pv.owner ? pv.owner.name : 'the owner') + ' (the owner) sees it. No area switch, no admin invites, no admin list. Anything you do here is done as you.</span><a href="/contributors/">Back to your view</a>'; }
+      $('who').textContent = j.me.name + ' · ' + (pv ? 'previewing the owner' : j.me.role === 'editor' ? 'editor' : j.me.role);
       if (!S.sel && j.contributors.length) { S.sel = j.contributors.slice().sort(function (a, b) { return b.articles.length - a.articles.length; })[0].login; }
       render();
     });
@@ -276,12 +319,12 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
       tile('ZH\'s Today\'s top', s.tops, 'pieces on ZH\'s own top list');
   }
   function renderPeople() {
-    var d = S.data, list = d.contributors.slice().sort(function (a, b) { return summary(b.articles).views - summary(a.articles).views || a.name.localeCompare(b.name); });
+    var d = S.data, list = d.contributors.slice().sort(function (a, b) { return summary(b.articles).views - summary(a.articles).views || nameOf(a).localeCompare(nameOf(b)); });
     $('people-empty').hidden = !!list.length;
     $('people').innerHTML = list.map(function (c) {
       var s = summary(c.articles), open = (c.pitches || []).filter(function (p) { return p.status === 'open'; }).length;
-      return '<button type="button" class="person' + (S.sel === c.login ? ' on' : '') + '" data-person="' + esc(c.login) + '"><div class="nm">' + esc(c.name) + '</div>' +
-        '<div class="nk">' + esc(c.nickname ? 'Desk name: ' + c.nickname : '@' + c.shown_login) + '</div>' +
+      return '<button type="button" class="person' + (S.sel === c.login ? ' on' : '') + '" data-person="' + esc(c.login) + '"><div class="nm">' + esc(nameOf(c)) + '</div>' +
+        '<div class="nk">' + esc(ghOf(c)) + ' on GitHub' + (c.nickname ? '' : ' &middot; no name given yet') + '</div>' +
         '<div class="nums"><span><b>' + s.live + '</b> live</span><span><b>' + kf(s.views) + '</b> views</span><span><b>' + xf(s.idx) + '</b> vs slot</span>' +
         (s.inWorks ? '<span><b>' + s.inWorks + '</b> in the works</span>' : '') + (open ? '<span><b>' + open + '</b> pitch' + (open === 1 ? '' : 'es') + ' waiting</span>' : '') + '</div></button>';
     }).join('');
@@ -292,11 +335,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
     el.hidden = !c;
     if (!c) { return; }
     var s = summary(c.articles), base = S.data.stats_base || {};
-    var h = '<div class="ptitle"><h2>' + esc(c.name) + '</h2><span class="muted small">@' + esc(c.shown_login) + (c.joined ? ' &middot; joined ' + esc(when(c.joined)) : '') + '</span></div>' +
+    var h = '<div class="ptitle"><h2>' + esc(nameOf(c)) + '</h2><span class="muted small">' + esc(ghOf(c)) + ' on GitHub' + (c.joined ? ' &middot; joined ' + esc(when(c.joined)) : '') + '</span></div>' +
       '<div class="row" style="margin:10px 0">' +
-      '<button type="button" class="primary" data-act="assign">Give ' + esc(c.name.split(' ')[0]) + ' an article</button>' +
-      '<button type="button" data-act="seeas" aria-pressed="' + S.seeAs + '">' + (S.seeAs ? 'Hide what ' + esc(c.name.split(' ')[0]) + ' sees' : 'See what ' + esc(c.name.split(' ')[0]) + ' sees') + '</button>' +
-      '<label class="small row" style="gap:6px;margin-left:auto">Desk name <input type="text" style="width:160px" data-nick value="' + esc(c.nickname) + '" placeholder="private nickname"></label></div>' +
+      '<button type="button" class="primary" data-act="assign">Give ' + esc(short(c)) + ' an article</button>' +
+      '<label class="small row" style="gap:6px;margin-left:auto" title="The name everyone here sees for them. They never see it.">Their name here <input type="text" style="width:160px" data-nick value="' + esc(c.nickname) + '" placeholder="e.g. Josh"></label></div>' +
       '<div class="row small" style="margin-bottom:12px">Email: <input type="email" style="width:240px" data-email value="' + esc(c.email) + '" placeholder="their address, for notifications">' +
       '<label class="row" style="gap:4px"><input type="checkbox" data-notify' + (c.notify ? ' checked' : '') + '> send them email</label><button type="button" data-act="contact">Save</button>' +
       '<span class="hint">' + (S.data.email_ready ? 'Assignments, pitch decisions and notes go out by email when you tick the box.' : 'Email isn\'t switched on in the helper yet: the dashboard opens a ready email in your mail program instead.') + '</span></div>' +
@@ -308,7 +350,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
     h += '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Piece</th><th>Where it stands</th><th class="n">Views</th><th class="n">Vs. its slot</th><th class="n">That day</th><th class="n opt">Section, 7 days</th><th class="n opt">1 hr</th><th class="n opt">24 hr</th><th class="n opt">Comments</th><th></th></tr></thead><tbody>' +
       (arts.length ? arts.map(function (a) {
         var x = a.stats || {}, sg = stage(a);
-        return '<tr><td class="hl">' + (a.zh ? '<a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(x.title || a.zh.title || a.title) + '</a>' : esc(a.title || 'Untitled')) +
+        return '<tr data-open="' + esc(c.login) + '|' + esc(a.id) + '" title="Open it"><td class="hl"><span class="ttl">' + esc(x.title || (a.zh && a.zh.title) || a.title || 'Untitled') + '</span>' + (a.zh ? ' <a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener" title="Open it on ZeroHedge">ZH &#8599;</a>' : '') +
           '<span class="sub">' + (a.assigned ? 'Assigned &middot; ' : '') + (x.channel ? esc(secName(x.channel)) + ' &middot; ' : '') + (x.day ? 'ran ' + esc(dayName(x.day)) : a.submitted ? 'submitted ' + esc(when(a.submitted)) : 'updated ' + esc(when(a.updated))) + '</span></td>' +
           '<td><span class="stage ' + sg.k + '">' + esc(sg.w) + '</span></td><td class="n">' + nf(x.views) + '</td><td class="n">' + idxHtml(x.idx) + '</td>' +
           '<td class="n">' + (x.day_rank ? '#' + x.day_rank + ' of ' + x.day_n : '-') + '</td><td class="n opt">' + (x.chan_rank ? '#' + x.chan_rank + ' of ' + x.chan_n : '-') + '</td>' +
@@ -317,18 +359,24 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
       }).join('') : '<tr><td colspan="10" class="muted">Nothing yet.</td></tr>') + '</tbody></table></div>';
     var ps = c.pitches || [];
     h += '<h2 style="margin-top:16px">Pitches (' + ps.length + ')</h2>' + (ps.length ? ps.map(function (p) { return pitchHtml(c, p, true); }).join('') : '<p class="muted small">No pitches yet. They pitch from their author desk.</p>');
-    if (S.seeAs) { h += '<h2 style="margin-top:16px">What ' + esc(c.name.split(' ')[0]) + ' sees</h2><div class="seeas"><iframe title="' + esc(c.name) + '\'s author desk" src="/write/?as=' + encodeURIComponent(c.login) + '&embed=1"></iframe></div>'; }
+    // Their own author desk, as they see it: folded away under the pitches (Dan, Oct. 20), loaded only when opened.
+    var frame = '<iframe title="' + esc(nameOf(c)) + '\'s author desk" src="/write/?as=' + encodeURIComponent(c.login) + '&embed=1"></iframe>';
+    h += '<details class="seeas" data-seeas' + (S.seeAs ? ' open' : '') + '><summary>What ' + esc(short(c)) + ' sees: ' + esc(short(c)) + '\'s author desk</summary>' + (S.seeAs ? frame : '') + '</details>';
     el.innerHTML = h;
+    el.querySelector('[data-seeas]').addEventListener('toggle', function () {
+      S.seeAs = this.open;
+      if (S.seeAs && !this.querySelector('iframe')) { this.insertAdjacentHTML('beforeend', frame); }
+    });
   }
   function pitchHtml(c, p, full) {
     var open = p.status === 'open', word = { open: 'Waiting for a decision', approved: 'Approved', denied: 'Turned down', withdrawn: 'Withdrawn' }[p.status] || p.status;
     var th = (p.thread || []).map(function (t) { return '<li class="' + (t.from === 'editors' ? 'editors' : '') + '"><strong>' + esc(t.name || t.by) + '</strong> <span class="muted">' + esc(when(t.at)) + (t.decision ? ' &middot; ' + esc(t.decision) : '') + '</span>\n' + esc(t.text) + '</li>'; }).join('');
-    return '<div class="bitem pitch" data-pitch="' + esc(p.id) + '" data-login="' + esc(c.login) + '"><div><span class="who">' + esc(c.name) + '</span> &middot; <strong>' + esc(p.title) + '</strong></div>' +
-      '<div class="when">' + esc(word) + ' &middot; pitched ' + esc(ago(p.created)) + (p.assignment ? ' &middot; now an assignment' : '') + '</div>' +
+    return '<div class="bitem pitch" data-pitch="' + esc(p.id) + '" data-login="' + esc(c.login) + '"><div><span class="who">' + esc(nameOf(c)) + '</span> &middot; <strong class="ptl" data-pact="open" title="' + (open ? 'Decide or comment' : 'Comment') + '">' + esc(p.title) + '</strong></div>' +
+      '<div class="when">' + esc(word) + ' &middot; pitched ' + esc(ago(p.created)) + (p.assignment ? ' &middot; now an assignment <button type="button" class="small" style="padding:0 8px" data-openp="' + esc(c.login) + '|' + esc(p.assignment.id) + '">Open it</button>' : '') + '</div>' +
       (full && p.pitch ? '<div class="small" style="white-space:pre-wrap;margin:4px 0">' + esc(p.pitch) + '</div>' : '') +
       (full && (p.links || []).length ? '<div class="small">' + p.links.map(function (l) { return '<a href="' + esc(l) + '" target="_blank" rel="noopener">' + esc(l.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60)) + '</a>'; }).join(' &middot; ') + '</div>' : '') +
       (th ? '<ul class="thread">' + th + '</ul>' : '') +
-      (S.pitchOpen[p.id] ? '<div class="form"><textarea data-pitch-text placeholder="A comment for ' + esc(c.name.split(' ')[0]) + ' (they see it)"></textarea>' +
+      (S.pitchOpen[p.id] ? '<div class="form"><textarea data-pitch-text placeholder="A comment for ' + esc(short(c)) + ' (they see it)"></textarea>' +
         '<div class="row">' + (open ? '<button type="button" class="good" data-pact="approved">Approve</button><label class="small row" style="gap:4px"><input type="checkbox" data-pitch-assign checked> and make it an assignment</label><button type="button" class="bad" data-pact="denied">Turn down</button>' : '<button type="button" data-pact="reopen">Reopen</button>') +
         '<button type="button" data-pact="comment">Comment only</button><label class="small row" style="gap:4px"><input type="checkbox" data-pitch-mail' + (c.notify ? ' checked' : '') + '> email them</label></div></div>' :
         '<div class="acts"><button type="button" data-pact="open">' + (open ? 'Decide or comment' : 'Comment') + '</button></div>') + '</div>';
@@ -345,7 +393,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
     var line = function (cls, extra) {
       return function (x) {
         var a = x.a, s = a.stats;
-        return '<div class="bitem ' + cls + '"><div><span class="who">' + esc(nameOf(x.c)) + '</span> &middot; ' + (a.zh ? '<a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(a.title) + '</a>' : esc(a.title || 'Untitled')) + '</div>' +
+        return '<div class="bitem ' + cls + '" data-open="' + esc(x.c.login) + '|' + esc(a.id) + '" title="Open it"><div><span class="who">' + esc(nameOf(x.c)) + '</span> &middot; <span class="ttl">' + esc(a.title || 'Untitled') + '</span>' + (a.zh ? ' <a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener" title="Open it on ZeroHedge">ZH &#8599;</a>' : '') + '</div>' +
           '<div class="when"><span class="stage ' + stage(a).k + '">' + esc(stage(a).w) + '</span> ' + (extra ? extra(x) : esc(ago(a.updated))) + '</div></div>';
       };
     };
@@ -366,8 +414,8 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
       (ed ? '<form class="row" id="inv-a" style="margin-top:10px"><input type="text" style="flex:1 1 200px;width:auto" id="inv-a-name" placeholder="Their name"><label class="small row" style="gap:4px"><input type="checkbox" id="inv-a-owner"> the owner</label><button type="submit">Make an admin invite</button></form>' +
         '<p class="hint">An admin gets this dashboard and nothing else: no desk, no store, no repository.</p>' : '') +
       '<div id="inv-out"></div>' +
-      (d.invites.length ? '<ul class="small" style="padding-left:18px">' + d.invites.map(function (v) { return '<li>' + (v.role === 'admin' ? 'Admin invite' + (v.name ? ' for ' + esc(v.name) : '') : 'Contributor invite' + (v.nickname ? ' for ' + esc(v.nickname) : '')) + ', made ' + esc(when(v.made)) + ' by ' + esc(v.by) + ' <button type="button" class="small" data-act="withdraw" data-hash="' + esc(v.hash) + '">Withdraw</button></li>'; }).join('') + '</ul>' : '') +
-      (ed && d.admins ? '<h2 style="margin-top:14px">Admins</h2>' + (d.admins.length ? '<ul class="small" style="padding-left:18px">' + d.admins.map(function (a) { return '<li>' + esc(a.name) + ' (@' + esc(a.login) + ', ' + esc(a.role) + ')' + (a.joined ? ', joined ' + esc(when(a.joined)) : '') + ' <button type="button" class="small" data-act="admin-remove" data-login="' + esc(a.login) + '">Remove</button></li>'; }).join('') + '</ul>' : '<p class="muted small">No admins yet besides you and Tim.</p>') : '') +
+      (d.invites.length ? '<ul class="small" style="padding-left:18px">' + d.invites.map(function (v) { return '<li>' + (v.role === 'admin' ? 'Admin invite' + (v.name ? ' for ' + esc(v.name) : '') : 'Contributor invite' + (v.nickname ? ' for ' + esc(v.nickname) : '')) + ', made ' + esc(when(v.made)) + ' by ' + esc(v.by_name || v.by) + ' <button type="button" class="small" data-act="withdraw" data-hash="' + esc(v.hash) + '">Withdraw</button></li>'; }).join('') + '</ul>' : '') +
+      (ed && d.admins ? '<h2 style="margin-top:14px"><span class="grow">Admins</span><a class="small" style="text-transform:none;letter-spacing:0;font-weight:400" href="/contributors/?view=owner">See the dashboard as the owner sees it</a></h2>' + (d.admins.length ? '<ul class="small" style="padding-left:18px">' + d.admins.map(function (a) { return '<li>' + esc(a.name) + ' (@' + esc(a.login) + ', ' + esc(a.role) + ')' + (a.joined ? ', joined ' + esc(when(a.joined)) : '') + ' <button type="button" class="small" data-act="admin-remove" data-login="' + esc(a.login) + '">Remove</button></li>'; }).join('') + '</ul>' : '<p class="muted small">No admins yet besides you and Tim.</p>') : '') +
       '<h2 style="margin-top:14px">My email</h2><form class="row small" id="self"><input type="email" style="width:240px" id="self-email" value="' + esc(d.me.email) + '" placeholder="you@example.com"><label class="row" style="gap:4px"><input type="checkbox" id="self-notify"' + (d.me.notify ? ' checked' : '') + '> email me new pitches and submissions</label><button type="submit">Save</button></form>';
     $('invites-panel').innerHTML = h;
   }
@@ -376,15 +424,15 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
   function assignDialog(c) {
     var back = document.createElement('div');
     back.className = 'dlg-back';
-    back.innerHTML = '<div class="dlg" role="dialog" aria-label="Give ' + esc(c.name) + ' an article"><h2>Give ' + esc(c.name) + ' an article</h2>' +
-      '<p class="hint">It shows on ' + esc(c.name.split(' ')[0]) + '\'s author desk as <strong>Assigned to you</strong>, with your brief as a note, and in the desk\'s Contributors lane as With the author. You can both work on the draft.</p>' +
+    back.innerHTML = '<div class="dlg" role="dialog" aria-label="Give ' + esc(nameOf(c)) + ' an article"><h2>Give ' + esc(nameOf(c)) + ' an article</h2>' +
+      '<p class="hint">It shows on ' + esc(short(c)) + '\'s author desk as <strong>Assigned to you</strong>, with your brief as a note, and in the desk\'s Contributors lane as With the author. You can both work on the draft.</p>' +
       '<form class="form" id="asg"><label>Headline or working title<input type="text" id="asg-title" required maxlength="300"></label>' +
       '<label>Subheadline (optional)<input type="text" id="asg-deck" maxlength="600"></label>' +
       '<label>The brief: what you want, the angle, length, timing<textarea id="asg-brief" rows="5"></textarea></label>' +
       '<label>Source links, one per line<textarea id="asg-links" rows="3" placeholder="https://..."></textarea></label>' +
       '<label>A starting draft (optional: HTML or text to start from)<textarea id="asg-html" rows="4"></textarea></label>' +
-      '<label class="row" style="gap:6px;font-weight:400"><input type="checkbox" id="asg-mail"' + (c.email ? (c.notify ? ' checked' : '') : ' disabled') + '> Email ' + esc(c.name.split(' ')[0]) + ' about it' + (c.email ? '' : ' (no address on file: add one on their profile)') + '</label>' +
-      '<div class="row"><button type="submit" class="primary">Give it to ' + esc(c.name.split(' ')[0]) + '</button><button type="button" data-close>Cancel</button></div></form></div>';
+      '<label class="row" style="gap:6px;font-weight:400"><input type="checkbox" id="asg-mail"' + (c.email ? (c.notify ? ' checked' : '') : ' disabled') + '> Email ' + esc(short(c)) + ' about it' + (c.email ? '' : ' (no address on file: add one on their profile)') + '</label>' +
+      '<div class="row"><button type="submit" class="primary">Give it to ' + esc(short(c)) + '</button><button type="button" data-close>Cancel</button></div></form></div>';
     document.body.appendChild(back);
     var close = function () { back.remove(); };
     back.addEventListener('click', function (ev) { if (ev.target === back || ev.target.closest('[data-close]')) { close(); } });
@@ -396,10 +444,39 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
       var html = raw && !/<[a-z][\s\S]*>/i.test(raw) ? raw.split(/\n{2,}/).map(function (p) { return '<p>' + esc(p.trim()) + '</p>'; }).join('\n') : raw;
       call('assign', { login: c.login, title: back.querySelector('#asg-title').value, deck: back.querySelector('#asg-deck').value, brief: back.querySelector('#asg-brief').value,
                        links: back.querySelector('#asg-links').value, html: html, notify: back.querySelector('#asg-mail').checked })
-        .then(function (j) { close(); afterMail(j, 'Given to ' + c.name + '.'); return load(); })
+        .then(function (j) { close(); afterMail(j, 'Given to ' + nameOf(c) + '.'); return load(); })
         .catch(function (e) { btn.disabled = false; toast('Couldn\'t assign it: ' + e.message, true); });
     });
   }
+  // ---------- one piece, opened in place: the contributor's own author desk for just that article (compose and preview),
+  // read-only until the editor chooses to work on a draft with them. It sits over the dashboard; closing it reloads.
+  function pieceOf(login, id) {
+    var c = ((S.data && S.data.contributors) || []).filter(function (x) { return x.login === login; })[0];
+    return c ? { c: c, a: c.articles.filter(function (x) { return x.id === id; })[0] || null } : null;
+  }
+  function openPiece(login, id) {
+    var p = pieceOf(login, id);
+    if (!p || !p.a) { return; }
+    var c = p.c, a = p.a, sg = stage(a), q = '?as=' + encodeURIComponent(c.login) + '&solo=1&open=' + encodeURIComponent(a.id);
+    var back = document.createElement('div');
+    back.className = 'dlg-back piece';
+    back.innerHTML = '<div class="dlg wide" role="dialog" aria-label="' + esc(a.title || 'Untitled') + '"><div class="dhead"><span class="stage ' + sg.k + '">' + esc(sg.w) + '</span>' +
+      '<h2>' + esc(a.title || 'Untitled') + '</h2><span class="muted small">' + esc(nameOf(c)) + ' &middot; ' + esc(ghOf(c)) + '</span>' +
+      (a.zh ? '<a class="small" href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">On ZeroHedge &#8599;</a>' : '') +
+      '<a class="small" href="/write/' + q + '" target="_blank" rel="noopener">Open in a new tab</a><button type="button" data-close>Close</button></div>' +
+      '<iframe title="' + esc(a.title || 'The article') + '" src="/write/' + q + '&embed=1"></iframe></div>';
+    document.body.appendChild(back);
+    var shut = function () {
+      try { var w = back.querySelector('iframe').contentWindow; if (w.__portal && w.__portal.state.dirty && !window.confirm('Close without saving your changes?')) { return; } } catch (e) { /* closes anyway */ }
+      back.remove(); document.removeEventListener('keydown', esc1);
+      load().catch(function () {});
+    };
+    var esc1 = function (ev) { if (ev.key === 'Escape') { shut(); } };
+    document.addEventListener('keydown', esc1);
+    back.addEventListener('click', function (ev) { if (ev.target === back || ev.target.closest('[data-close]')) { shut(); } });
+    back.querySelector('[data-close]').focus();
+  }
+
   // After anything that may email a contributor: say what happened, and open a ready email when the helper can't send.
   function afterMail(j, done) {
     if (j.email === 'sent') { toast(done + ' They\'ve been emailed.'); return; }
@@ -421,14 +498,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
       var a = act.dataset.act, c = sel();
       if (a === 'refresh') { act.disabled = true; load().catch(function (e) { toast(e.message, true); }); return; }
       if (a === 'assign' && c) { assignDialog(c); return; }
-      if (a === 'seeas') { S.seeAs = !S.seeAs; renderProfile(); return; }
       if (a === 'contact' && c) {
         var em = $('profile').querySelector('[data-email]').value.trim(), on = $('profile').querySelector('[data-notify]').checked;
         call('contact', { login: c.login, email: em, notify: on }).then(function () { toast('Saved.'); return load(); }).catch(function (e) { toast(e.message, true); });
         return;
       }
       if (a === 'note' && c) {
-        var text = window.prompt('A note for ' + c.name + ' (they see it on their author desk):');
+        var text = window.prompt('A note for ' + nameOf(c) + ' (they see it on their author desk):');
         if (!text) { return; }
         call('note', { login: c.login, id: act.dataset.id, text: text, notify: c.notify }).then(function (j) { afterMail(j, 'Note sent.'); }).catch(function (e) { toast(e.message, true); });
         return;
@@ -440,9 +516,14 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
         return;
       }
     }
+    var opp = t.closest('[data-openp]');
+    if (opp) { var kk = opp.dataset.openp.split('|'); openPiece(kk[0], kk[1]); return; }
+    var op = t.closest('[data-open]');
+    if (op && !t.closest('a, button, input, textarea, label, select')) { var k = op.dataset.open.split('|'); openPiece(k[0], k[1]); return; }
     var pa = t.closest('[data-pact]');
     if (pa) {
       var box = pa.closest('[data-pitch]'), id = box.dataset.pitch, who = box.dataset.login, k = pa.dataset.pact;
+      if (k === 'open' && S.pitchOpen[id] && pa.classList.contains('ptl')) { delete S.pitchOpen[id]; renderBoard(); renderProfile(); return; }
       if (k === 'open') { S.pitchOpen[id] = true; renderBoard(); renderProfile(); var ta = document.querySelector('[data-pitch="' + id + '"] [data-pitch-text]'); if (ta) { ta.focus(); } return; }
       var txt = (box.querySelector('[data-pitch-text]') || {}).value || '', assign = !!(box.querySelector('[data-pitch-assign]') || {}).checked, mail = !!(box.querySelector('[data-pitch-mail]') || {}).checked;
       if (k === 'comment' && !txt.trim()) { toast('Write the comment first.', true); return; }
