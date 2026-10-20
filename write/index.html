@@ -765,7 +765,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     var p = [];
     p.push('<p>Ran ' + esc(dayName(x.day)) + ' at ' + esc(hourName(x.hour)) + ' Eastern. ' + (hf ? 'Posts at that hour draw ' + xf(hf) + ' the typical, ' : '') +
       (df ? DOWS[x.dow] + ' posts ' + xf(df) + '. ' : '') + 'A typical post in that slot gets about <strong>' + nf(x.exp48) + '</strong> views in 2 days; this one ' +
-      (x.basis === 48 ? 'got <strong>' + nf(x.m48 != null ? x.m48 : x.views) + '</strong>' : 'is ' + basisWord(x.basis) + ' old') + ': <strong>' + xf(x.idx) + '</strong>.</p>');
+      (x.idx == null ? 'has <strong>' + nf(x.views) + '</strong> so far. It\'s set against the typical post when it reaches the next of 1, 3, 6, 12, 24 or 48 hours old after the desk first counted it.' :
+       (x.basis === 48 ? 'got <strong>' + nf(x.m48 != null ? x.m48 : x.views) + '</strong>' : 'is ' + basisWord(x.basis) + ' old') + ': <strong>' + xf(x.idx) + '</strong>.') + '</p>');
     if (x.idxs != null && cf) { p.push('<p>Allowing for its section too (' + esc(secName(x.channel)) + ' posts draw ' + xf(cf) + ' the typical): <strong>' + xf(x.idxs) + '</strong>.</p>'); }
     if (x.day_rank) { p.push('<p><strong>#' + x.day_rank + ' of ' + x.day_n + '</strong> ZH posts that day (top ' + topPct(x.day_rank, x.day_n) + '%), ' + basisWord(x.basis) + '. ' + (x.day_median ? 'The day\'s middle post: ' + nf(x.day_median) + ' views.' : '') + '</p>'); }
     if (x.chan_rank) { p.push('<p><strong>#' + x.chan_rank + ' of ' + x.chan_n + '</strong> in ' + esc(secName(x.channel)) + ' over the week around it.</p>'); }
@@ -778,14 +779,25 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       (top ? '<h4 style="margin-top:10px">That day\'s most read on ZH</h4><ol class="top5">' + top + '</ol>' : '') + '</div></div>';
   }
   // The piece's views by hour since it ran, against the typical curve for its slot (the median, and the middle half).
+  // Drawn only from what's solid (Oct. 20, Dan: "how do I interpret this?" when it showed a wobbling band and no line):
+  // the piece needs two or more counts from its first two days, and the typical curve and band need at least CURVE_MIN
+  // ZH posts tracked to that age. Tracking began Oct. 20, 2026: hour-by-hour views exist for pieces that ran after that,
+  // and the typical 2-day curve fills in from Oct. 22.
+  var CURVE_MIN = 20;
   function curveSvg(x, b) {
     var W = 560, Hh = 220, L = 46, R = 10, T = 10, B = 26, curve = (x.curve || []).filter(function (c) { return c[0] >= 0 && c[0] <= 48.5; });
     var ms = [1, 3, 6, 12, 24, 48], cv = (b && b.curve) || {}, scale = b && b.med48 ? (x.exp48 || 0) / b.med48 : 1;
-    var age = curve.length ? curve[curve.length - 1][0] : 48, xmax = Math.max(6, Math.min(48, x.basis === 48 ? 48 : Math.max(age, 6)));
-    var exp = [[0, 0]].concat(ms.filter(function (m) { return (cv[m] || {}).share48 && m <= xmax; }).map(function (m) { return [m, x.exp48 * cv[m].share48]; }));
-    var band = ms.filter(function (m) { return cv[m] && cv[m].p25 != null && m <= xmax; }).map(function (m) { return [m, cv[m].p25 * scale, cv[m].p75 * scale]; });
     var pts = curve.length ? curve.map(function (c) { return [c[0], c[1]]; }) : ms.filter(function (m) { return x['m' + m] != null; }).map(function (m) { return [m, x['m' + m]]; });
-    if (!pts.length && x.views != null && x.basis === 48) { pts = [[48, x.views]]; }
+    if (pts.length < 2) {
+      var first = (x.curve || [])[0];
+      return '<p class="small">' + (first ? 'First counted ' + (first[0] < 48 ? Math.round(first[0]) + ' hours' : Math.round(first[0] / 24) + ' days') + ' after it ran: <strong>' + nf(first[1]) + '</strong> views. ' : '') +
+        'Now: <strong>' + nf(x.views) + '</strong>.</p><p class="muted small">No hour-by-hour line for this piece: the desk started following ZeroHedge\'s view counter hour by hour on Oct. 20, 2026, and this piece ran before that. Pieces that run from now on get the full curve. "How it did" still sets it against posts at the same hour and weekday.</p>';
+    }
+    var age = pts[pts.length - 1][0], xmax = Math.max(6, Math.min(48, x.basis === 48 ? 48 : Math.max(age, 6)));
+    var solid = function (m) { return cv[m] && cv[m].n >= CURVE_MIN && m <= xmax; };
+    var exp = [[0, 0]].concat(ms.filter(function (m) { return solid(m) && cv[m].share48; }).map(function (m) { return [m, x.exp48 * cv[m].share48]; }));
+    var lo = 0, hi = 0;   // views only grow: the band never steps down
+    var band = ms.filter(function (m) { return solid(m) && cv[m].p25 != null; }).map(function (m) { lo = Math.max(lo, cv[m].p25 * scale); hi = Math.max(hi, cv[m].p75 * scale, lo); return [m, lo, hi]; });
     var all = pts.map(function (q) { return q[1]; }).concat(exp.map(function (q) { return q[1]; }), band.map(function (q) { return q[2]; }));
     var ymax = Math.max.apply(null, all.concat([10])) * 1.08;
     var X = function (hh) { return L + (W - L - R) * hh / xmax; }, Y = function (v) { return T + (Hh - T - B) * (1 - v / ymax); };
@@ -795,11 +807,11 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     [0, 6, 12, 24, 36, 48].filter(function (t) { return t <= xmax; }).forEach(function (t) { s += '<text x="' + X(t) + '" y="' + (Hh - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + t + 'h</text>'; });
     if (band.length > 1) { s += '<path d="' + 'M' + X(0) + ' ' + Y(0) + ' ' + band.map(function (q) { return 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[2]).toFixed(1); }).join(' ') + ' ' + band.slice().reverse().map(function (q) { return 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' ') + ' Z" fill="var(--accent)" opacity=".12"/>'; }
     if (exp.length > 1) { s += '<path d="' + line(exp) + '" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>'; }
-    if (pts.length > 1) { s += '<path d="' + line([[0, 0]].concat(pts)) + '" fill="none" stroke="var(--accent)" stroke-width="2.5"/>'; }
-    pts.forEach(function (q) { if (!curve.length) { s += '<circle cx="' + X(q[0]) + '" cy="' + Y(q[1]) + '" r="3.5" fill="var(--accent)"/>'; } });
-    s += '</svg><div class="legend"><span><i style="background:var(--accent)"></i>This piece</span><span><i style="background:var(--muted)"></i>Typical for its slot</span>' +
+    s += '<path d="' + line([[0, 0]].concat(pts)) + '" fill="none" stroke="var(--accent)" stroke-width="2.5"/>';
+    if (pts.length < 4) { pts.forEach(function (q) { s += '<circle cx="' + X(q[0]) + '" cy="' + Y(q[1]) + '" r="3.5" fill="var(--accent)"/>'; }); }
+    s += '</svg><div class="legend"><span><i style="background:var(--accent)"></i>This piece</span>' + (exp.length > 1 ? '<span><i style="background:var(--muted)"></i>Typical for its slot</span>' : '') +
       (band.length > 1 ? '<span><i style="background:var(--accent);opacity:.25;height:8px"></i>Middle half of ZH posts</span>' : '') + '</div>' +
-      (!curve.length ? '<p class="muted small">' + (pts.length ? 'Hour-by-hour views start from Oct. 20; this piece shows what was counted.' : 'Hour-by-hour views start from Oct. 20, 2026.') + '</p>' : '');
+      (exp.length > 1 && band.length > 1 ? '' : '<p class="muted small">The typical curve for its slot shows once enough ZH posts have been followed hour by hour from the minute they ran (from about Oct. 22, 2026).</p>');
     return s;
   }
   function sectionsHtml(st) {
@@ -1472,7 +1484,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       failed(e);
     });
   }
-  window.__portal = { docxToHtml: docxToHtml, state: S, toStored: toStored, toEditor: toEditor, embedFrom: embedFrom, editor: function () { return ED; } };
+  window.__portal = { docxToHtml: docxToHtml, curveSvg: curveSvg, state: S, toStored: toStored, toEditor: toEditor, embedFrom: embedFrom, editor: function () { return ED; } };
   if (store('token')) { startApp(); } else { gate(); }
 })();
 </script>
