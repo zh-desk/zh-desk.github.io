@@ -106,6 +106,21 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 .viewas { background: var(--warn); color: #fff; padding: 8px 20px; font-weight: 600; font-size: .9rem; }
 .view-as #new, .view-as #signout, .view-as .row, .view-as #drop, .view-as #lib-open, .view-as #reply, .view-as #reply-send { display: none !important; }
 .embed header { display: none; }
+.chip.assigned { color: var(--accent); border-color: var(--accent); }
+.chip.p-open { color: var(--warn); border-color: var(--warn); } .chip.p-approved { color: var(--good); border-color: var(--good); } .chip.p-denied { color: var(--bad); border-color: var(--bad); }
+.view-as #pitch-new, .view-as #settings-open, .view-as #pitch-head { display: none !important; }
+.view-as.coediting .row { display: flex !important; } .view-as.coediting #submit { display: none !important; }
+.viewas button { margin-left: 10px; background: #fff; color: var(--warn); border-color: #fff; font-weight: 600; padding: 3px 10px; }
+.dlg-back { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 30; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px; overflow: auto; }
+.dlg { background: var(--panel); color: var(--ink); border-radius: 10px; width: min(640px, 100%); padding: 16px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.dlg h2 { margin: 0 0 6px; font-size: 1.1rem; }
+.dlg label { display: block; font-size: .82rem; font-weight: 600; margin: 10px 0 4px; }
+.dlg input[type=text], .dlg input[type=email], .dlg textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); }
+.dlg textarea { min-height: 90px; resize: vertical; }
+.dlg .thread { list-style: none; padding: 0; margin: 10px 0; font-size: .86rem; }
+.dlg .thread li { border-left: 2px solid var(--rule); padding: 2px 0 2px 8px; margin: 6px 0; white-space: pre-wrap; }
+.dlg .thread li.editors { border-left-color: var(--accent); }
+.brief { white-space: pre-wrap; }
 .dash { margin: 0 0 18px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); }
 .dash > summary { cursor: pointer; padding: 10px 14px; font-weight: 700; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .dash .upd { font-weight: 400; color: var(--muted); font-size: .78rem; margin-left: auto; }
@@ -178,6 +193,11 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       <h2 style="margin-top:18px">My articles</h2>
       <ul class="list" id="list"></ul>
       <p class="muted small" id="list-empty" hidden>Nothing yet. Start a new article, or drop a Word file or HTML onto the page.</p>
+      <h2 style="margin-top:22px" id="pitch-head">My pitches</h2>
+      <button type="button" id="pitch-new" style="width:100%">+ Pitch an idea</button>
+      <ul class="list" id="pitches"></ul>
+      <p class="muted small" id="pitches-empty">Have an idea? Pitch it, and the editors approve it or say why not.</p>
+      <p class="small" style="margin-top:18px"><a href="#" id="settings-open">Email settings</a></p>
     </aside>
     <main>
       <details class="dash" id="dash" open hidden><summary><span id="dash-title">Your numbers on ZeroHedge</span><span class="upd" id="dash-upd"></span></summary><div class="dash-body" id="dash-body"></div></details>
@@ -294,7 +314,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   var QS = new URLSearchParams(location.search), AS = (QS.get('as') || '').trim(), EMBED = QS.get('embed') === '1';
   if (EMBED) { document.documentElement.classList.add('embed'); }
   function call(route, body, retried) {
-    var payload = Object.assign({ github_token: store('token') || '' }, AS ? { as: AS } : {}, body || {});
+    var payload = Object.assign({ github_token: store('token') || '' }, AS ? { as: AS } : {}, AS && S.coedit ? { coedit: true } : {}, body || {});
     return fetch(WORKER + 'author/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), cache: 'no-store' })
       .then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (j) {
@@ -308,7 +328,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   // ---------- state
   var S = { me: null, list: [], cur: null, dirty: false, tab: 'write', pics: [], blobs: {}, names: {}, busy: false, loading: false };
   var ED = null;           // the TinyMCE editor, once it's up
-  function editable() { return !S.viewing && (!S.cur || S.cur.editable !== false); }
+  function editable() { return (!S.viewing || S.coedit) && (!S.cur || S.cur.editable !== false); }
 
   // ---------- embeds: tweets, YouTube and other players
   // In the editor each embed is one locked block (class zh-embed) that shows the real post or player and carries the
@@ -540,11 +560,26 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     S.viewing = !!j.viewing_as;
     document.documentElement.classList.toggle('view-as', S.viewing);
     $('viewas').hidden = !S.viewing;
-    if (S.viewing) { $('viewas').textContent = 'You\'re seeing ' + j.name + '\'s author desk exactly as ' + j.name.split(' ')[0] + ' sees it. Read-only: nothing can be changed from here.'; }
+    renderViewAs();
     $('who').textContent = S.viewing ? 'Viewing ' + j.name : 'Signed in as ' + j.name + (j.editor ? ' (editor)' : '');
     renderList();
     renderDash();
+    renderPitches();
   }
+  // In View as, an editor can also work on the contributor's draft (a draft, an assignment, or one sent back): save,
+  // never submit. The banner says which it is.
+  function renderViewAs() {
+    if (!S.viewing || !S.me) { return; }
+    var first = S.me.name.split(' ')[0], c = S.cur;
+    var can = c && c.id && c.editable !== false && ['draft', 'assigned', 'returned'].indexOf(c.status) >= 0;
+    document.documentElement.classList.toggle('coediting', !!S.coedit);
+    $('viewas').innerHTML = S.coedit ? 'You\'re editing ' + esc(S.me.name) + '\'s draft. Save to keep your changes; ' + esc(first) + ' sees them the next time they open it. <button type="button" id="coedit-off">Stop editing</button>'
+      : 'You\'re seeing ' + esc(S.me.name) + '\'s author desk exactly as ' + esc(first) + ' sees it. Read-only: nothing can be changed from here.' + (can ? ' <button type="button" id="coedit-on">Work on this draft with ' + esc(first) + '</button>' : '');
+  }
+  $('viewas').addEventListener('click', function (ev) {
+    if (ev.target.id === 'coedit-on') { S.coedit = true; renderViewAs(); renderState(); }
+    if (ev.target.id === 'coedit-off') { if (S.dirty && !confirm('Leave without saving your changes?')) { return; } S.coedit = false; S.dirty = false; renderViewAs(); if (S.cur && S.cur.id) { open(S.cur.id); } }
+  });
   function loadList() { return call('me').then(showMe); }
 
 
@@ -568,7 +603,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 
   function renderDash() {
     var j = S.me || {}, base = j.stats_base, arts = j.articles || [];
-    var sent = arts.filter(function (a) { return a.status && a.status !== 'draft'; });
+    var sent = arts.filter(function (a) { return a.status && a.status !== 'draft' && a.status !== 'assigned'; });
     var live = arts.filter(function (a) { return a.status === 'live'; }), rows = live.filter(function (a) { return a.stats; });
     $('dash').hidden = !sent.length;
     if (!sent.length) { return; }
@@ -686,6 +721,69 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     if (tr) { D.open = D.open === tr.dataset.piece ? null : tr.dataset.piece; renderDash(); }
   });
 
+  // ---------- pitches (Oct. 20): ideas for the editors, approved or turned down with a comment; an approved one may
+  // come back as an assignment. They're kept on the record in the desk.
+  var PSTATE = { open: ['p-open', 'Waiting'], approved: ['p-approved', 'Approved'], denied: ['p-denied', 'Not this time'], withdrawn: ['', 'Withdrawn'] };
+  function renderPitches() {
+    var ps = (S.me && S.me.pitches) || [];
+    $('pitches').innerHTML = ps.map(function (p) {
+      var st = PSTATE[p.status] || ['', p.status];
+      return '<li data-pitch="' + esc(p.id) + '"><span class="t">' + esc(p.title) + '</span><span class="chip ' + st[0] + '">' + esc(st[1]) + '</span> <span class="muted small">' + esc(when(p.created)) + '</span></li>';
+    }).join('');
+    $('pitches-empty').hidden = ps.length > 0;
+  }
+  function dialog(html) {
+    var back = document.createElement('div'); back.className = 'dlg-back'; back.innerHTML = '<div class="dlg" role="dialog">' + html + '</div>';
+    document.body.appendChild(back);
+    back.addEventListener('click', function (ev) { if (ev.target === back || ev.target.closest('[data-close]')) { back.remove(); } });
+    return back;
+  }
+  $('pitch-new').addEventListener('click', function () {
+    var d = dialog('<h2>Pitch an idea</h2><p class="muted small">The editors read it and approve it or say why not. An approved pitch can come back to you as an assignment.</p>' +
+      '<form id="pitch-form"><label for="pf-title">Headline or working title</label><input type="text" id="pf-title" maxlength="300" required>' +
+      '<label for="pf-text">The pitch: what it is, why ZH readers will care, what\'s new</label><textarea id="pf-text"></textarea>' +
+      '<label for="pf-links">Links (sources, one per line)</label><textarea id="pf-links" style="min-height:60px" placeholder="https://..."></textarea>' +
+      '<div class="row" style="margin-top:12px"><button type="submit" class="primary">Send the pitch</button><button type="button" data-close>Cancel</button></div></form>');
+    d.querySelector('#pf-title').focus();
+    d.querySelector('#pitch-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var b = d.querySelector('button[type="submit"]'); b.disabled = true;
+      call('pitch', { title: d.querySelector('#pf-title').value, text: d.querySelector('#pf-text').value, links: d.querySelector('#pf-links').value.split(/\s+/).filter(Boolean) })
+        .then(function () { d.remove(); toast('Pitch sent to the editors.'); return loadList(); })
+        .catch(function (e) { b.disabled = false; toast('Couldn\'t send it: ' + e.message, true); });
+    });
+  });
+  $('pitches').addEventListener('click', function (ev) {
+    var li = ev.target.closest('li[data-pitch]');
+    if (!li) { return; }
+    var p = ((S.me && S.me.pitches) || []).filter(function (x) { return x.id === li.dataset.pitch; })[0];
+    if (!p) { return; }
+    var st = PSTATE[p.status] || ['', p.status];
+    var th = (p.thread || []).map(function (t) { return '<li class="' + (t.from === 'editors' ? 'editors' : '') + '"><strong>' + esc(t.from === 'editors' ? (t.name || 'The editors') : 'You') + '</strong> <span class="muted small">' + esc(when(t.at)) + '</span>\n' + esc(t.text) + '</li>'; }).join('');
+    var d = dialog('<h2>' + esc(p.title) + '</h2><p><span class="chip ' + st[0] + '">' + esc(st[1]) + '</span> <span class="muted small">pitched ' + esc(when(p.created)) + '</span>' +
+      (p.assignment ? ' <span class="small">&middot; it\'s on your list to write</span>' : '') + '</p>' +
+      (p.pitch ? '<p class="brief">' + esc(p.pitch) + '</p>' : '') + ((p.links || []).length ? '<p class="small">' + p.links.map(function (l) { return '<a href="' + esc(l) + '" target="_blank" rel="noopener">' + esc(l) + '</a>'; }).join('<br>') + '</p>' : '') +
+      (th ? '<ul class="thread">' + th + '</ul>' : '<p class="muted small">No answer from the editors yet.</p>') +
+      (S.viewing ? '' : '<label for="pr-text">Reply to the editors</label><textarea id="pr-text"></textarea>') +
+      '<div class="row" style="margin-top:10px">' + (S.viewing ? '' : '<button type="button" class="primary" id="pr-send">Send</button>' + (p.status === 'open' ? '<button type="button" id="pr-withdraw">Withdraw it</button>' : '')) + '<button type="button" data-close>Close</button></div>');
+    var send = d.querySelector('#pr-send'), wd = d.querySelector('#pr-withdraw');
+    if (send) { send.addEventListener('click', function () { var t = d.querySelector('#pr-text').value.trim(); if (!t) { return; } send.disabled = true; call('pitch-reply', { pid: p.id, text: t }).then(function () { d.remove(); toast('Sent.'); return loadList(); }).catch(function (e) { send.disabled = false; toast(e.message, true); }); }); }
+    if (wd) { wd.addEventListener('click', function () { if (!confirm('Withdraw this pitch?')) { return; } call('pitch-withdraw', { pid: p.id }).then(function () { d.remove(); toast('Withdrawn.'); return loadList(); }).catch(function (e) { toast(e.message, true); }); }); }
+  });
+  $('settings-open').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    var st = (S.me && S.me.settings) || {};
+    var d = dialog('<h2>Email settings</h2><p class="muted small">Get an email when the editors give you an article, decide one of your pitches or send you a note. Optional: everything also shows here.</p>' +
+      '<form id="set-form"><label for="sf-email">Your email address</label><input type="email" id="sf-email" value="' + esc(st.email || '') + '" placeholder="you@example.com">' +
+      '<label style="font-weight:400"><input type="checkbox" id="sf-on"' + (st.notify ? ' checked' : '') + '> Email me</label>' +
+      '<div class="row" style="margin-top:12px"><button type="submit" class="primary">Save</button><button type="button" data-close>Cancel</button></div></form>');
+    d.querySelector('#set-form').addEventListener('submit', function (e2) {
+      e2.preventDefault();
+      call('settings', { email: d.querySelector('#sf-email').value.trim(), notify: d.querySelector('#sf-on').checked }).then(function (j) { S.me.settings = j.settings; d.remove(); toast('Saved.'); })
+        .catch(function (e) { toast(e.message, true); });
+    });
+  });
+
   // ---------- one article
   function blank() {
     S.cur = { id: null, status: 'draft', word: 'Draft', editable: true, images: [] };
@@ -698,11 +796,13 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     call('get', { id: id }).then(function (j) {
       var a = j.article;
       S.cur = Object.assign({}, a, { status: j.status, word: j.word, editable: j.editable, notes: j.notes || [], zh: j.zh || null });
+      if (S.coedit && S.cur.id !== S.coeditId) { S.coedit = false; }
+      S.coeditId = S.cur.id;
       S.pics = (a.images || []).map(function (im) { return Object.assign({}, im); });
       $('title').value = a.title || ''; $('deck').value = a.deck || ''; fitDeck(); $('note').value = a.note_to_editors || '';
       if (S.tab === 'html') { setTab('write'); }
       setBody(a.html || ''); S.dirty = false; $('saved').textContent = 'Saved ' + when(a.updated);
-      renderState(); renderPics(); renderList();
+      renderState(); renderPics(); renderList(); renderViewAs();
       S.pics.forEach(function (p) { fetchPic(p.name); });
     }).catch(function (e) { $('saved').textContent = ''; toast('Couldn\'t open it: ' + e.message, true); });
   }
@@ -727,6 +827,12 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     else if (c.status === 'prep') { text = '<strong>With the editors.</strong> It\'s locked while they work on it. You\'ll see their notes below.'; }
     else if (c.status === 'ready') { text = '<strong>Ready to run.</strong> The editors have prepared it for publishing.'; }
     else if (c.status === 'posted') { text = '<strong>Published.</strong>'; }
+    else if (c.status === 'assigned') {
+      var asg = c.assigned || {};
+      text = '<strong>Assigned to you' + (asg.by_name ? ' by ' + esc(asg.by_name) : '') + '.</strong> Write it here and submit it when it\'s ready.' +
+        (asg.brief ? '<div class="brief" style="margin-top:6px">' + esc(asg.brief) + '</div>' : '') +
+        ((asg.links || []).length ? '<div class="small" style="margin-top:4px">Sources: ' + asg.links.map(function (l) { return '<a href="' + esc(l) + '" target="_blank" rel="noopener">' + esc(l.replace(/^https?:\/\/(www\.)?/, '').slice(0, 70)) + '</a>'; }).join(' &middot; ') + '</div>' : '');
+    }
     else if (c.status === 'accepted') { text = '<strong>Accepted, not live yet.</strong> The editors have it lined up for ZeroHedge. Once it runs, this page says so, with the link.'; }
     else if (c.status === 'live' && c.zh && /^https:\/\/(www\.)?zerohedge\.com\//.test(c.zh.url)) {
       text = '<strong>Live on ZeroHedge' + (c.zh.published ? ', ' + esc(when(c.zh.published)) : '') + ':</strong> <a href="' + esc(c.zh.url) + '" target="_blank" rel="noopener">' + esc(c.zh.title || c.zh.url) + '</a>';
@@ -747,16 +853,24 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     S.busy = true; $('saved').textContent = submit ? 'Submitting...' : 'Saving...';
     var body = { title: $('title').value, deck: $('deck').value, html: bodyHtml(), note: $('note').value,
                  images: S.pics.map(function (p) { return { name: p.name, caption: p.caption || '', credit: p.credit || '', hero: !!p.hero }; }) };
-    if (S.cur && S.cur.id) { body.id = S.cur.id; }
+    if (S.cur && S.cur.id) { body.id = S.cur.id; if (S.cur.updated) { body.base = S.cur.updated; } }
     var first = submit && !(S.cur && S.cur.id) ? call('save', body).then(function (j) { body.id = j.id; S.cur.id = j.id; }) : Promise.resolve();
     return first.then(function () { return call(submit ? 'submit' : 'save', body); }).then(function (j) {
       S.busy = false; S.dirty = false;
-      S.cur.id = j.id; S.cur.issue = j.issue; S.cur.status = j.status; S.cur.word = j.word; S.cur.editable = j.editable;
+      S.cur.id = j.id; S.cur.issue = j.issue; S.cur.status = j.status; S.cur.word = j.word; S.cur.editable = j.editable; S.cur.updated = j.updated;
       $('saved').textContent = (submit ? 'Submitted ' : 'Saved ') + when(j.updated);
       if (submit) { toast('Sent to the editors. You\'ll see their notes here.'); }
       renderState();
       return loadList();
-    }).catch(function (e) { S.busy = false; $('saved').textContent = ''; toast((submit ? 'Couldn\'t submit: ' : 'Couldn\'t save: ') + e.message, true); throw e; });
+    }).catch(function (e) {
+      S.busy = false; $('saved').textContent = '';
+      if (e.code === 'newer') {   // two people on one draft: never overwrite the other's save
+        toast('Not saved: ' + e.message, true, 15000);
+        if (confirm(e.message + '\n\nOpen the newer version now? Copy anything you want to keep first: your unsaved changes here will be replaced.')) { S.dirty = false; open(S.cur.id); }
+        throw e;
+      }
+      toast((submit ? 'Couldn\'t submit: ' : 'Couldn\'t save: ') + e.message, true); throw e;
+    });
   }
   function ensureSaved() { return S.cur && S.cur.id ? Promise.resolve() : save(false); }
 
@@ -1151,7 +1265,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     $('title').disabled = true; $('deck').disabled = true;
     return initEditor().then(function () {
       $('title').disabled = false; $('deck').disabled = false;
-      var first = S.list.filter(function (a) { return a.status === 'returned' || a.status === 'draft'; })[0];
+      var first = S.list.filter(function (a) { return a.status === 'assigned'; })[0] || S.list.filter(function (a) { return a.status === 'returned' || a.status === 'draft'; })[0];
+      S.dirty = false;   // the editor can flag its own empty start as a change; nothing has been typed yet
       if (first) { open(first.id); } else { blank(); }
     }).catch(function (e) { toast('The editor didn\'t load: ' + e.message + '. Reload the page.', true, 20000); });
   }
