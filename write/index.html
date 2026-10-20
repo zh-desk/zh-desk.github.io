@@ -102,6 +102,50 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 .box form input { width: 100%; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); margin: 6px 0 12px; }
 .toast { position: fixed; right: 18px; bottom: 18px; background: var(--ink); color: var(--paper); padding: 10px 14px; border-radius: 6px; max-width: 420px; z-index: 20; }
 .toast.bad { background: var(--bad); color: #fff; }
+/* The dashboard (Oct. 20): how a contributor's pieces did on ZeroHedge, and View as for the editors */
+.viewas { background: var(--warn); color: #fff; padding: 8px 20px; font-weight: 600; font-size: .9rem; }
+.view-as #new, .view-as #signout, .view-as .row, .view-as #drop, .view-as #lib-open, .view-as #reply, .view-as #reply-send { display: none !important; }
+.embed header { display: none; }
+.dash { margin: 0 0 18px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); }
+.dash > summary { cursor: pointer; padding: 10px 14px; font-weight: 700; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.dash .upd { font-weight: 400; color: var(--muted); font-size: .78rem; margin-left: auto; }
+.dash-body { padding: 0 14px 14px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 2px 0 14px; }
+.tile { border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; background: var(--paper); min-width: 0; }
+.tile .k { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.tile .v { font-weight: 700; font-size: 1.35rem; line-height: 1.25; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tile .s { font-size: .76rem; color: var(--muted); overflow-wrap: anywhere; }
+.ptab-wrap { overflow-x: auto; }
+.ptab { width: 100%; border-collapse: collapse; font-size: .84rem; font-variant-numeric: tabular-nums; }
+.ptab th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid var(--rule); padding: 6px; cursor: pointer; white-space: nowrap; user-select: none; }
+.ptab th.n, .ptab td.n { text-align: right; white-space: nowrap; }
+.ptab td { border-bottom: 1px solid var(--rule); padding: 6px; vertical-align: top; }
+.ptab tr.prow { cursor: pointer; }
+.ptab tr.prow:hover, .ptab tr.prow.open { background: var(--paper); }
+.ptab .hl { min-width: 200px; max-width: 380px; }
+.ptab .hl a { color: var(--ink); text-decoration: none; font-weight: 600; }
+.ptab .hl a:hover { text-decoration: underline; }
+.ptab .sub { display: block; font-size: .74rem; color: var(--muted); }
+.idx { display: inline-block; padding: 0 7px; border-radius: 10px; font-weight: 700; }
+.idx.hi { background: rgba(31,122,69,.14); color: var(--good); }
+.idx.mid { background: var(--code); }
+.idx.lo { background: rgba(154,91,0,.14); color: var(--warn); }
+.pdetail > td { background: var(--paper); padding: 12px; }
+.dgrid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
+.dgrid h4 { margin: 0 0 4px; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.dgrid p { margin: 4px 0; font-size: .86rem; }
+.curve svg { width: 100%; height: auto; display: block; }
+.curve .legend { font-size: .74rem; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
+.curve .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+.top5 { margin: 4px 0; padding-left: 22px; font-size: .84rem; }
+.top5 li.mine { font-weight: 700; }
+.secs { margin-top: 14px; }
+.secs .b { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 64px; gap: 10px; align-items: center; font-size: .84rem; padding: 3px 0; }
+.secs .bar { height: 8px; background: var(--code); border-radius: 4px; position: relative; }
+.secs .bar i { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 4px; background: var(--accent); }
+.secs .bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--muted); }
+.dash .how { font-size: .76rem; color: var(--muted); margin: 10px 0 0; }
+@media (max-width: 760px) { .dgrid { grid-template-columns: minmax(0, 1fr); } .ptab .opt { display: none; } .viewas { padding: 8px 12px; } }
 @media (max-width: 760px) { .wrap { grid-template-columns: minmax(0, 1fr); } aside { border-right: 0; border-bottom: 1px solid var(--rule); } main { padding: 14px 16px 60px; } }
 </style>
 </head>
@@ -122,6 +166,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 </div>
 
 <div id="app" hidden>
+  <div class="viewas" id="viewas" hidden></div>
   <header>
     <div class="brand" id="head-logo"></div>
     <h1>Author Desk</h1>
@@ -135,6 +180,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       <p class="muted small" id="list-empty" hidden>Nothing yet. Start a new article, or drop a Word file or HTML onto the page.</p>
     </aside>
     <main>
+      <details class="dash" id="dash" open hidden><summary><span id="dash-title">Your numbers on ZeroHedge</span><span class="upd" id="dash-upd"></span></summary><div class="dash-body" id="dash-body"></div></details>
       <input class="title" id="title" placeholder="Headline" aria-label="Headline" autocomplete="off">
       <textarea class="deck" id="deck" rows="1" placeholder="Subheadline (optional)" aria-label="Subheadline"></textarea>
       <div id="banner" class="banner" hidden></div>
@@ -243,8 +289,12 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
         return t.access_token;
       });
   }
+  // View as (Oct. 20): an editor opens /write/?as=LOGIN to see a contributor's desk exactly as they do, read-only; the
+  // desk's Contributors view shows it with &embed=1 (no header).
+  var QS = new URLSearchParams(location.search), AS = (QS.get('as') || '').trim(), EMBED = QS.get('embed') === '1';
+  if (EMBED) { document.documentElement.classList.add('embed'); }
   function call(route, body, retried) {
-    var payload = Object.assign({ github_token: store('token') || '' }, body || {});
+    var payload = Object.assign({ github_token: store('token') || '' }, AS ? { as: AS } : {}, body || {});
     return fetch(WORKER + 'author/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), cache: 'no-store' })
       .then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (j) {
@@ -258,7 +308,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   // ---------- state
   var S = { me: null, list: [], cur: null, dirty: false, tab: 'write', pics: [], blobs: {}, names: {}, busy: false, loading: false };
   var ED = null;           // the TinyMCE editor, once it's up
-  function editable() { return !S.cur || S.cur.editable !== false; }
+  function editable() { return !S.viewing && (!S.cur || S.cur.editable !== false); }
 
   // ---------- embeds: tweets, YouTube and other players
   // In the editor each embed is one locked block (class zh-embed) that shows the real post or player and carries the
@@ -487,10 +537,154 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   }
   function showMe(j) {
     S.me = j; S.list = j.articles || [];
-    $('who').textContent = 'Signed in as ' + j.name + (j.editor ? ' (editor)' : '');
+    S.viewing = !!j.viewing_as;
+    document.documentElement.classList.toggle('view-as', S.viewing);
+    $('viewas').hidden = !S.viewing;
+    if (S.viewing) { $('viewas').textContent = 'You\'re seeing ' + j.name + '\'s author desk exactly as ' + j.name.split(' ')[0] + ' sees it. Read-only: nothing can be changed from here.'; }
+    $('who').textContent = S.viewing ? 'Viewing ' + j.name : 'Signed in as ' + j.name + (j.editor ? ' (editor)' : '');
     renderList();
+    renderDash();
   }
   function loadList() { return call('me').then(showMe); }
+
+
+  // ---------- the dashboard (Oct. 20, Dan: "Can he have a dashboard up top?"): how each piece did on ZeroHedge. The
+  // numbers are ZeroHedge's own view and comment counters, collected every 10 minutes by the desk's zh-stats worker and
+  // published hourly; each piece is set against the median for the hour and weekday it ran (ZH's traffic ebbs and
+  // flows through the day and week), against that day's other posts, and against its section.
+  var D = { sort: 'pub', dir: -1, open: null };
+  function nf(n) { return n == null ? '-' : Math.round(n).toLocaleString('en-US'); }
+  function kf(n) { if (n == null) { return '-'; } n = Math.round(n); return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'K' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n); }
+  function xf(x) { return x == null ? '-' : (x >= 10 ? Math.round(x) : x.toFixed(1)) + '×'; }
+  function idxCls(x) { return x == null ? '' : x >= 1.25 ? 'hi' : x >= 0.8 ? 'mid' : 'lo'; }
+  function idxHtml(x) { return x == null ? '<span class="muted">-</span>' : '<span class="idx ' + idxCls(x) + '">' + xf(x) + '</span>'; }
+  function dayName(d) { if (!d) { return ''; } var p = d.split('-'); return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2], 12)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }); }
+  function hourName(h) { return h == null ? '' : ((h % 12) || 12) + (h < 12 ? ' a.m.' : ' p.m.'); }
+  var DOWS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  function secName(c) { return String(c || '').split('-').map(function (w) { return w === 'ai' ? 'AI' : w === 'us' ? 'US' : w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); }
+  function topPct(r, n) { return r && n ? Math.max(1, Math.round((100 * r) / n)) : null; }
+  function med(a) { a = a.filter(function (x) { return x != null; }).sort(function (x, y) { return x - y; }); return a.length ? (a[Math.floor((a.length - 1) / 2)] + a[Math.ceil((a.length - 1) / 2)]) / 2 : null; }
+  function basisWord(b) { return b === 48 ? 'at 2 days' : b ? 'at ' + b + (b === 1 ? ' hour' : ' hours') : ''; }
+
+  function renderDash() {
+    var j = S.me || {}, base = j.stats_base, arts = j.articles || [];
+    var sent = arts.filter(function (a) { return a.status && a.status !== 'draft'; });
+    var live = arts.filter(function (a) { return a.status === 'live'; }), rows = live.filter(function (a) { return a.stats; });
+    $('dash').hidden = !sent.length;
+    if (!sent.length) { return; }
+    $('dash-title').textContent = S.viewing ? j.name + '\'s numbers on ZeroHedge' : 'Your numbers on ZeroHedge';
+    $('dash-upd').textContent = base && base.updated ? 'Updated ' + when(base.updated) + ', from ZeroHedge\'s own view counter' : 'The numbers show here within the hour';
+    var st = rows.map(function (a) { return a.stats; });
+    var views = st.reduce(function (t, x) { return t + (x.views || 0); }, 0), comments = st.reduce(function (t, x) { return t + (x.comments || 0); }, 0);
+    var idxs = st.map(function (x) { return x.idx; }).filter(function (x) { return x != null; });
+    var beat = idxs.filter(function (x) { return x > 1; }).length, big = idxs.filter(function (x) { return x >= 1.5; }).length;
+    var best = st.filter(function (x) { return x.day_rank; }).sort(function (a, b) { return a.day_rank / a.day_n - b.day_rank / b.day_n; })[0];
+    var tops = st.filter(function (x) { return x.top_best; }), topBest = tops.length ? Math.min.apply(null, tops.map(function (x) { return x.top_best; })) : null;
+    var onWay = sent.length - live.length;
+    var tile = function (k, v, s) { return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + (s || '&nbsp;') + '</div></div>'; };
+    var h = '<div class="tiles">' +
+      tile('Live on ZeroHedge', live.length, 'of ' + sent.length + ' submitted' + (onWay ? ' &middot; ' + onWay + ' on the way' : '')) +
+      tile('Total views', nf(views), nf(comments) + ' comments') +
+      tile('Typical piece', kf(med(st.map(function (x) { return x.views; }))), 'median views; ZH\'s typical post: ' + kf(base && base.med48) + ' in 2 days') +
+      tile('Against its time slot', idxs.length ? xf(med(idxs)) : '-', 'median; 1× is a typical ZH post for the hour and weekday it ran') +
+      tile('Beat the typical', idxs.length ? beat + ' of ' + idxs.length : '-', idxs.length ? big + ' at 1.5× or more' : '') +
+      tile('Best day', best ? '#' + best.day_rank + ' of ' + best.day_n : '-', best ? 'top ' + topPct(best.day_rank, best.day_n) + '% on ' + dayName(best.day) : '') +
+      tile('Comments per 1,000 views', views ? (comments * 1000 / views).toFixed(1) : '-', base && base.comments_per_1k ? 'ZH typical: ' + base.comments_per_1k : '') +
+      tile('ZH\'s Today\'s top', tops.length ? tops.length + (tops.length === 1 ? ' piece' : ' pieces') : '-', topBest ? '#' + topBest + ' at best' : 'tracked from Oct. 20') +
+      '</div>';
+    if (!live.length) {
+      h += '<p class="muted">Nothing is live on ZeroHedge yet. Pieces show up here, with their numbers, once they run.</p>';
+    } else {
+      h += '<div class="ptab-wrap"><table class="ptab"><thead><tr>' + [['title', 'Piece'], ['pub', 'Ran (ET)'], ['views', 'Views', 1], ['comments', 'Comments', 1, 'opt'], ['idx', 'Vs. its slot', 1],
+        ['day', 'That day', 1], ['chan', 'Section, 7 days', 1, 'opt'], ['m1', '1 hr', 1, 'opt'], ['m24', '24 hr', 1, 'opt'], ['m48', '2 days', 1, 'opt'], ['top', 'ZH top', 1, 'opt']].map(function (c) {
+        return '<th data-dsort="' + c[0] + '" class="' + (c[2] ? 'n ' : '') + (c[3] || '') + '">' + c[1] + (D.sort === c[0] ? (D.dir < 0 ? ' ▾' : ' ▴') : '') + '</th>';
+      }).join('') + '</tr></thead><tbody>';
+      var key = function (a) {
+        var x = a.stats || {};
+        return { title: (a.title || '').toLowerCase(), pub: x.pub_ts || Date.parse((a.zh || {}).published || '') / 1000 || 0, views: x.views, comments: x.comments, idx: x.idx,
+                 day: x.day_rank ? -x.day_rank / x.day_n : null, chan: x.chan_rank ? -x.chan_rank / x.chan_n : null, m1: x.m1, m24: x.m24, m48: x.m48 != null ? x.m48 : (x.basis === 48 ? x.views : null),
+                 top: x.top_best ? -x.top_best : null }[D.sort];
+      };
+      live.slice().sort(function (a, b) { var ka = key(a), kb = key(b); if (ka == null && kb == null) { return 0; } if (ka == null) { return 1; } if (kb == null) { return -1; } return (ka < kb ? -1 : ka > kb ? 1 : 0) * D.dir; })
+        .forEach(function (a) {
+          var x = a.stats, open = D.open === a.id;
+          h += '<tr class="prow' + (open ? ' open' : '') + '" data-piece="' + esc(a.id) + '"><td class="hl"><a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc((x && x.title) || a.zh.title || a.title) + '</a>' +
+            '<span class="sub">' + esc(x ? secName(x.channel) : '') + (x && x.views == null ? ' &middot; not counted yet' : '') + '</span></td>';
+          if (!x) { h += '<td>' + esc(when(a.zh.published)) + '</td><td class="n" colspan="9"><span class="muted">Numbers within the hour</span></td></tr>'; return; }
+          h += '<td>' + esc(dayName(x.day)) + '<span class="sub">' + esc(hourName(x.hour)) + '</span></td>' +
+            '<td class="n">' + nf(x.views) + '</td><td class="n opt">' + nf(x.comments) + '</td><td class="n">' + idxHtml(x.idx) + '</td>' +
+            '<td class="n">' + (x.day_rank ? '#' + x.day_rank + ' of ' + x.day_n + '<span class="sub">top ' + topPct(x.day_rank, x.day_n) + '%</span>' : '-') + '</td>' +
+            '<td class="n opt">' + (x.chan_rank ? '#' + x.chan_rank + ' of ' + x.chan_n : '-') + '</td>' +
+            '<td class="n opt">' + kf(x.m1) + '</td><td class="n opt">' + kf(x.m24) + '</td><td class="n opt">' + kf(x.m48 != null ? x.m48 : (x.basis === 48 ? x.views : null)) + '</td>' +
+            '<td class="n opt">' + (x.top_best ? '#' + x.top_best + (x.top_min ? '<span class="sub">' + Math.round(x.top_min / 60 * 10) / 10 + ' hr on it</span>' : '') : '-') + '</td></tr>';
+          if (open) { h += '<tr class="pdetail"><td colspan="11">' + detailHtml(a, base) + '</td></tr>'; }
+        });
+      h += '</tbody></table></div>';
+      h += sectionsHtml(st);
+    }
+    h += '<p class="how">How to read it: <strong>Vs. its slot</strong> is a piece\'s views against the median ZeroHedge post published at the same hour and on the same kind of day (ZH\'s traffic ebbs and flows through the day and week), at 2 days old, or at its age for younger pieces: 1× is typical, 2× is twice the typical. <strong>That day</strong> ranks it among every ZH post that Eastern day; <strong>Section</strong>, among its section\'s posts over the week around it. Hour-by-hour numbers start from Oct. 20, 2026; earlier pieces have their totals.</p>';
+    $('dash-body').innerHTML = h;
+  }
+  function detailHtml(a, base) {
+    var x = a.stats, b = base || {}, hf = (b.hour || [])[x.hour], df = (b.dow || [])[x.dow], cf = ((b.chan || {})[x.channel] || {}).factor;
+    var p = [];
+    p.push('<p>Ran ' + esc(dayName(x.day)) + ' at ' + esc(hourName(x.hour)) + ' Eastern. ' + (hf ? 'Posts at that hour draw ' + xf(hf) + ' the typical, ' : '') +
+      (df ? DOWS[x.dow] + ' posts ' + xf(df) + '. ' : '') + 'A typical post in that slot gets about <strong>' + nf(x.exp48) + '</strong> views in 2 days; this one ' +
+      (x.basis === 48 ? 'got <strong>' + nf(x.m48 != null ? x.m48 : x.views) + '</strong>' : 'is ' + basisWord(x.basis) + ' old') + ': <strong>' + xf(x.idx) + '</strong>.</p>');
+    if (x.idxs != null && cf) { p.push('<p>Allowing for its section too (' + esc(secName(x.channel)) + ' posts draw ' + xf(cf) + ' the typical): <strong>' + xf(x.idxs) + '</strong>.</p>'); }
+    if (x.day_rank) { p.push('<p><strong>#' + x.day_rank + ' of ' + x.day_n + '</strong> ZH posts that day (top ' + topPct(x.day_rank, x.day_n) + '%), ' + basisWord(x.basis) + '. ' + (x.day_median ? 'The day\'s middle post: ' + nf(x.day_median) + ' views.' : '') + '</p>'); }
+    if (x.chan_rank) { p.push('<p><strong>#' + x.chan_rank + ' of ' + x.chan_n + '</strong> in ' + esc(secName(x.channel)) + ' over the week around it.</p>'); }
+    p.push('<p>' + (x.top_best ? 'On ZH\'s Today\'s top list: <strong>#' + x.top_best + '</strong> at best' + (x.top_min ? ', for about ' + (x.top_min < 90 ? x.top_min + ' minutes' : (Math.round(x.top_min / 6) / 10) + ' hours') : '') + '.' : 'Not seen on ZH\'s Today\'s top list' + (x.pub_ts && x.pub_ts * 1000 < Date.parse('2026-10-20T17:00:00Z') ? ' (tracked from Oct. 20)' : '') + '.') + '</p>');
+    var cpk = x.views ? (x.comments || 0) * 1000 / x.views : null;
+    p.push('<p>' + nf(x.comments) + ' comments' + (cpk != null ? ', ' + cpk.toFixed(1) + ' per 1,000 views' + (b.comments_per_1k ? ' (ZH typical: ' + b.comments_per_1k + ')' : '') : '') + '.' +
+      (x.peak ? ' Fastest hour: ' + nf(x.peak) + ' views.' : '') + (x.t50 ? ' Half of its 2-day views came in the first ' + (x.t50 < 1 ? Math.round(x.t50 * 60) + ' minutes' : x.t50.toFixed(1) + ' hours') + '.' : '') + '</p>');
+    var top = (x.day_top || []).map(function (q) { return '<li' + (q.mine ? ' class="mine"' : '') + '>' + (q.mine ? 'This piece' : '<a href="https://www.zerohedge.com' + esc(q.path) + '" target="_blank" rel="noopener">' + esc(q.title) + '</a>') + ' &middot; ' + kf(q.views) + '</li>'; }).join('');
+    return '<div class="dgrid"><div class="curve"><h4>Views over time</h4>' + curveSvg(x, b) + '</div><div><h4>How it did</h4>' + p.join('') +
+      (top ? '<h4 style="margin-top:10px">That day\'s most read on ZH</h4><ol class="top5">' + top + '</ol>' : '') + '</div></div>';
+  }
+  // The piece's views by hour since it ran, against the typical curve for its slot (the median, and the middle half).
+  function curveSvg(x, b) {
+    var W = 560, Hh = 220, L = 46, R = 10, T = 10, B = 26, curve = (x.curve || []).filter(function (c) { return c[0] >= 0 && c[0] <= 48.5; });
+    var ms = [1, 3, 6, 12, 24, 48], cv = (b && b.curve) || {}, scale = b && b.med48 ? (x.exp48 || 0) / b.med48 : 1;
+    var age = curve.length ? curve[curve.length - 1][0] : 48, xmax = Math.max(6, Math.min(48, x.basis === 48 ? 48 : Math.max(age, 6)));
+    var exp = [[0, 0]].concat(ms.filter(function (m) { return (cv[m] || {}).share48 && m <= xmax; }).map(function (m) { return [m, x.exp48 * cv[m].share48]; }));
+    var band = ms.filter(function (m) { return cv[m] && cv[m].p25 != null && m <= xmax; }).map(function (m) { return [m, cv[m].p25 * scale, cv[m].p75 * scale]; });
+    var pts = curve.length ? curve.map(function (c) { return [c[0], c[1]]; }) : ms.filter(function (m) { return x['m' + m] != null; }).map(function (m) { return [m, x['m' + m]]; });
+    if (!pts.length && x.views != null && x.basis === 48) { pts = [[48, x.views]]; }
+    var all = pts.map(function (q) { return q[1]; }).concat(exp.map(function (q) { return q[1]; }), band.map(function (q) { return q[2]; }));
+    var ymax = Math.max.apply(null, all.concat([10])) * 1.08;
+    var X = function (hh) { return L + (W - L - R) * hh / xmax; }, Y = function (v) { return T + (Hh - T - B) * (1 - v / ymax); };
+    var line = function (arr) { return arr.map(function (q, i) { return (i ? 'L' : 'M') + X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' '); };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="Views over time against the typical post for its slot">';
+    [0, 0.5, 1].forEach(function (f) { var v = ymax / 1.08 * f; s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="var(--rule)"/><text x="' + (L - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + kf(v) + '</text>'; });
+    [0, 6, 12, 24, 36, 48].filter(function (t) { return t <= xmax; }).forEach(function (t) { s += '<text x="' + X(t) + '" y="' + (Hh - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + t + 'h</text>'; });
+    if (band.length > 1) { s += '<path d="' + 'M' + X(0) + ' ' + Y(0) + ' ' + band.map(function (q) { return 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[2]).toFixed(1); }).join(' ') + ' ' + band.slice().reverse().map(function (q) { return 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' ') + ' Z" fill="var(--accent)" opacity=".12"/>'; }
+    if (exp.length > 1) { s += '<path d="' + line(exp) + '" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>'; }
+    if (pts.length > 1) { s += '<path d="' + line([[0, 0]].concat(pts)) + '" fill="none" stroke="var(--accent)" stroke-width="2.5"/>'; }
+    pts.forEach(function (q) { if (!curve.length) { s += '<circle cx="' + X(q[0]) + '" cy="' + Y(q[1]) + '" r="3.5" fill="var(--accent)"/>'; } });
+    s += '</svg><div class="legend"><span><i style="background:var(--accent)"></i>This piece</span><span><i style="background:var(--muted)"></i>Typical for its slot</span>' +
+      (band.length > 1 ? '<span><i style="background:var(--accent);opacity:.25;height:8px"></i>Middle half of ZH posts</span>' : '') + '</div>' +
+      (!curve.length ? '<p class="muted small">' + (pts.length ? 'Hour-by-hour views start from Oct. 20; this piece shows what was counted.' : 'Hour-by-hour views start from Oct. 20, 2026.') + '</p>' : '');
+    return s;
+  }
+  function sectionsHtml(st) {
+    var by = {};
+    st.forEach(function (x) { if (x.idx != null) { (by[x.channel] = by[x.channel] || []).push(x.idx); } });
+    var keys = Object.keys(by);
+    if (!keys.length) { return ''; }
+    var mx = Math.max(2, Math.max.apply(null, keys.map(function (k) { return med(by[k]); })) * 1.1);
+    return '<div class="secs"><h4 class="muted small" style="margin:0 0 6px;text-transform:uppercase;letter-spacing:.05em">By section (median against the slot)</h4>' + keys.sort(function (a, b) { return med(by[b]) - med(by[a]); }).map(function (k) {
+      var m = med(by[k]);
+      return '<div class="b"><span>' + esc(secName(k)) + ' <span class="muted">(' + by[k].length + ')</span></span><span class="bar"><i style="width:' + Math.min(100, 100 * m / mx).toFixed(1) + '%"></i><b style="left:' + (100 / mx).toFixed(1) + '%" title="1×, typical"></b></span><span>' + idxHtml(m) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  $('dash-body').addEventListener('click', function (ev) {
+    var th = ev.target.closest('th[data-dsort]');
+    if (th) { var k = th.dataset.dsort; if (D.sort === k) { D.dir = -D.dir; } else { D.sort = k; D.dir = k === 'title' ? 1 : -1; } renderDash(); return; }
+    if (ev.target.closest('a')) { return; }
+    var tr = ev.target.closest('tr.prow');
+    if (tr) { D.open = D.open === tr.dataset.piece ? null : tr.dataset.piece; renderDash(); }
+  });
 
   // ---------- one article
   function blank() {
