@@ -1427,8 +1427,9 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     location.reload();
   });
   window.addEventListener('beforeunload', function (ev) { if (S.dirty) { ev.preventDefault(); ev.returnValue = ''; } });
-  // Save drafts every two minutes while there are changes.
-  setInterval(function () { if (S.dirty && editable() && !S.busy && S.cur && S.cur.id && S.tab !== 'html') { save(false).catch(function () {}); } }, 120000);
+  // Save drafts every two minutes while there are changes, a new article too once it has a headline or some text (Oct. 20:
+  // before, a new one waited for its first Save draft).
+  setInterval(function () { if (S.dirty && editable() && !S.busy && S.cur && (S.cur.id || (!S.viewing && ($('title').value.trim() || editorText()))) && S.tab !== 'html') { save(false).catch(function () {}); } }, 120000);
 
   // ---------- start
   $('gh-go').addEventListener('click', startGitHub);
