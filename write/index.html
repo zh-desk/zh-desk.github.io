@@ -16,10 +16,11 @@
   code exactly as given. Nothing else loads from outside, except X's and Instagram's own embed scripts when an article
   has one of their posts.
 -->
+<script>/* Light unless Dark mode was chosen (Dan, Oct. 20); shared with the contributor dashboard. */ try { if (localStorage.getItem('desk.cd-theme') === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); } } catch (e) { /* light */ }</script>
 <script id="desk-signin" type="application/json">{"clientId": "Iv23li3HIxBazcHkRTlw", "worker": "https://zh-desk-signin.zeropointnowagain.workers.dev/", "redirect": "https://zh-desk.github.io/"}</script>
 <style>
 :root { --paper: #f4f5f7; --panel: #fff; --ink: #171b22; --muted: #5d6673; --rule: #d8dde5; --accent: #b4520f; --accent-ink: #fff; --good: #1f7a45; --warn: #9a5b00; --bad: #ad2a20; --code: #f0f2f5; color-scheme: light; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper: #11141a; --panel: #191e26; --ink: #e6e9ee; --muted: #a0a9b6; --rule: #2c3440; --accent: #f08a3c; --accent-ink: #1a1206; --good: #6fcf97; --warn: #f2c26b; --bad: #f0948a; --code: #12161c; color-scheme: dark; } }
+:root[data-theme="dark"] { --paper: #11141a; --panel: #191e26; --ink: #e6e9ee; --muted: #a0a9b6; --rule: #2c3440; --accent: #f08a3c; --accent-ink: #1a1206; --good: #6fcf97; --warn: #f2c26b; --bad: #f0948a; --code: #12161c; color-scheme: dark; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
 a { color: var(--accent); }
@@ -108,9 +109,14 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 .embed header { display: none; }
 .chip.assigned { color: var(--accent); border-color: var(--accent); }
 .chip.p-open { color: var(--warn); border-color: var(--warn); } .chip.p-approved { color: var(--good); border-color: var(--good); } .chip.p-denied { color: var(--bad); border-color: var(--bad); }
-.view-as #pitch-new, .view-as #settings-open, .view-as #pitch-head { display: none !important; }
+.view-as #pitch-new, .view-as #settings-open { display: none !important; }
 .view-as:not(.coediting) .lib-hint { display: none; }
 .deck[hidden] { display: none; }
+/* While a saved sign-in is checked, "Opening..." rather than the sign-in box (Dan, Oct. 20: it flashed for a second or
+   two every time the dashboard opened a piece). */
+.loading { padding: 20vh 20px; text-align: center; color: var(--muted); }
+.embed .loading { padding: 12vh 20px; }
+.view-as.coediting #drop:not([hidden]) { display: block !important; } .view-as.coediting #lib-open { display: inline-block !important; }
 .view-as.coediting .row { display: flex !important; } .view-as.coediting #submit { display: none !important; }
 .viewas button { margin-left: 10px; background: #fff; color: var(--warn); border-color: #fff; font-weight: 600; padding: 3px 10px; }
 .dlg-back { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 30; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px; overflow: auto; }
@@ -127,7 +133,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 .dash-head { padding: 10px 14px; font-weight: 700; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 /* Stats / Compose / My articles (Oct. 20, Dan: "At the top of the contributor portal, let's have tabs"; the article you
    pick in the list opens in Compose, right beside the list, not under the numbers). */
-.vtabs { display: flex; gap: 0; margin: 0 0 16px; border-bottom: 1px solid var(--rule); }
+.vtabs { display: flex; gap: 0; margin: 0 0 16px; border-bottom: 1px solid var(--rule); overflow-x: auto; scrollbar-width: none; }
+@media (max-width: 760px) { .vtabs button { padding: 8px 9px 6px; letter-spacing: .03em; font-size: .74rem; white-space: nowrap; } }
 .vtabs button { border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: transparent; padding: 9px 16px 7px; font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .vtabs button:hover { color: var(--ink); }
 .vtabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
@@ -147,6 +154,23 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 .tl li.done::before { background: var(--accent); }
 .tl li.live::before { background: var(--good); }
 .tl .when { color: var(--muted); }
+.pitch-btn { width: 100%; margin-top: 8px; border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.pitchbox { border: 1px solid var(--accent); border-radius: 8px; background: var(--panel); padding: 12px 14px 14px; margin-bottom: 18px; }
+.pitchbox h3, .plist-h { margin: 0; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.pitchbox label { display: block; font-size: .82rem; font-weight: 600; margin: 10px 0 4px; }
+.pitchbox input[type=text], .pitchbox textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); }
+.pitchbox textarea { min-height: 90px; resize: vertical; }
+.pf-acts { margin-top: 10px; }
+.plist { list-style: none; margin: 8px 0 0; padding: 0; }
+.plist li { border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); padding: 10px 12px; margin: 0 0 8px; cursor: pointer; }
+.plist li:hover { border-color: var(--accent); }
+.plist .t { font-weight: 700; }
+.plist .pp { font-size: .86rem; margin-top: 4px; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.plist .ans { font-size: .84rem; margin-top: 6px; border-left: 2px solid var(--accent); padding-left: 8px; }
+.view-as #pitch-box, .view-as #pitch-new { display: none !important; }
+.chev { display: inline-block; width: 1em; color: var(--muted); font-size: .8em; }
+#theme { white-space: nowrap; }
+.embed #theme { display: none; }
 .dash .upd { font-weight: 400; color: var(--muted); font-size: .78rem; margin-left: auto; }
 .dash-body { padding: 0 14px 14px; }
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 2px 0 14px; }
@@ -189,7 +213,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 </style>
 </head>
 <body>
-<div class="box" id="gate">
+<div class="loading" id="loading">Opening...</div>
+<div class="box" id="gate" hidden>
   <h1 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">ZeroHedge Author Desk</h1>
   <div id="gate-logo"></div>
   <p class="desk-name">Author Desk</p>
@@ -209,18 +234,15 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   <header>
     <div class="brand" id="head-logo"></div>
     <h1>Author Desk</h1>
-    <div class="right"><span class="who" id="who"></span><button type="button" id="signout">Sign out</button></div>
+    <div class="right"><span class="who" id="who"></span><button type="button" id="theme" aria-pressed="false">Dark mode</button><button type="button" id="signout">Sign out</button></div>
   </header>
   <div class="wrap">
     <aside>
       <button class="primary" type="button" id="new" style="width:100%">+ New article</button>
+      <button type="button" id="pitch-new" class="pitch-btn">+ Pitch an idea</button>
       <h2 style="margin-top:18px">My articles</h2>
       <ul class="list" id="list"></ul>
       <p class="muted small" id="list-empty" hidden>Nothing yet. Start a new article, or drop a Word file or HTML onto the page.</p>
-      <h2 style="margin-top:22px" id="pitch-head">My pitches</h2>
-      <button type="button" id="pitch-new" style="width:100%">+ Pitch an idea</button>
-      <ul class="list" id="pitches"></ul>
-      <p class="muted small" id="pitches-empty">Have an idea? Pitch it, and the editors approve it or say why not.</p>
       <p class="small" style="margin-top:18px"><a href="#" id="settings-open">Email settings</a></p>
     </aside>
     <main>
@@ -228,11 +250,25 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
         <button type="button" role="tab" data-view="stats" aria-selected="false">Stats</button>
         <button type="button" role="tab" data-view="compose" aria-selected="true">Compose</button>
         <button type="button" role="tab" data-view="articles" aria-selected="false">My articles<span class="cnt" id="vt-n"></span></button>
+        <button type="button" role="tab" data-view="pitches" aria-selected="false">Pitches<span class="cnt" id="vt-p"></span></button>
       </nav>
       <section id="v-stats" hidden>
       <div class="dash" id="dash"><div class="dash-head"><span id="dash-title">Your numbers on ZeroHedge</span><span class="upd" id="dash-upd"></span></div><div class="dash-body" id="dash-body"></div></div>
       </section>
       <section id="v-articles" hidden><div id="tracker"></div></section>
+      <section id="v-pitches" hidden>
+        <div class="pitchbox" id="pitch-box">
+          <h3>Pitch an idea</h3>
+          <p class="muted small" style="margin:2px 0 8px">The editors read every pitch and approve it or say why not. An approved pitch can come back to you as an assignment.</p>
+          <form id="pitch-form"><label for="pf-title">Headline or working title</label><input type="text" id="pf-title" maxlength="300" required>
+            <label for="pf-text">The pitch: what it is, why ZH readers will care, what's new</label><textarea id="pf-text"></textarea>
+            <label for="pf-links">Links (sources, one per line)</label><textarea id="pf-links" style="min-height:60px" placeholder="https://..."></textarea>
+            <div class="pf-acts"><button type="submit" class="primary">Send the pitch</button></div></form>
+        </div>
+        <h3 class="plist-h" id="pitch-head">Your pitches</h3>
+        <ul class="plist" id="pitches"></ul>
+        <p class="muted small" id="pitches-empty">No pitches yet.</p>
+      </section>
       <section id="v-compose">
       <input class="title" id="title" placeholder="Headline" aria-label="Headline" autocomplete="off">
       <textarea class="deck" id="deck" rows="1" placeholder="Subheadline (optional)" aria-label="Subheadline"></textarea>
@@ -284,7 +320,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   try { CFG = JSON.parse(document.getElementById('desk-signin').textContent) || {}; } catch (e) { CFG = {}; }
   var WORKER = String(CFG.worker || '').replace(/\/?$/, '/');
   var REDIRECT = CFG.redirect || (location.origin + '/');
-  var DARK = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  var DARK = document.documentElement.getAttribute('data-theme') === 'dark';
   function $(id) { return document.getElementById(id); }
   function keep(area, k, val) {
     try {
@@ -327,7 +363,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     }).catch(function (e) { $('gh-go').disabled = false; gate('Couldn\'t start the GitHub sign-in: ' + e.message); });
   }
   function gate(msg, noButton) {
-    $('app').hidden = true; $('gate').hidden = false; $('join').hidden = true;
+    $('app').hidden = true; $('gate').hidden = false; $('join').hidden = true; $('loading').hidden = true;
     if (msg) { $('gate-msg').textContent = msg; }
     $('gh-go').hidden = !!noButton;
     $('gate-invite').hidden = !store('invite') || !!store('token');
@@ -349,7 +385,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   if (EMBED) { document.documentElement.classList.add('embed'); }
   // One article on its own (Oct. 20): the contributor dashboard opens a piece from its board with &solo=1&open=ID: just
   // that article, compose and preview, no list, tabs or numbers.
-  var OPEN = (QS.get('open') || '').trim(), SOLO = QS.get('solo') === '1' && !!OPEN;
+  var OPEN = (QS.get('open') || '').trim(), SOLO = QS.get('solo') === '1' && !!OPEN, COEDIT = QS.get('coedit') === '1';
   if (SOLO) { document.documentElement.classList.add('solo'); }
   function call(route, body, retried) {
     var payload = Object.assign({ github_token: store('token') || '' }, AS ? { as: AS } : {}, AS && S.coedit ? { coedit: true } : {}, body || {});
@@ -417,10 +453,20 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   function wrapEmbed(html, kind) {
     return '<div class="zh-embed" contenteditable="false" data-kind="' + esc(kind) + '" data-zh="' + enc(html) + '">' + html + '</div>';
   }
+  // ZeroHedge's own HTML (Oct. 20): its article bodies give pictures their address in data-src, often with no src, and
+  // the CMS can write ZH's picture paths without the host (/s3fs-public/... is assets.zerohedge.com, /s3/files/... is
+  // cms.zerohedge.com). Give each picture an address the editor and Preview can show, and that's kept when saved.
+  function zhImg(im) {
+    var src = im.getAttribute('src') || im.getAttribute('data-src') || '';
+    if (/^\/s3fs-public\//.test(src)) { src = 'https://assets.zerohedge.com' + src; } else if (/^\/s3\/files\//.test(src)) { src = 'https://cms.zerohedge.com' + src; }
+    if (src && src !== im.getAttribute('src')) { im.setAttribute('src', src); }
+    im.removeAttribute('data-src');
+  }
   // Stored HTML (what's saved and what the desk gets) -> what the editor shows.
   function toEditor(html) {
     var d = document.createElement('div'); d.innerHTML = html || '';
     d.querySelectorAll('img').forEach(function (im) {
+      zhImg(im);
       var m = /^img\/([\w.-]+)$/.exec(im.getAttribute('src') || '');
       if (m) { im.setAttribute('data-name', m[1]); im.setAttribute('src', blobFor(m[1]) || 'data:image/gif;base64,R0lGODlhAQABAAAAACw='); }
     });
@@ -511,8 +557,11 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
           ed.addShortcut('meta+s', 'Save draft', function () { save(false).catch(function () {}); });
           ed.on('init', function () { ED = ed; $('editor-wait').hidden = true; ok(ed); });
           ed.on('SetContent', function () { setTimeout(function () { renderEmbeds(ed.getDoc(), ed.getWin()); }, 0); });
-          ed.on('input Undo Redo ExecCommand', function () { if (!S.loading) { markDirty(); } });
-          ed.on('NodeChange', function () { if (!S.loading && ed.isDirty()) { markDirty(); ed.setDirty(false); } });
+          ed.on('input Undo Redo', function () { if (!S.loading) { markDirty(); } });
+          // Only a real change counts: X's script drawing a post, or the editor waking up, changes the editor's own
+          // copy but not the article (Oct. 20: closing a piece asked about unsaved changes nobody had made).
+          ed.on('ExecCommand', function () { if (!S.loading && realChange()) { markDirty(); } });
+          ed.on('NodeChange', function () { if (!S.loading && ed.isDirty()) { ed.setDirty(false); if (realChange()) { markDirty(); } } });
           // A link or embed code pasted on its own becomes the embed.
           ed.on('paste', function (ev) {
             var dt = ev.clipboardData; if (!dt) { return; }
@@ -561,12 +610,14 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     S.loading = true;
     if (ED) { ED.setContent(toEditor(html)); ED.undoManager.clear(); ED.setDirty(false); }
     $('html').value = html; renderPreview();
+    S.clean = ED ? toStored(ED.getContent()) : null;
     S.loading = false;
   }
+  function realChange() { try { return S.clean == null || toStored(ED.getContent()) !== S.clean; } catch (e) { return true; } }
   function editorText() { return ED ? ED.getContent({ format: 'text' }).trim() + (ED.getBody().querySelector('img, .zh-embed') ? 'x' : '') : ''; }
   function renderPreview() {
     var d = document.createElement('div'); d.innerHTML = bodyHtml();
-    d.querySelectorAll('img').forEach(function (im) { var m = /^img\/([\w.-]+)$/.exec(im.getAttribute('src') || ''); if (m && blobFor(m[1])) { im.setAttribute('src', blobFor(m[1])); } });
+    d.querySelectorAll('img').forEach(function (im) { zhImg(im); var m = /^img\/([\w.-]+)$/.exec(im.getAttribute('src') || ''); if (m && blobFor(m[1])) { im.setAttribute('src', blobFor(m[1])); } });
     d.querySelectorAll('script').forEach(function (s) {
       if (LOADERS.test(s.getAttribute('src') || '')) { s.remove(); return; }
       var n = document.createElement('div'); n.className = 'script-note'; n.textContent = 'Script: ' + (s.getAttribute('src') || 'inline') + ' (kept as is)'; s.replaceWith(n);
@@ -612,14 +663,15 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   function shown() { var v = (S.me && S.me.viewing_as) || {}; return v.nickname || (S.me && S.me.name) || ''; }
   function renderViewAs() {
     if (!S.viewing || !S.me) { return; }
-    var nm = shown(), first = (S.me.viewing_as || {}).nickname ? nm : nm.split(' ')[0], c = S.cur;
-    var can = c && c.id && c.editable !== false && ['draft', 'assigned', 'returned'].indexOf(c.status) >= 0;
+    var nm = shown(), first = (S.me.viewing_as || {}).nickname ? nm : nm.split(' ')[0];
+    var can = canCoedit();
     document.documentElement.classList.toggle('coediting', !!S.coedit);
     $('viewas').innerHTML = S.coedit ? 'You\'re editing ' + esc(nm) + '\'s draft. Save to keep your changes; ' + esc(first) + ' sees them the next time they open it. <button type="button" id="coedit-off">Stop editing</button>'
       : (SOLO ? 'This is ' + esc(nm) + '\'s article as ' + esc(first) + ' sees it. Read-only: nothing changes unless you choose to work on it.'
               : 'You\'re seeing ' + esc(nm) + '\'s author desk exactly as ' + esc(first) + ' sees it. Read-only: nothing can be changed from here.') +
         (can ? ' <button type="button" id="coedit-on">Work on this draft with ' + esc(first) + '</button>' : '');
   }
+  function canCoedit() { var c = S.cur; return !!(c && c.id && c.editable !== false && ['draft', 'assigned', 'returned'].indexOf(c.status) >= 0); }
   $('viewas').addEventListener('click', function (ev) {
     if (ev.target.id === 'coedit-on') { S.coedit = true; renderViewAs(); renderState(); setView('compose'); if (S.tab === 'preview') { setTab('write'); } }
     if (ev.target.id === 'coedit-off') { if (S.dirty && !confirm('Leave without saving your changes?')) { return; } S.coedit = false; S.dirty = false; renderViewAs(); if (S.cur && S.cur.id) { open(S.cur.id); } }
@@ -631,7 +683,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   // numbers are ZeroHedge's own view and comment counters, collected every 10 minutes by the desk's zh-stats worker and
   // published hourly; each piece is set against the median for the hour and weekday it ran (ZH's traffic ebbs and
   // flows through the day and week), against that day's other posts, and against its section.
-  var D = { sort: 'pub', dir: -1, open: null };
+  var D = { sort: 'pub', dir: -1 };   // open: the piece whose details show; the newest live piece's at first
   function nf(n) { return n == null ? '-' : Math.round(n).toLocaleString('en-US'); }
   function kf(n) { if (n == null) { return '-'; } n = Math.round(n); return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'K' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n); }
   function xf(x) { return x == null ? '-' : (x >= 10 ? Math.round(x) : x.toFixed(1)) + '×'; }
@@ -687,10 +739,11 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
                  day: x.day_rank ? -x.day_rank / x.day_n : null, chan: x.chan_rank ? -x.chan_rank / x.chan_n : null, m1: x.m1, m24: x.m24, m48: x.m48 != null ? x.m48 : (x.basis === 48 ? x.views : null),
                  top: x.top_best ? -x.top_best : null }[D.sort];
       };
+      if (D.open === undefined) { var newest = rows.slice().sort(function (a, b) { return String((b.zh || {}).published).localeCompare(String((a.zh || {}).published)); })[0]; D.open = newest ? newest.id : null; }
       live.slice().sort(function (a, b) { var ka = key(a), kb = key(b); if (ka == null && kb == null) { return 0; } if (ka == null) { return 1; } if (kb == null) { return -1; } return (ka < kb ? -1 : ka > kb ? 1 : 0) * D.dir; })
         .forEach(function (a) {
           var x = a.stats, open = D.open === a.id;
-          h += '<tr class="prow' + (open ? ' open' : '') + '" data-piece="' + esc(a.id) + '"><td class="hl"><a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc((x && x.title) || a.zh.title || a.title) + '</a>' +
+          h += '<tr class="prow' + (open ? ' open' : '') + '" data-piece="' + esc(a.id) + '" title="Click for its chart and how it did"><td class="hl"><span class="chev">' + (open ? '&#9662;' : '&#9656;') + '</span><a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc((x && x.title) || a.zh.title || a.title) + '</a>' +
             '<span class="sub">' + esc(x ? secName(x.channel) : '') + (x && x.views == null ? ' &middot; not counted yet' : '') + '</span></td>';
           if (!x) { h += '<td>' + esc(when(a.zh.published)) + '</td><td class="n" colspan="9"><span class="muted">Numbers within the hour</span></td></tr>'; return; }
           h += '<td>' + esc(dayName(x.day)) + '<span class="sub">' + esc(hourName(x.hour)) + '</span></td>' +
@@ -770,13 +823,13 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 
   // ---------- Stats / Compose / My articles (Oct. 20). The choice is remembered on this device; an assignment waiting
   // always opens in Compose.
-  var VIEWS = ['stats', 'compose', 'articles'];
+  var VIEWS = ['stats', 'compose', 'articles', 'pitches'];
   S.view = 'compose';
   function setView(v, quiet) {
     if (VIEWS.indexOf(v) < 0) { v = 'compose'; }
     S.view = v;
     document.querySelectorAll('.vtabs [data-view]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.view === v)); });
-    $('v-stats').hidden = v !== 'stats'; $('v-compose').hidden = v !== 'compose'; $('v-articles').hidden = v !== 'articles';
+    $('v-stats').hidden = v !== 'stats'; $('v-compose').hidden = v !== 'compose'; $('v-articles').hidden = v !== 'articles'; $('v-pitches').hidden = v !== 'pitches';
     if (v === 'articles') { renderTracker(); }
     if (v === 'compose') { try { window.dispatchEvent(new Event('resize')); } catch (e) { /* the editor redraws on its own */ } }
     if (!quiet && !S.viewing) { store('wtab', v); }
@@ -785,12 +838,13 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 
   // My articles: every piece with where it stands, when it moved and how it did, newest first. A row opens its timeline
   // and numbers; "Open it" takes it to Compose.
-  var T = { open: null };
+  var T = {};   // open: the row whose timeline shows; the newest live piece's at first
   var GROUPS = [['assigned', 'assigned to you'], ['draft', 'draft', 'drafts'], ['returned', 'sent back'], ['prep', 'with the editors'], ['ready', 'ready to run'],
                 ['accepted', 'accepted, not live yet'], ['live', 'live on ZeroHedge'], ['declined', 'not taken']];
   function lastMove(a) { return (a.status === 'live' && a.zh && a.zh.published) || a.submitted || a.updated || a.created || ''; }
   function renderTracker() {
     var arts = S.list.slice().sort(function (a, b) { return String(lastMove(b)).localeCompare(String(lastMove(a))); });
+    if (T.open === undefined) { var nl = arts.filter(function (a) { return a.status === 'live' && a.stats; })[0]; T.open = nl ? nl.id : null; }
     var n = {}; arts.forEach(function (a) { n[a.status] = (n[a.status] || 0) + 1; });
     var h = '<div class="trk-sum">' + GROUPS.filter(function (g) { return n[g[0]]; }).map(function (g) { return '<span><b>' + n[g[0]] + '</b> ' + (n[g[0]] > 1 && g[2] ? g[2] : g[1]) + '</span>'; }).join('') +
       (arts.length ? '' : '<span class="muted">No articles yet.</span>') + '</div>';
@@ -800,7 +854,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     arts.forEach(function (a) {
       var x = a.stats || {}, open = T.open === a.id, isLive = a.status === 'live' && a.zh && /^https:\/\/(www\.)?zerohedge\.com\//.test(a.zh.url);
       var chip = isLive ? '<a class="chip live" href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(a.word || 'Live on ZeroHedge') + ' &#8599;</a>' : '<span class="chip ' + esc(a.status) + '">' + esc(a.word || a.status) + '</span>';
-      h += '<tr class="trow' + (open ? ' open' : '') + '" data-trow="' + esc(a.id) + '"><td class="hl"><span class="t">' + esc(a.title || 'Untitled') + '</span>' +
+      h += '<tr class="trow' + (open ? ' open' : '') + '" data-trow="' + esc(a.id) + '" title="Click for its timeline and numbers"><td class="hl"><span class="chev">' + (open ? '&#9662;' : '&#9656;') + '</span><span class="t">' + esc(a.title || 'Untitled') + '</span>' +
         '<span class="sub">' + (a.assigned ? 'Assigned by the editors' : 'Your own') + (x.channel ? ' &middot; ' + esc(secName(x.channel)) : '') + '</span></td>' +
         '<td>' + chip + '</td><td class="opt">' + esc(when(a.created)) + '</td><td class="opt">' + esc(when(a.updated)) + '</td><td>' + esc(when(a.submitted)) + '</td>' +
         '<td>' + (isLive ? esc(when(a.zh.published)) : '') + '</td><td class="n">' + (isLive ? nf(x.views) : '') + '</td><td class="n">' + (isLive ? idxHtml(x.idx) : '') + '</td>' +
@@ -835,11 +889,18 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   // ---------- pitches (Oct. 20): ideas for the editors, approved or turned down with a comment; an approved one may
   // come back as an assignment. They're kept on the record in the desk.
   var PSTATE = { open: ['p-open', 'Waiting'], approved: ['p-approved', 'Approved'], denied: ['p-denied', 'Not this time'], withdrawn: ['', 'Withdrawn'] };
+  // Pitches have their own tab (Oct. 20, Dan: "all contributors need a prominent area to submit pitches"), with the form
+  // on top and every pitch below, with the editors' latest answer; + Pitch an idea at the top of the list goes there.
   function renderPitches() {
     var ps = (S.me && S.me.pitches) || [];
+    $('pitch-head').textContent = S.viewing ? shown() + '\'s pitches' : 'Your pitches';
+    $('vt-p').textContent = ps.length ? String(ps.length) : '';
     $('pitches').innerHTML = ps.map(function (p) {
       var st = PSTATE[p.status] || ['', p.status];
-      return '<li data-pitch="' + esc(p.id) + '"><span class="t">' + esc(p.title) + '</span><span class="chip ' + st[0] + '">' + esc(st[1]) + '</span> <span class="muted small">' + esc(when(p.created)) + '</span></li>';
+      var ans = (p.thread || []).filter(function (t) { return t.from === 'editors'; }).slice(-1)[0];
+      return '<li data-pitch="' + esc(p.id) + '"><span class="t">' + esc(p.title) + '</span> <span class="chip ' + st[0] + '">' + esc(st[1]) + '</span> <span class="muted small">' + esc(when(p.created)) + (p.assignment ? ' &middot; on your list to write' : '') + '</span>' +
+        (p.pitch ? '<div class="pp">' + esc(p.pitch) + '</div>' : '') +
+        (ans ? '<div class="ans"><strong>' + esc(ans.name || 'The editors') + ':</strong> ' + esc(ans.text) + '</div>' : '') + '</li>';
     }).join('');
     $('pitches-empty').hidden = ps.length > 0;
   }
@@ -849,20 +910,13 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     back.addEventListener('click', function (ev) { if (ev.target === back || ev.target.closest('[data-close]')) { back.remove(); } });
     return back;
   }
-  $('pitch-new').addEventListener('click', function () {
-    var d = dialog('<h2>Pitch an idea</h2><p class="muted small">The editors read it and approve it or say why not. An approved pitch can come back to you as an assignment.</p>' +
-      '<form id="pitch-form"><label for="pf-title">Headline or working title</label><input type="text" id="pf-title" maxlength="300" required>' +
-      '<label for="pf-text">The pitch: what it is, why ZH readers will care, what\'s new</label><textarea id="pf-text"></textarea>' +
-      '<label for="pf-links">Links (sources, one per line)</label><textarea id="pf-links" style="min-height:60px" placeholder="https://..."></textarea>' +
-      '<div class="row" style="margin-top:12px"><button type="submit" class="primary">Send the pitch</button><button type="button" data-close>Cancel</button></div></form>');
-    d.querySelector('#pf-title').focus();
-    d.querySelector('#pitch-form').addEventListener('submit', function (ev) {
-      ev.preventDefault();
-      var b = d.querySelector('button[type="submit"]'); b.disabled = true;
-      call('pitch', { title: d.querySelector('#pf-title').value, text: d.querySelector('#pf-text').value, links: d.querySelector('#pf-links').value.split(/\s+/).filter(Boolean) })
-        .then(function () { d.remove(); toast('Pitch sent to the editors.'); return loadList(); })
-        .catch(function (e) { b.disabled = false; toast('Couldn\'t send it: ' + e.message, true); });
-    });
+  $('pitch-new').addEventListener('click', function () { setView('pitches'); $('pf-title').focus(); });
+  $('pitch-form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var b = $('pitch-form').querySelector('button[type="submit"]'); b.disabled = true;
+    call('pitch', { title: $('pf-title').value, text: $('pf-text').value, links: $('pf-links').value.split(/\s+/).filter(Boolean) })
+      .then(function () { b.disabled = false; $('pitch-form').reset(); toast('Pitch sent to the editors.'); return loadList(); })
+      .catch(function (e) { b.disabled = false; toast('Couldn\'t send it: ' + e.message, true); });
   });
   $('pitches').addEventListener('click', function (ev) {
     var li = ev.target.closest('li[data-pitch]');
@@ -914,6 +968,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       if (S.tab === 'html') { setTab('write'); }
       setBody(a.html || ''); S.dirty = false; $('saved').textContent = 'Saved ' + when(a.updated);
       renderState(); renderPics(); renderList(); renderViewAs();
+      // &coedit=1: the dashboard just gave this article out and opens it ready to work on.
+      if (COEDIT && S.viewing && !S.coeditAsked) { S.coeditAsked = true; if (canCoedit()) { S.coedit = true; renderViewAs(); renderState(); } }
       if (SOLO && !editable() && S.tab !== 'preview') { setTab('preview'); }
       S.pics.forEach(function (p) { fetchPic(p.name); });
     }).catch(function (e) { $('saved').textContent = ''; toast('Couldn\'t open it: ' + e.message, true); });
@@ -969,7 +1025,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     if (S.cur && S.cur.id) { body.id = S.cur.id; if (S.cur.updated) { body.base = S.cur.updated; } }
     var first = submit && !(S.cur && S.cur.id) ? call('save', body).then(function (j) { body.id = j.id; S.cur.id = j.id; }) : Promise.resolve();
     return first.then(function () { return call(submit ? 'submit' : 'save', body); }).then(function (j) {
-      S.busy = false; S.dirty = false;
+      S.busy = false; S.dirty = false; S.clean = body.html;
       S.cur.id = j.id; S.cur.issue = j.issue; S.cur.status = j.status; S.cur.word = j.word; S.cur.editable = j.editable; S.cur.updated = j.updated;
       $('saved').textContent = (submit ? 'Submitted ' : 'Saved ') + when(j.updated);
       if (submit) { toast('Sent to the editors. You\'ll see their notes here.'); }
@@ -1354,6 +1410,17 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       S.cur.notes = (S.cur.notes || []).concat([{ from: 'author', at: new Date().toISOString(), text: S.me.name + ': ' + t }]); renderState();
     }).catch(function (e) { btn.disabled = false; toast('Couldn\'t send it: ' + e.message, true); });
   });
+  // Dark mode, by choice (light is the standard). The editor takes its colors when it starts, so the page reloads to
+  // switch, unless there are unsaved changes; then the page switches now and the editor at the next visit.
+  function renderTheme() { var dk = document.documentElement.getAttribute('data-theme') === 'dark'; $('theme').textContent = dk ? 'Light mode' : 'Dark mode'; $('theme').setAttribute('aria-pressed', String(dk)); }
+  $('theme').addEventListener('click', function () {
+    var dk = document.documentElement.getAttribute('data-theme') !== 'dark';
+    store('cd-theme', dk ? 'dark' : null);
+    if (dk) { document.documentElement.setAttribute('data-theme', 'dark'); } else { document.documentElement.removeAttribute('data-theme'); }
+    renderTheme();
+    if (S.dirty) { toast('Switched. The editor follows the next time the page opens; save first.'); } else { location.reload(); }
+  });
+  renderTheme();
   $('signout').addEventListener('click', function () {
     if (S.dirty && !confirm('You have unsaved changes. Sign out anyway?')) { return; }
     ['token', 'refresh', 'expires', 'auth'].forEach(function (k) { store(k, null); });
@@ -1373,7 +1440,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     else { gate('Couldn\'t load your articles: ' + e.message); }
   }
   function enterApp(me) {
-    $('gate').hidden = true; $('app').hidden = false;
+    $('gate').hidden = true; $('loading').hidden = true; $('app').hidden = false;
     showMe(me);
     $('title').disabled = true; $('deck').disabled = true;
     return initEditor().then(function () {
