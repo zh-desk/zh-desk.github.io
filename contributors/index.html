@@ -173,6 +173,10 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
 .pkg .acts2 { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
 .pkg pre { white-space: pre-wrap; font-size: .8rem; background: var(--code); padding: 8px; border-radius: 6px; max-height: 220px; overflow: auto; }
 .pkg details summary { cursor: pointer; font-weight: 700; font-size: .84rem; margin: 10px 0 4px; }
+.pkg .drop { border: 1px solid var(--rule); border-radius: 8px; padding: 6px 10px; margin: 0 0 8px; }
+.pkg .drop.on { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.pkg .drop .dl { cursor: pointer; font-size: .9rem; }
+.pkg .drop pre { margin: 6px 0 2px; }
 .picked { font-size: .78rem; color: var(--good); }
 .toast { position: fixed; right: 18px; bottom: 18px; background: var(--ink); color: var(--paper); padding: 10px 14px; border-radius: 6px; max-width: 460px; z-index: 40; }
 .toast.bad { background: var(--bad); color: #fff; }
@@ -612,20 +616,62 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     var a = he > 0 ? t.indexOf('```text\n', he) : -1, ae = a > 0 ? t.indexOf('\n```', a + 8) : -1;
     p.images = a > 0 && ae > a ? t.slice(a + 8, ae).trim() : '';
     p.dropins = []; var re = /\*\*(Drop-in[^*]*)\*\* \(([\s\S]*?)\):\n```html\n([\s\S]*?)\n```/g, m, rest = ae > 0 ? t.slice(ae) : '';
-    while ((m = re.exec(rest))) { p.dropins.push({ label: m[1].trim(), desc: m[2].trim(), code: m[3] }); }
+    while ((m = re.exec(rest))) { var dd = dropinDesc(m[2]); p.dropins.push({ label: m[1].trim(), desc: m[2].trim(), code: m[3], mode: dd.mode, start: dd.start, optional: dd.optional, on: false }); }
+    // Where each one goes, by the desk's own rules (page/index.html, parsePackage): the paragraph it names, matched by
+    // how it begins. One that can't be placed is left to copy by hand.
+    var ps = paras(p.html);
+    p.dropins.forEach(function (d) {
+      if (d.mode === 'end') { d.target = '</article>'; }
+      else if (d.mode === 'replace-last') { var all = paras(p.html.slice(0, p.html.lastIndexOf('</article>'))); d.target = all[all.length - 1]; }
+      else if (d.mode) { var hits = ps.filter(function (x) { return plainText(x).indexOf(d.start) === 0; }); d.target = hits.length === 1 ? hits[0] : null; }
+      if (!d.target) { d.mode = null; }
+    });
     return p;
+  }
+  function dropinDesc(d) {
+    var optional = /\boptional\b|\bif wanted\b/i.test(d), m;
+    m = /replaces the paragraph beginning "(.+?)"(?=[,.;:)]|\s|$)/.exec(d);
+    if (m) { return { mode: 'replace', start: m[1], optional: optional }; }
+    if (/replaces the last paragraph/i.test(d)) { return { mode: 'replace-last', start: null, optional: optional }; }
+    m = /after the (?:paragraph|graf) beginning "(.+?)"(?=[,.;:)]|\s|$)/.exec(d);
+    if (m) { return { mode: 'after', start: m[1], optional: optional }; }
+    if (/\bat the end\b/i.test(d)) { return { mode: 'end', start: null, optional: optional }; }
+    return { mode: null, start: null, optional: optional };
+  }
+  function paras(h) { return String(h || '').match(/<p>[\s\S]*?<\/p>/g) || []; }
+  function plainText(h) { var t = document.createElement('template'); t.innerHTML = String(h).replace(/<[^>]+>/g, ''); return t.content.textContent; }
+  // The article with the ticked drop-ins in (the desk's compose); mark=true outlines them, for the preview only.
+  function composePkg(pk, mark) {
+    var h = pk.html;
+    pk.dropins.forEach(function (d) {
+      if (!d.on || !d.mode) { return; }
+      var at = h.indexOf(d.target); if (at < 0) { return; }
+      var end = at + d.target.length, code = mark ? '<div class="zh-dropin">' + d.code + '</div>' : d.code;
+      if (d.mode === 'replace' || d.mode === 'replace-last') { h = h.slice(0, at) + code + h.slice(end); }
+      else if (d.mode === 'after') { h = h.slice(0, end) + '\n\n' + code + h.slice(end); }
+      else { h = h.slice(0, at) + code + '\n\n' + h.slice(at); }
+    });
+    return h;
   }
   function pkgHtml(pk, j) {
     return (pk.critical ? '<div class="critbox"><h3>Critical problems</h3>' + mdLite(pk.critical) + '</div>' : '') +
-      '<div class="acts2"><button type="button" class="primary" data-copy="html">Copy HTML</button><span class="hint">The article exactly as prepped, for the CMS' + (pk.dropins.length ? '; drop-ins are below and aren\'t applied' : '') + '.</span>' +
+      '<div class="acts2"><button type="button" class="primary" data-copy="html">Copy HTML</button><span class="hint" id="pkg-says">' + pkgSays(pk) + '</span>' +
       (j.versions > 1 ? '<span class="hint">Version ' + j.versions + '.</span>' : '') + '</div>' +
       (pk.summary ? '<h3>Summary</h3>' + mdLite(pk.summary) : '') +
       (pk.flags ? '<details><summary>Editorial flags</summary>' + mdLite(pk.flags) + '</details>' : '') +
       '<h3>The article</h3><iframe class="art" title="The prepped article" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"></iframe>' +
-      (pk.dropins.length ? '<h3>Drop-ins</h3>' + pk.dropins.map(function (d, i) { return '<p><strong>' + esc(d.label) + '</strong> (' + esc(d.desc) + ') <button type="button" class="small" data-copy="drop" data-i="' + i + '">Copy</button></p><pre>' + esc(d.code) + '</pre>'; }).join('') : '') +
+      (pk.dropins.length ? '<h3>Drop-ins</h3><p class="hint" style="margin:0 0 6px">Tick the ones you want: the article above and Copy HTML take them in. <button type="button" class="linkish" data-drops="all">Tick all</button> &middot; <button type="button" class="linkish" data-drops="none">None</button></p>' +
+        pk.dropins.map(function (d, i) {
+          return '<div class="drop' + (d.on ? ' on' : '') + '"><label class="dl"><input type="checkbox" data-drop="' + i + '"' + (d.on ? ' checked' : '') + (d.mode ? '' : ' disabled') + '> <strong>' + esc(d.label) + '</strong> (' + esc(d.desc) + ')' +
+            (d.mode ? '' : ' <span class="crit" style="background:var(--warn)">can\'t place it automatically: copy it by hand</span>') + '</label> <button type="button" class="small" data-copy="drop" data-i="' + i + '">Copy</button><pre>' + esc(d.code) + '</pre></div>';
+        }).join('') : '') +
       (pk.images ? '<h3>Pictures</h3><pre>' + esc(pk.images) + '</pre>' : '');
   }
-  var ART_CSS = '<style>body{font:17px/1.6 Georgia,"Times New Roman",serif;color:#171b22;background:#fff;max-width:760px;margin:16px auto;padding:0 18px}h1{font-size:1.8rem;line-height:1.2}img,iframe{max-width:100%}blockquote{border-left:3px solid #c9d0da;margin:1em 0;padding:0 0 0 14px;color:#5d6673}a{color:#b4520f}</style><base target="_blank">';
+  function pkgSays(pk) {
+    var n = pk.dropins.filter(function (d) { return d.on && d.mode; }).length;
+    return pk.dropins.length ? (n ? 'The article with ' + n + ' of ' + pk.dropins.length + ' drop-ins in (outlined in the preview, not in the copy), for the CMS.' : 'The article as prepped, for the CMS. Tick drop-ins below to take them in.') : 'The article exactly as prepped, for the CMS.';
+  }
+  var ART_CSS = '<style>.zh-dropin{outline:2px solid #e8a33d;outline-offset:3px;background:#fff8e6}body{font:17px/1.6 Georgia,"Times New Roman",serif;color:#171b22;background:#fff;max-width:760px;margin:16px auto;padding:0 18px}h1{font-size:1.8rem;line-height:1.2}img,iframe{max-width:100%}blockquote{border-left:3px solid #c9d0da;margin:1em 0;padding:0 0 0 14px;color:#5d6673}a{color:#b4520f}</style><base target="_blank">';
   function openPiece(login, id, coedit, tab) {
     var p = pieceOf(login, id);
     if (!p || !p.a) { return; }
@@ -642,6 +688,16 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     document.body.appendChild(back);
     var pk = null;
     if (prepped) {
+      var artShow = function () {
+        var fr = back.querySelector('#pkg-pane iframe.art'); if (!fr || !pk) { return; }
+        fr.srcdoc = '<!doctype html><meta charset="utf-8">' + ART_CSS + composePkg(pk, true);
+        var says = back.querySelector('#pkg-says'); if (says) { says.textContent = pkgSays(pk); }
+        back.querySelectorAll('#pkg-pane [data-drop]').forEach(function (cb) { cb.checked = !!pk.dropins[+cb.dataset.drop].on; cb.closest('.drop').classList.toggle('on', cb.checked); });
+      };
+      back.addEventListener('change', function (ev) {
+        var cb = ev.target.closest('[data-drop]'); if (!cb || !pk) { return; }
+        pk.dropins[+cb.dataset.drop].on = cb.checked; artShow();
+      });
       var show = function (t) {
         back.querySelectorAll('[data-ptab]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.ptab === t)); });
         back.querySelector('#pkg-pane').hidden = t !== 'pkg';
@@ -650,17 +706,20 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       };
       back.addEventListener('click', function (ev) {
         var tb = ev.target.closest('[data-ptab]'); if (tb) { show(tb.dataset.ptab); return; }
+        var ds = ev.target.closest('[data-drops]');
+        if (ds && pk) { pk.dropins.forEach(function (d) { d.on = ds.dataset.drops === 'all' && !!d.mode; }); artShow(); return; }
         var cp = ev.target.closest('[data-copy]');
         if (cp && pk) {
-          var txt = cp.dataset.copy === 'html' ? pk.html : (pk.dropins[+cp.dataset.i] || {}).code || '';
-          navigator.clipboard.writeText(txt).then(function () { toast(cp.dataset.copy === 'html' ? 'The article\'s HTML is copied.' : 'Drop-in copied.'); }).catch(function () { toast('Couldn\'t copy: select it by hand.', true); });
+          var n = pk.dropins.filter(function (d) { return d.on && d.mode; }).length;
+          var txt = cp.dataset.copy === 'html' ? composePkg(pk, false) : (pk.dropins[+cp.dataset.i] || {}).code || '';
+          navigator.clipboard.writeText(txt).then(function () { toast(cp.dataset.copy === 'html' ? 'The article\'s HTML is copied' + (n ? ', with ' + n + ' drop-in' + (n === 1 ? '' : 's') + ' in.' : ', as prepped.') : 'Drop-in copied.'); }).catch(function () { toast('Couldn\'t copy: select it by hand.', true); });
         }
       });
       call('package', { n: a.issue }).then(function (j) {
         pk = parsePkg(j.text);
         var pane = back.querySelector('#pkg-pane'); if (!pane) { return; }
         pane.innerHTML = pkgHtml(pk, j);
-        pane.querySelector('iframe.art').srcdoc = '<!doctype html><meta charset="utf-8">' + ART_CSS + pk.html;
+        artShow();
       }).catch(function (e) {
         var pane = back.querySelector('#pkg-pane'); if (!pane) { return; }
         pane.innerHTML = '<p class="muted">' + esc(e.message) + '</p>';
