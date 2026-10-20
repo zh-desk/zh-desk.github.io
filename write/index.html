@@ -59,12 +59,15 @@ aside h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; c
 .chip.returned { color: var(--bad); border-color: var(--bad); }
 .chip.prep, .chip.ready { color: var(--warn); border-color: var(--warn); }
 .chip.posted { color: var(--good); border-color: var(--good); }
+.chip.accepted { color: var(--warn); border-color: var(--warn); }
+.chip.live { color: #fff; background: var(--good); border-color: var(--good); text-decoration: none; }
+a.chip.live:hover { text-decoration: underline; }
 main { padding: 18px 24px 60px; max-width: 1040px; width: 100%; min-width: 0; }
 .title { width: 100%; font: 700 1.7rem/1.2 Georgia, "Times New Roman", serif; border: 0; border-bottom: 1px solid var(--rule); background: transparent; padding: 6px 0; outline: none; }
 .deck { width: 100%; font: 600 1.08rem/1.4 Georgia, "Times New Roman", serif; border: 0; border-bottom: 1px solid var(--rule); background: transparent; padding: 8px 0 6px; outline: none; resize: none; overflow: hidden; display: block; }
 .banner { margin: 12px 0; padding: 10px 12px; border-radius: 6px; border-left: 4px solid var(--warn); background: var(--panel); }
 .banner.returned { border-left-color: var(--bad); }
-.banner.posted { border-left-color: var(--good); }
+.banner.posted, .banner.live { border-left-color: var(--good); }
 .tabs { display: flex; gap: 4px; margin: 14px 0 0; }
 .tabs button { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0; }
 .tabs button[aria-selected="true"] { background: var(--panel); font-weight: 600; box-shadow: inset 0 3px 0 var(--accent); }
@@ -469,8 +472,12 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   function renderList() {
     var ul = $('list');
     ul.innerHTML = S.list.map(function (a) {
+      // Live on ZeroHedge (#1304): the chip is the link to the post; accepted ones aren't on ZeroHedge yet.
+      var chip = a.status === 'live' && a.zh && /^https:\/\/(www\.)?zerohedge\.com\//.test(a.zh.url) ?
+        '<a class="chip live" href="' + esc(a.zh.url) + '" target="_blank" rel="noopener" title="Open it on ZeroHedge">' + esc(a.word || 'Live on ZeroHedge') + ' &#8599;</a>' :
+        '<span class="chip ' + esc(a.status) + '">' + esc(a.word || a.status) + '</span>';
       return '<li data-id="' + esc(a.id) + '"' + (S.cur && S.cur.id === a.id ? ' class="on"' : '') + '><span class="t">' + esc(a.title || 'Untitled') + '</span>' +
-        '<span class="chip ' + esc(a.status) + '">' + esc(a.word || a.status) + '</span> <span class="muted small">' + esc(when(a.updated)) + '</span></li>';
+        chip + ' <span class="muted small">' + esc(when(a.status === 'live' && a.zh && a.zh.published ? a.zh.published : a.updated)) + '</span></li>';
     }).join('');
     $('list-empty').hidden = S.list.length > 0;
   }
@@ -496,7 +503,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     $('saved').textContent = 'Opening...';
     call('get', { id: id }).then(function (j) {
       var a = j.article;
-      S.cur = Object.assign({}, a, { status: j.status, word: j.word, editable: j.editable, notes: j.notes || [] });
+      S.cur = Object.assign({}, a, { status: j.status, word: j.word, editable: j.editable, notes: j.notes || [], zh: j.zh || null });
       S.pics = (a.images || []).map(function (im) { return Object.assign({}, im); });
       $('title').value = a.title || ''; $('deck').value = a.deck || ''; fitDeck(); $('note').value = a.note_to_editors || '';
       if (S.tab === 'html') { setTab('write'); }
@@ -526,6 +533,10 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     else if (c.status === 'prep') { text = '<strong>With the editors.</strong> It\'s locked while they work on it. You\'ll see their notes below.'; }
     else if (c.status === 'ready') { text = '<strong>Ready to run.</strong> The editors have prepared it for publishing.'; }
     else if (c.status === 'posted') { text = '<strong>Published.</strong>'; }
+    else if (c.status === 'accepted') { text = '<strong>Accepted, not live yet.</strong> The editors have it lined up for ZeroHedge. Once it runs, this page says so, with the link.'; }
+    else if (c.status === 'live' && c.zh && /^https:\/\/(www\.)?zerohedge\.com\//.test(c.zh.url)) {
+      text = '<strong>Live on ZeroHedge' + (c.zh.published ? ', ' + esc(when(c.zh.published)) : '') + ':</strong> <a href="' + esc(c.zh.url) + '" target="_blank" rel="noopener">' + esc(c.zh.title || c.zh.url) + '</a>';
+    }
     else if (c.status === 'declined') { text = '<strong>Not taken this time.</strong> See the editors\' note, if any.'; }
     b.className = 'banner ' + c.status; b.innerHTML = text; b.hidden = !text;
     $('submit').textContent = c.status === 'returned' ? 'Submit again' : 'Submit to the editors';
@@ -913,7 +924,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   $('save').addEventListener('click', function () { save(false).catch(function () {}); });
   $('submit').addEventListener('click', function () { save(true).catch(function () {}); });
   $('new').addEventListener('click', function () { if (S.dirty && !confirm('You have unsaved changes. Leave them?')) { return; } blank(); });
-  $('list').addEventListener('click', function (ev) { var li = ev.target.closest('li[data-id]'); if (li) { open(li.dataset.id); } });
+  $('list').addEventListener('click', function (ev) { if (ev.target.closest('a')) { return; } var li = ev.target.closest('li[data-id]'); if (li) { open(li.dataset.id); } });
   $('reply-send').addEventListener('click', function () {
     var t = $('reply').value.trim(); if (!t || !S.cur || !S.cur.id) { return; }
     this.disabled = true; var btn = this;
