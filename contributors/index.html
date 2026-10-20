@@ -155,6 +155,8 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
 .odone { font-size: .78rem; margin-top: 4px; }
 .odone .chip { display: inline-block; padding: 0 7px; border-radius: 10px; font-weight: 700; font-size: .72rem; }
 .odone .chip.approved { background: rgba(31,122,69,.15); color: var(--good); } .odone .chip.denied { background: rgba(173,42,32,.12); color: var(--bad); }
+.cmsbtn { margin-left: auto; padding: 1px 8px; font-size: .74rem; font-weight: 600; border-color: var(--good); color: var(--good); }
+.cmsbtn:hover { background: var(--good); color: #fff; }
 .linkish { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; font-size: .76rem; cursor: pointer; }
 .pc-foot { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--rule); margin-top: 4px; padding-top: 6px; font-size: .76rem; color: var(--muted); }
 .pc-foot label { display: inline-flex; gap: 4px; align-items: center; }
@@ -457,11 +459,14 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     var waiting = items.filter(function (x) { return ['assigned', 'returned', 'prep'].indexOf(x.a.status) >= 0; }).sort(function (a, b) { return String(since(a.a)).localeCompare(String(since(b.a))); });
     var ready = items.filter(function (x) { return x.a.status === 'ready'; }).sort(function (a, b) { return String(a.a.stage_at || '').localeCompare(String(b.a.stage_at || '')); });
     var cms = items.filter(function (x) { return x.a.status === 'accepted'; }).sort(function (a, b) { return String(a.a.closed || a.a.stage_at || '').localeCompare(String(b.a.closed || b.a.stage_at || '')); });
-    var item = function (x, chip, when2) {
+    var ed = d.me.role === 'editor';
+    var item = function (x, chip, when2, extra) {
       var a = x.a;
       return '<div class="fitem" data-open="' + esc(x.c.login) + '|' + esc(a.id) + '" title="Open it"><div class="ttl">' + esc(a.title || 'Untitled') + '</div>' +
-        '<div class="meta"><span class="tag">' + esc(nameOf(x.c)) + '</span>' + (chip ? '<span>' + chip + '</span>' : '') + (a.critical ? '<span class="crit" title="The prep flagged critical problems">' + a.critical + ' critical</span>' : '') + (when2 ? '<span>' + when2 + '</span>' : '') + '</div></div>';
+        '<div class="meta"><span class="tag">' + esc(nameOf(x.c)) + '</span>' + (chip ? '<span>' + chip + '</span>' : '') + (a.critical ? '<span class="crit" title="The prep flagged critical problems">' + a.critical + ' critical</span>' : '') + (when2 ? '<span>' + when2 + '</span>' : '') + (extra || '') + '</div></div>';
     };
+    // Prepped in CMS (Oct. 20): the desk's own button, here too, for Dan and Tim.
+    var cmsBtn = function (a, on) { return ed && a.issue ? (on ? '<button type="button" class="cmsbtn" data-cms="' + a.issue + '" data-on="1" title="Mark it built in ZH\'s CMS: it moves to In CMS, unpublished, and to Done on the desk">Prepped in CMS</button>' : '<button type="button" class="linkish" data-cms="' + a.issue + '" data-on="0" title="Not in the CMS after all: back to Ready">undo</button>') : ''; };
     var col = function (title, hint, list, html, empty) {
       return '<div class="fcol"><div class="fhead">' + title + '<span class="count">' + list.length + '</span></div>' + (hint ? '<div class="fhint">' + hint + '</div>' : '') +
         '<div class="fbody">' + (list.length ? list.map(html).join('') : '<div class="fempty">' + empty + '</div>') + '</div></div>';
@@ -472,8 +477,8 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
         var a = x.a, w = a.status === 'assigned' ? short(x.c) + ' is writing it' : a.status === 'returned' ? 'sent back to ' + short(x.c) : 'submitted, in prep';
         return item(x, esc(w), esc(ago(since(a))));
       }, 'Nothing waiting.') +
-      col('Ready, not in CMS', 'Prepped: open it for the HTML', ready, function (x) { return item(x, '', 'ready ' + esc(ago(x.a.stage_at || x.a.updated))); }, 'Nothing ready.') +
-      col('In CMS, unpublished', 'In the CMS, not live on ZH yet', cms, function (x) { return item(x, '', esc(ago(x.a.closed || x.a.stage_at || x.a.updated))); }, 'Nothing in the CMS.');
+      col('Ready, not in CMS', 'Prepped: open it for the HTML' + (ed ? '; built in the CMS? Prepped in CMS' : ''), ready, function (x) { return item(x, '', 'ready ' + esc(ago(x.a.stage_at || x.a.updated)), cmsBtn(x.a, true)); }, 'Nothing ready.') +
+      col('In CMS, unpublished', 'In the CMS, not live on ZH yet', cms, function (x) { return item(x, '', esc(ago(x.a.closed || x.a.stage_at || x.a.updated)), x.a.cms ? cmsBtn(x.a, false) : ''); }, 'Nothing in the CMS.');
   }
   function pitchHtml(c, p, full) {
     var open = p.status === 'open', word = { open: 'Waiting for a decision', approved: 'Approved', denied: 'Passed', withdrawn: 'Withdrawn' }[p.status] || p.status;
@@ -682,6 +687,8 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     back.innerHTML = '<div class="dlg wide" role="dialog" aria-label="' + esc(a.title || 'Untitled') + '"><div class="dhead"><span class="stage ' + sg.k + '">' + esc(sg.w) + '</span>' +
       '<h2>' + esc(a.title || 'Untitled') + '</h2><span class="muted small">' + esc(nameOf(c)) + ' &middot; ' + esc(ghOf(c)) + '</span>' +
       (a.zh ? '<a class="small" href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">On ZeroHedge &#8599;</a>' : '') +
+      (S.data.me.role === 'editor' && a.issue && a.status === 'ready' ? '<button type="button" class="cmsbtn" style="margin-left:0" data-cms="' + a.issue + '" data-on="1">Prepped in CMS</button>' : '') +
+      (S.data.me.role === 'editor' && a.issue && a.status === 'accepted' && a.cms ? '<span class="small">In the CMS <button type="button" class="linkish" data-cms="' + a.issue + '" data-on="0">undo</button></span>' : '') +
       '<a class="small" href="/write/' + q + '" target="_blank" rel="noopener">Open as submitted in a new tab</a><button type="button" data-close>Close</button></div>' +
       (prepped ? '<div class="ptabs" role="tablist"><button type="button" role="tab" data-ptab="pkg" aria-selected="true">Prepped for ZH</button><button type="button" role="tab" data-ptab="orig" aria-selected="false">As submitted</button></div><div class="pkg" id="pkg-pane">Opening the package...</div>' : '') +
       '<iframe class="orig" title="' + esc(a.title || 'The article') + '"' + (prepped ? ' hidden data-src="/write/' + q + '&embed=1"' : ' src="/write/' + q + '&embed=1"') + '></iframe></div>';
@@ -797,6 +804,17 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
         call('admin-remove', { login: act.dataset.login }).then(function () { toast('Removed.'); return load(); }).catch(function (e) { toast(e.message, true); });
         return;
       }
+    }
+    var cm = t.closest('[data-cms]');
+    if (cm) {
+      var on = cm.dataset.on === '1'; cm.disabled = true;
+      call('cms', { n: +cm.dataset.cms, on: on }).then(function () {
+        toast(on ? 'Marked prepped in the CMS: it\'s in In CMS, unpublished, and Done on the desk.' : 'Back in Ready, not in CMS.');
+        var dh = cm.closest('.dhead');
+        if (dh) { var sgEl = dh.querySelector('.stage'); if (sgEl) { sgEl.className = 'stage ' + (on ? 'cms' : 'ready'); sgEl.textContent = on ? 'In the CMS, not live yet' : 'Ready, not in the CMS'; } cm.remove(); }
+        return load();
+      }).catch(function (e) { cm.disabled = false; toast('Couldn\'t save that: ' + e.message, true); });
+      return;
     }
     var opp = t.closest('[data-openp]');
     if (opp) { var kk = opp.dataset.openp.split('|'); openPiece(kk[0], kk[1]); return; }
