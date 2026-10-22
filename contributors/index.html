@@ -16,7 +16,13 @@
   place (/write/?as=LOGIN&solo=1&open=ID). Contributors go by the name the editors give them, with their GitHub name.
   Editors get the area switch (Desk / Charts / Store / Contributors) and ?view=owner, the dashboard as the owner sees it.
 -->
-<script>/* Light unless Dark mode was chosen (Dan, Oct. 20); shared with the author desk. */ try { if (localStorage.getItem('desk.cd-theme') === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); } } catch (e) { /* light */ }</script>
+<script>/* Light unless Dark mode was chosen (Dan, Oct. 20); shared with the author desk. Inside the desk (Oct. 22: the desk v2
+   rail's Contributors shows this page with ?embed=1&theme=...) it takes the desk's look and drops its own header. */
+try {
+  var qs0 = new URLSearchParams(location.search), th0 = qs0.get('theme');
+  if (qs0.get('embed') === '1') { document.documentElement.classList.add('embed'); }
+  if (th0 === 'dark' || (th0 !== 'light' && localStorage.getItem('desk.cd-theme') === 'dark')) { document.documentElement.setAttribute('data-theme', 'dark'); }
+} catch (e) { /* light */ }</script>
 <script id="desk-signin" type="application/json">{"clientId": "Iv23li3HIxBazcHkRTlw", "worker": "https://zh-desk-signin.zeropointnowagain.workers.dev/", "redirect": "https://zh-desk.github.io/"}</script>
 <style>
 :root { --paper: #f4f5f7; --panel: #fff; --ink: #171b22; --muted: #5d6673; --rule: #d8dde5; --accent: #b4520f; --accent-ink: #fff; --good: #1f7a45; --warn: #9a5b00; --bad: #ad2a20; --code: #f0f2f5; color-scheme: light; }
@@ -40,12 +46,14 @@ header .brand { flex: 0 0 auto; display: flex; align-items: center; }
 header h1 { flex: 1 1 auto; font: 700 1.3rem/1.1 Georgia, "Times New Roman", serif; margin: 0; text-align: center; }
 header .right { flex: 0 0 auto; margin-left: auto; display: flex; align-items: center; gap: 12px; }
 /* The area switch (Oct. 20, Dan: only he and Tim get "the multiple area toggle (desk / charts / store / contributors) up
-   top"): editors only, never the owner or other admins, and never in the owner preview. */
-.areas { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; flex: 0 0 auto; }
-.areas a { padding: 7px 11px; font-size: .8rem; font-weight: 600; color: var(--ink); text-decoration: none; white-space: nowrap; }
-.areas a + a { border-left: 1px solid var(--rule); }
-.areas a:hover { background: var(--paper); }
-.areas a[aria-current="page"] { background: var(--ink); color: var(--panel); }
+   top"): editors only, never the owner or other admins, and never in the owner preview. Since Oct. 22 it is the one on the
+   desk and the store board: Desk, Charts, Store, the open area in its own color (contributors are part of the desk). */
+.areas { display: inline-grid; grid-template-columns: repeat(3, 1fr); background: #22272d; border-radius: 9px; padding: 3px; gap: 2px; flex: 0 0 auto; min-width: 210px; }
+.areas a { padding: 8px 10px; border-radius: 7px; font: 500 12px/1 "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; color: #9aa1a9; text-decoration: none; white-space: nowrap; text-align: center; }
+.areas a:hover { color: #fff; background: #262b31; }
+.areas a[aria-current] { background: #2456a8; color: #fff; font-weight: 600; }
+.embed header#head { display: none; }
+.embed body { background: var(--paper); }
 .preview-bar { background: var(--warn); color: #fff; padding: 8px 20px; font-weight: 600; font-size: .9rem; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .preview-bar a { color: #fff; }
 header .who { color: var(--muted); font-size: .9rem; }
@@ -211,7 +219,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
 <div id="app" hidden>
   <header id="head">
     <div class="brand" id="head-logo"></div>
-    <nav class="areas" id="areas" aria-label="Switch area" hidden><a href="https://zh-desk.github.io/">Desk</a><a href="https://zh-desk.github.io/#charts">Charts</a><a href="https://zh-desk.github.io/store/">Store</a><a href="/contributors/" aria-current="page">Contributors</a></nav>
+    <nav class="areas" id="areas" aria-label="Switch area" hidden><a href="https://zh-desk.github.io/" aria-current="true" title="Contributors are part of the desk">Desk</a><a href="https://zh-desk.github.io/#charts">Charts</a><a href="https://zh-desk.github.io/store/">Store</a></nav>
     <h1>Contributor Dashboard</h1>
     <div class="right"><span class="who" id="who"></span><button type="button" id="theme" aria-pressed="false">Dark mode</button><button type="button" id="signout">Sign out</button></div>
   </header>
