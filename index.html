@@ -9,7 +9,8 @@
 <!--
   The desk page loader (published as index.html in the public zh-desk.github.io repo; its source lives in
   zh-desk/desk at page/loader.html). It signs the person in, then runs the desk page from the private repo:
-  page/index.html (live), or page/preview.html (?v=preview) or page/previous.html (?v=previous).
+  page/index.html (live), or page/preview.html (?v=preview) or page/previous.html (?v=previous), or page/v2.html
+  (?v=v2: the desk v2 on test, built by page/v2/build.js from page/index.html, Oct 22, 2026).
   Two ways to sign in: Sign in with GitHub (a GitHub App plus the small Cloudflare Worker in tools/signin-worker.js,
   set in desk-signin below; empty means off), or a GitHub access key pasted once per browser.
   Keep it small and stable: the desk page changes; this doesn't.
@@ -84,8 +85,8 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
 (function () {
   'use strict';
   var PAGE = 'https://api.github.com/repos/zh-desk/desk/contents/page/';
-  var FILES = { live: 'index.html', preview: 'preview.html', previous: 'previous.html' };
-  var NAMES = { preview: 'a preview of a desk page change', previous: 'the previous version of the desk page' };
+  var FILES = { live: 'index.html', preview: 'preview.html', previous: 'previous.html', v2: 'v2.html' };
+  var NAMES = { preview: 'a preview of a desk page change', previous: 'the previous version of the desk page', v2: 'the desk v2 (test drive). Approvals, posts and notes here are real, the same as on the live desk' };
   var CFG = {};
   try { CFG = JSON.parse(document.getElementById('desk-signin').textContent) || {}; } catch (e) { CFG = {}; }
   var GH = !!(CFG.clientId && CFG.worker);
@@ -193,7 +194,7 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
   function note(html, color) {
     var bar = document.createElement('div');
     bar.setAttribute('role', 'status');
-    bar.style.cssText = 'position:sticky;top:0;z-index:9999;padding:9px 16px;font:700 14px/1.4 "Segoe UI",system-ui,sans-serif;color:#fff;background:' + color;
+    bar.style.cssText = 'position:' + (which === 'v2' ? 'relative' : 'sticky') + ';top:0;z-index:9999;padding:9px 16px;font:700 14px/1.4 "Segoe UI",system-ui,sans-serif;color:#fff;background:' + color;
     bar.innerHTML = html;
     document.body.insertBefore(bar, document.body.firstChild);
   }
@@ -203,7 +204,7 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
     document.write(html);
     document.close();
     if (which !== 'live') {
-      note('You\'re looking at ' + NAMES[which] + '. <a href="/" style="color:#fff">Back to the live desk</a>', which === 'preview' ? '#6b3fc4' : '#8a5a00');
+      note('You\'re looking at ' + NAMES[which] + '. <a href="/" style="color:#fff">Back to the live desk</a>', which === 'preview' ? '#6b3fc4' : which === 'v2' ? '#1f6b3f' : '#8a5a00');
     }
     setTimeout(function () {
       if (started()) { return; }
@@ -227,7 +228,7 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
         askKey(fromLink ? 'That sign-in link has a key GitHub no longer accepts. Make a new link on a signed-in device, or paste a new key.' :
           wasGitHub ? 'Your GitHub sign-in ran out. Sign in again.' : 'That access key stopped working. Sign in with a new one.', !wasGitHub);
       } else if (e.status === 404 && which !== 'live') {
-        say('There\'s no ' + (which === 'preview' ? 'preview to try' : 'earlier version') + ' right now.');
+        say('There\'s no ' + (which === 'preview' ? 'preview to try' : which === 'v2' ? 'desk v2' : 'earlier version') + ' right now.');
         $('msg').insertAdjacentHTML('beforeend', ' <a href="/">Open the live desk</a>');
       } else if (e.status === 404 || e.status === 403) {
         var gh = store('auth') === 'github';
