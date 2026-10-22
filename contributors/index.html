@@ -141,6 +141,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
 .tag { display: inline-block; padding: 0 7px; border-radius: 4px; background: var(--code); color: var(--ink); font-weight: 600; font-size: .74rem; }
 .crit { color: #fff; background: var(--bad); border-radius: 4px; padding: 0 6px; font-weight: 700; }
 .fempty { color: var(--muted); font-size: .82rem; padding: 4px 2px; }
+.fwarn { grid-column: 1 / -1; background: var(--panel); border: 1px solid var(--rule); border-left: 4px solid #b7791f; border-radius: 8px; padding: 9px 12px; font-size: .86rem; }
 .pcard { border: 1px solid var(--rule); border-radius: 8px; padding: 8px 9px; margin: 0 0 9px; background: var(--paper); font-size: .86rem; }
 .pcard.flash, .bitem.flash { box-shadow: 0 0 0 3px var(--accent); }
 .pc-head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: .76rem; color: var(--muted); margin-bottom: 4px; }
@@ -321,6 +322,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     if (a.status === 'accepted') { return { k: 'cms', w: a.cms ? 'In the CMS, not live yet' : 'Posted, not live yet' }; }
     if (a.status === 'ready') { return { k: 'ready', w: 'Ready, not in the CMS' }; }
     if (a.status === 'declined') { return { k: 'declined', w: 'Not taken' }; }
+    if (a.status === 'unknown') { return { k: 'unknown', w: 'Couldn\'t check the desk' }; }
     return { k: 'prep', w: 'With the editors, in prep' };
   }
   // A contributor's name here is the one the editors give them (Dan, Oct. 20: "use whatever name I give a contributor";
@@ -459,6 +461,8 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     var waiting = items.filter(function (x) { return ['assigned', 'returned', 'prep'].indexOf(x.a.status) >= 0; }).sort(function (a, b) { return String(since(a.a)).localeCompare(String(since(b.a))); });
     var ready = items.filter(function (x) { return x.a.status === 'ready'; }).sort(function (a, b) { return String(a.a.stage_at || '').localeCompare(String(b.a.stage_at || '')); });
     var cms = items.filter(function (x) { return x.a.status === 'accepted'; }).sort(function (a, b) { return String(a.a.closed || a.a.stage_at || '').localeCompare(String(b.a.closed || b.a.stage_at || '')); });
+    // Oct 22: a piece whose desk story the helper couldn't read is named here, not guessed into Waiting on.
+    var unread = items.filter(function (x) { return x.a.status === 'unknown'; });
     var ed = d.me.role === 'editor';
     var item = function (x, chip, when2, extra) {
       var a = x.a;
@@ -472,13 +476,22 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
         '<div class="fbody">' + (list.length ? list.map(html).join('') : '<div class="fempty">' + empty + '</div>') + '</div></div>';
     };
     $('funnel').innerHTML =
+      (unread.length ? '<div class="fwarn" role="status">' + unread.length + (unread.length === 1 ? ' piece' : ' pieces') + ' couldn\'t be checked against the desk just now (' +
+        unread.map(function (x) { return '#' + esc(x.a.issue) + ' ' + esc(x.a.title || 'Untitled'); }).join('; ') + '), so they\'re left out of the columns. <button type="button" class="linkish" data-act="refresh">Refresh</button></div>' : '') +
       col('Pitches', 'Approve or pass on each idea; a note is optional', pitches, function (x) { return pitchCard(x.c, x.p); }, 'No pitches waiting.') +
       col('Waiting on', 'Being written, sent back, or in prep', waiting, function (x) {
         var a = x.a, w = a.status === 'assigned' ? short(x.c) + ' is writing it' : a.status === 'returned' ? 'sent back to ' + short(x.c) : 'submitted, in prep';
         return item(x, esc(w), esc(ago(since(a))));
       }, 'Nothing waiting.') +
       col('Ready, not in CMS', 'Prepped: open it for the HTML' + (ed ? '; built in the CMS? Prepped in CMS' : ''), ready, function (x) { return item(x, '', 'ready ' + esc(ago(x.a.stage_at || x.a.updated)), cmsBtn(x.a, true)); }, 'Nothing ready.') +
-      col('In CMS, unpublished', 'In the CMS, not live on ZH yet', cms, function (x) { return item(x, '', esc(ago(x.a.closed || x.a.stage_at || x.a.updated)), x.a.cms ? cmsBtn(x.a, false) : ''); }, 'Nothing in the CMS.');
+      col('In CMS, unpublished', 'In the CMS, not live on ZH yet', cms, function (x) {
+        // Oct 22 (Dan: "we need an automation to double-check"): the ZH watcher reads every ZH post every 20 minutes and
+        // moves a piece to Live once it runs. One still here a day after it went into the CMS hasn't been seen on ZH:
+        // either it hasn't run, or ZH retitled it past what the watcher matches. Say so, so someone looks.
+        var t = Date.parse(x.a.closed || x.a.stage_at || x.a.updated || ''), hrs = t ? Math.round((Date.now() - t) / 36e5) : 0;
+        var late = hrs >= 24 ? '<span class="crit" title="The ZH watcher hasn\'t found it on ZeroHedge. Check whether it ran (ZH may have retitled it) or is still waiting in the CMS.">not seen on ZH in ' + (hrs >= 48 ? Math.round(hrs / 24) + ' days' : hrs + ' hr') + '</span>' : '';
+        return item(x, '', esc(ago(x.a.closed || x.a.stage_at || x.a.updated)), late + (x.a.cms ? cmsBtn(x.a, false) : ''));
+      }, 'Nothing in the CMS.');
   }
   function pitchHtml(c, p, full) {
     var open = p.status === 'open', word = { open: 'Waiting for a decision', approved: 'Approved', denied: 'Passed', withdrawn: 'Withdrawn' }[p.status] || p.status;
