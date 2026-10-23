@@ -17,6 +17,7 @@
   has one of their posts.
 -->
 <script>/* Light unless Dark mode was chosen (Dan, Oct. 20); shared with the contributor dashboard. */ try { if (localStorage.getItem('desk.cd-theme') === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); } } catch (e) { /* light */ }</script>
+<script src="/perf.js?v=2"></script>
 <script id="desk-signin" type="application/json">{"clientId": "Iv23li3HIxBazcHkRTlw", "worker": "https://zh-desk-signin.zeropointnowagain.workers.dev/", "redirect": "https://zh-desk.github.io/"}</script>
 <style>
 :root { --paper: #f4f5f7; --panel: #fff; --ink: #171b22; --muted: #5d6673; --rule: #d8dde5; --accent: #b4520f; --accent-ink: #fff; --good: #1f7a45; --warn: #9a5b00; --bad: #ad2a20; --code: #f0f2f5; color-scheme: light; }
@@ -689,7 +690,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   // numbers are ZeroHedge's own view and comment counters, collected every 10 minutes by the desk's zh-stats worker and
   // published hourly; each piece is set against the median for the hour and weekday it ran (ZH's traffic ebbs and
   // flows through the day and week), against that day's other posts, and against its section.
-  var D = { sort: 'pub', dir: -1 };   // open: the piece whose details show; the newest live piece's at first
+  var D = { sort: 'pub', dir: -1, perf: { slot: false } };   // open: the piece whose details show; the newest live piece's at first
   function nf(n) { return n == null ? '-' : Math.round(n).toLocaleString('en-US'); }
   function kf(n) { if (n == null) { return '-'; } n = Math.round(n); return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'K' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n); }
   function xf(x) { return x == null ? '-' : (x >= 10 ? Math.round(x) : x.toFixed(1)) + '×'; }
@@ -735,6 +736,9 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     if (!live.length) {
       h += '<p class="muted">Nothing is live on ZeroHedge yet. Pieces show up here, with their numbers, once they run.</p>';
     } else {
+      // how their pieces ran over the first two days against ZH's typical post (/perf.js; Dan, Oct. 23: "let Josh see this
+      // too on his own contributor page. But not vs. other contributors when we roll that out": their own pieces only)
+      if (window.ZHPerf) { h += '<div class="perf">' + ZHPerf.html(perfOpts()) + '</div>'; }
       h += '<div class="ptab-wrap"><table class="ptab"><thead><tr>' + [['title', 'Piece'], ['pub', 'Ran (ET)'], ['views', 'Views', 1], ['comments', 'Comments', 1, 'opt'], ['idx', 'Vs. its slot', 1],
         ['day', 'That day', 1], ['chan', 'Section, 7 days', 1, 'opt'], ['m1', '1 hr', 1, 'opt'], ['m24', '24 hr', 1, 'opt'], ['m48', '2 days', 1, 'opt'], ['top', 'ZH top', 1, 'opt']].map(function (c) {
         return '<th data-dsort="' + c[0] + '" class="' + (c[2] ? 'n ' : '') + (c[3] || '') + '">' + c[1] + (D.sort === c[0] ? (D.dir < 0 ? ' ▾' : ' ▴') : '') + '</th>';
@@ -765,6 +769,12 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     }
     h += '<p class="how">How to read it: <strong>Vs. its slot</strong> is a piece\'s views against the median ZeroHedge post published at the same hour and on the same kind of day (ZH\'s traffic ebbs and flows through the day and week), at 2 days old, or at its age for younger pieces: 1× is typical, 2× is twice the typical. <strong>That day</strong> ranks it among every ZH post that Eastern day; <strong>Section</strong>, among its section\'s posts over the week around it. Hour-by-hour numbers start from Oct. 20, 2026; earlier pieces have their totals.</p>';
     $('dash-body').innerHTML = h;
+    var pb = $('dash-body').querySelector('.perf');
+    if (pb) { ZHPerf.bind(pb, perfOpts(), $('dash-body').querySelectorAll('tr.prow'), function (tr) { return tr.dataset.piece; }); }
+  }
+  function perfOpts() {
+    var j = S.me || {};
+    return Object.assign(D.perf, { arts: j.articles || [], base: j.stats_base || {}, whose: S.viewing ? shown() + '\'s' : 'your', their: S.viewing ? 'their' : 'your' });
   }
   function detailHtml(a, base) {
     var x = a.stats, b = base || {}, hf = (b.hour || [])[x.hour], df = (b.dow || [])[x.dow], cf = ((b.chan || {})[x.channel] || {}).factor;

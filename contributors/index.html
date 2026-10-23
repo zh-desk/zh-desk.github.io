@@ -23,6 +23,7 @@ try {
   if (qs0.get('embed') === '1') { document.documentElement.classList.add('embed'); }
   if (th0 === 'dark' || (th0 !== 'light' && localStorage.getItem('desk.cd-theme') === 'dark')) { document.documentElement.setAttribute('data-theme', 'dark'); }
 } catch (e) { /* light */ }</script>
+<script src="/perf.js?v=2"></script>
 <script id="desk-signin" type="application/json">{"clientId": "Iv23li3HIxBazcHkRTlw", "worker": "https://zh-desk-signin.zeropointnowagain.workers.dev/", "redirect": "https://zh-desk.github.io/"}</script>
 <style>
 :root { --paper: #f4f5f7; --panel: #fff; --ink: #171b22; --muted: #5d6673; --rule: #d8dde5; --accent: #b4520f; --accent-ink: #fff; --good: #1f7a45; --warn: #9a5b00; --bad: #ad2a20; --code: #f0f2f5; color-scheme: light; }
@@ -91,29 +92,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
 .stage.assigned, .stage.returned { color: var(--accent); border-color: var(--accent); }
 .stage.declined { color: var(--bad); border-color: var(--bad); }
 .idx { display: inline-block; padding: 0 7px; border-radius: 10px; font-weight: 700; }
-/* How their pieces ran (Oct. 23): their last 5 or 10 pieces over ZH's typical post */
-.perf { border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px 8px; margin: 0 0 14px; background: var(--paper); position: relative; }
-.perf .phead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
-.perf .phead h3 { margin: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); flex: 1; min-width: 200px; }
-.perf .pseg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
-.perf .pseg button { border: 0; border-radius: 0; padding: 3px 10px; font-size: .78rem; background: var(--panel); color: var(--muted); }
-.perf .pseg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
-.perf label.pslot { font-size: .78rem; color: var(--muted); display: inline-flex; gap: 5px; align-items: center; }
-.perf svg { display: block; width: 100%; height: auto; overflow: visible; }
-.perf .pl { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-opacity: .38; stroke-linejoin: round; stroke-linecap: round; }
-.perf .pl.on { stroke-width: 2.5; stroke-opacity: 1; }
-.perf.hi .pl:not(.on), .perf.hi .pmed { stroke-opacity: .16; }
-.perf .pmed { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
-.perf .ptyp { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
-.perf .pband { fill: var(--muted); fill-opacity: .14; stroke: none; }
-.perf .pxh { stroke: var(--muted); stroke-width: 1; stroke-opacity: .5; }
-.perf .legend { font-size: .74rem; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
-.perf .legend i { display: inline-block; width: 16px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
-.perf .ptip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 6px 9px; font-size: .78rem; box-shadow: 0 4px 14px rgba(0,0,0,.14); max-width: 300px; z-index: 2; color: var(--ink); }
-.perf .ptip b { display: block; font-weight: 700; margin-bottom: 2px; }
-.perf .ptip .muted { color: var(--muted); }
-.perf .pnote { font-size: .76rem; color: var(--muted); margin: 4px 0 0; }
-@media (max-width: 760px) { .perf svg text { font-size: 21px; } .perf .phead h3 { min-width: 0; flex-basis: 100%; } }
 .idx.hi { background: rgba(31,122,69,.14); color: var(--good); }
 .idx.mid { background: var(--code); }
 .idx.lo { background: rgba(154,91,0,.14); color: var(--warn); }
@@ -424,122 +402,11 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   }
   function sel() { return ((S.data && S.data.contributors) || []).filter(function (c) { return c.login === S.sel; })[0] || null; }
 
-  // ---------- How their pieces ran (Dan, Oct. 23: "a graph of contributor post performance vs. average posts ... Maybe an
-  // average line and then their last 5-10 articles overlaid? Eventually will want to compare contributors themselves"):
-  // views by hours since each piece went up, over its first two days (ZH posts get about 98% of their two-day views in
-  // the first 24 hours), for each of the contributor's last 5 or 10 live pieces, their typical piece (the median at each
-  // hour, once three or more are drawn) and ZH's typical post with the middle half of ZH posts around it. Adjust for time
-  // slot scales each piece to a typical slot (its views times ZH's typical two-day views over what its publish hour and
-  // weekday expect), the same measure as Against its time slot. The desk counts views hour by hour from Oct. 20, 2026, so
-  // an earlier piece isn't drawn, and the chart says so. perfCurve gives any set of pieces its typical curve, for comparing
-  // contributors later.
-  var PERF_MS = [1, 3, 6, 12, 24, 48], PERF_MIN = 20, PERF = { n: 10, slot: false };
-  function perfPts(x, slot, base) {
-    var cv = (x.curve || []).filter(function (q) { return q[0] >= 0 && q[0] <= 48.5 && q[1] != null; }).map(function (q) { return [q[0], q[1]]; });
-    var last = cv.length >= 2 ? cv[cv.length - 1][0] : -1, pts = cv.length >= 2 ? cv : [];
-    // the milestone counts past the last hour-by-hour one (the 48-hour count lands just after the last snapshot)
-    PERF_MS.forEach(function (m) { if (x['m' + m] != null && m > last + 0.25) { pts.push([m, x['m' + m]]); } });
-    pts.sort(function (a, b) { return a[0] - b[0]; });
-    if (pts.length && pts[0][0] <= 1.5 && pts[0][0] > 0) { pts.unshift([0, 0]); }   // followed from the start: it began at nothing
-    var f = slot && base && base.med48 && x.exp48 ? base.med48 / x.exp48 : 1;
-    return pts.map(function (q) { return [q[0], q[1] * f]; });
-  }
-  function perfAt(pts, h) {   // views at h hours, along straight lines between counts; null outside what was counted
-    if (pts.length < 2 || h < pts[0][0] || h > pts[pts.length - 1][0]) { return null; }
-    for (var i = 1; i < pts.length; i++) {
-      if (h <= pts[i][0]) { var a = pts[i - 1], b = pts[i], t = b[0] > a[0] ? (h - a[0]) / (b[0] - a[0]) : 1; return a[1] + t * (b[1] - a[1]); }
-    }
-    return null;
-  }
-  function perfCurve(list) {   // the median of a set of pieces' lines at each milestone (two pieces or more counted there)
-    return [[0, 0]].concat(PERF_MS.map(function (m) { var v = list.map(function (p) { return perfAt(p.pts, m); }).filter(function (x) { return x != null; }); return v.length >= 2 ? [m, med(v)] : null; }).filter(Boolean));
-  }
-  function perfTyp(base) {   // ZH's typical post and its middle half, at the milestones counted from enough posts
-    var cv = (base && base.curve) || {}, lo = 0, hi = 0, typ = [[0, 0]], band = [[0, 0, 0]];
-    PERF_MS.forEach(function (m) {
-      var q = cv[m]; if (!q || q.n < PERF_MIN || q.p50 == null) { return; }
-      typ.push([m, q.p50]); lo = Math.max(lo, q.p25); hi = Math.max(hi, q.p75, lo); band.push([m, lo, hi]);   // views only grow
-    });
-    return { typ: typ.length > 2 ? typ : [], band: band.length > 2 ? band : [] };
-  }
-  function perfData(c) {
-    var base = (S.data && S.data.stats_base) || {};
-    var live = c.articles.filter(function (a) { return a.status === 'live' && a.stats; }).sort(function (a, b) { return (b.stats.pub_ts || 0) - (a.stats.pub_ts || 0); }).slice(0, PERF.n);
-    var drawn = live.map(function (a) { return { a: a, title: a.stats.title || (a.zh && a.zh.title) || a.title || 'Untitled', pts: perfPts(a.stats, PERF.slot, base) }; }).filter(function (p) { return p.pts.length >= 2; });
-    return { base: base, live: live, drawn: drawn, med: drawn.length >= 3 ? perfCurve(drawn) : [], zh: perfTyp(base) };
-  }
-  var PW = 640, PH = 250, PL = 48, PR = 12, PT = 10, PB = 26;
-  function perfX(h) { return PL + (PW - PL - PR) * h / 48; }
-  function perfScale(d) {   // round gridlines (10K, 20K, 25K, 50K ...) up past the highest line, and the y of any count
-    var top = 10; d.drawn.forEach(function (p) { p.pts.forEach(function (q) { top = Math.max(top, q[1]); }); }); d.zh.band.forEach(function (q) { top = Math.max(top, q[2]); });
-    var mag = Math.pow(10, Math.floor(Math.log(top / 5) / Math.LN10)), step = [1, 2, 2.5, 5, 10, 20].map(function (f) { return f * mag; }).filter(function (x) { return Math.ceil(top / x) <= 5; })[0];
-    var ymax = Math.ceil(top / step) * step, ticks = []; for (var v = 0; v <= ymax + step / 2; v += step) { ticks.push(v); }
-    return { ticks: ticks, Y: function (v) { return PT + (PH - PT - PB) * (1 - v / ymax); } };
-  }
-  function perfHtml(c) {
-    var d = perfData(c), n = d.live.length;
-    var head = '<div class="phead"><h3>How ' + esc(short(c)) + '\'s last pieces ran: views, first two days</h3>' +
-      '<span class="pseg" role="group" aria-label="How many pieces">' + [5, 10].map(function (k) { return '<button type="button" data-pn="' + k + '" aria-pressed="' + (PERF.n === k) + '">Last ' + k + '</button>'; }).join('') + '</span>' +
-      '<label class="pslot" title="Each piece scaled to a typical slot: its views times ZH\'s typical two-day views over what its publish hour and weekday expect"><input type="checkbox" data-pslot' + (PERF.slot ? ' checked' : '') + '> Adjust for time slot</label></div>';
-    if (!d.drawn.length) {
-      return head + '<p class="pnote">' + (n ? 'None of ' + esc(short(c)) + '\'s last ' + n + ' live piece' + (n === 1 ? '' : 's') + ' can be drawn yet: the desk counts ZeroHedge views hour by hour from Oct. 20, 2026, and ' + (n === 1 ? 'it' : 'they') + ' ran before that, or ran only minutes ago.' : 'Nothing live on ZeroHedge yet.') + '</p>';
-    }
-    var sc = perfScale(d), Y = sc.Y;
-    var line = function (arr) { return arr.map(function (q, i) { return (i ? 'L' : 'M') + perfX(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' '); };
-    var sv = '<svg viewBox="0 0 ' + PW + ' ' + PH + '" role="img" aria-label="Views over the first two days: each of ' + esc(short(c)) + '\'s last ' + n + ' live pieces against ZH\'s typical post. The table below has every number.">';
-    sc.ticks.forEach(function (v) { sv += '<line x1="' + PL + '" x2="' + (PW - PR) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" stroke="var(--rule)" stroke-width="1"/><text x="' + (PL - 6) + '" y="' + (Y(v) + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + kf(v) + '</text>'; });
-    [0, 6, 12, 24, 36, 48].forEach(function (t) { sv += '<text x="' + perfX(t).toFixed(1) + '" y="' + (PH - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + (t ? t + 'h' : '0') + '</text>'; });
-    if (d.zh.band.length) { sv += '<path class="pband" d="' + d.zh.band.map(function (q, i) { return (i ? 'L' : 'M') + perfX(q[0]).toFixed(1) + ' ' + Y(q[2]).toFixed(1); }).join(' ') + ' ' + d.zh.band.slice().reverse().map(function (q) { return 'L' + perfX(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' ') + ' Z"/>'; }
-    if (d.zh.typ.length) { sv += '<path class="ptyp" d="' + line(d.zh.typ) + '"/>'; }
-    d.drawn.forEach(function (p, k) { sv += '<path class="pl" data-k="' + k + '" data-id="' + esc(p.a.id) + '" d="' + line(p.pts) + '"/>'; });
-    if (d.med.length > 2) { sv += '<path class="pmed" d="' + line(d.med) + '"/>'; }
-    sv += '<line class="pxh" x1="0" x2="0" y1="' + PT + '" y2="' + (PH - PB) + '" visibility="hidden"/><rect class="phit" x="' + PL + '" y="' + PT + '" width="' + (PW - PL - PR) + '" height="' + (PH - PT - PB) + '" fill="transparent"/></svg>';
-    var left = n - d.drawn.length;
-    return head + sv + '<div class="legend"><span><i style="background:var(--accent);opacity:.45"></i>' + (d.drawn.length === 1 ? 'Their piece' : 'Each of their last ' + d.drawn.length + ' pieces') + '</span>' +
-      (d.med.length > 2 ? '<span><i style="background:var(--accent);height:4px"></i>Their typical piece</span>' : '') +
-      (d.zh.typ.length ? '<span><i style="background:repeating-linear-gradient(90deg,var(--muted) 0 5px,transparent 5px 9px)"></i>ZH\'s typical post</span>' : '') +
-      (d.zh.band.length ? '<span><i style="background:var(--muted);opacity:.25;height:8px"></i>Middle half of ZH posts</span>' : '') + '</div>' +
-      '<p class="pnote">' + (PERF.slot ? 'Adjusted for time slot: each piece scaled as if it ran at a typical hour and weekday. ' : '') + 'Hover a line, or a row in the table, for the piece.' +
-      (left > 0 ? ' ' + left + ' of the last ' + n + ' ran before Oct. 20, 2026, when the desk started counting views hour by hour, so ' + (left === 1 ? 'it isn\'t' : 'they aren\'t') + ' drawn.' : '') +
-      (d.zh.typ.length ? '' : ' ZH\'s typical curve shows once enough posts have been followed from the minute they ran.') + '</p>';
-  }
-  function bindPerf(el, c) {
-    var box = el.querySelector('.perf'); if (!box) { return; }
-    var d = null, Y = null, tip = null;
-    var hiOn = function (k) { box.classList.toggle('hi', k != null); box.querySelectorAll('.pl').forEach(function (l) { l.classList.toggle('on', String(l.dataset.k) === String(k)); }); };
-    var hide = function () { hiOn(null); if (tip) { tip.remove(); tip = null; } var xh = box.querySelector('.pxh'); if (xh) { xh.setAttribute('visibility', 'hidden'); } };
-    var draw = function (fresh) {
-      if (fresh) { box.innerHTML = perfHtml(c); tip = null; }
-      d = perfData(c); Y = perfScale(d).Y;
-      var svg = box.querySelector('svg'); if (!svg) { return; }
-      svg.addEventListener('mousemove', function (ev) {
-        var r = svg.getBoundingClientRect(), sx = (ev.clientX - r.left) * PW / r.width, sy = (ev.clientY - r.top) * PH / r.height;
-        var h = Math.max(0, Math.min(48, (sx - PL) * 48 / (PW - PL - PR))), best = null;
-        d.drawn.forEach(function (p, k) { var v = perfAt(p.pts, h); if (v == null) { return; } var dy = Math.abs(Y(v) - sy); if (dy <= 26 && (!best || dy < best.dy)) { best = { k: k, p: p, v: v, dy: dy }; } });
-        var xh = svg.querySelector('.pxh'); xh.setAttribute('x1', perfX(h).toFixed(1)); xh.setAttribute('x2', perfX(h).toFixed(1)); xh.setAttribute('visibility', 'visible');
-        if (!best) { hiOn(null); if (tip) { tip.remove(); tip = null; } return; }
-        hiOn(best.k);
-        var typ = perfAt(d.zh.typ, h), at = h < 1 ? Math.round(h * 60) + ' min' : (h < 10 ? h.toFixed(1).replace(/\.0$/, '') : Math.round(h)) + ' hr';
-        if (!tip) { tip = document.createElement('div'); tip.className = 'ptip'; box.appendChild(tip); }
-        tip.innerHTML = '<b>' + esc(best.p.title) + '</b>' + nf(best.v) + ' views at ' + at + (PERF.slot ? ' (slot-adjusted)' : '') +
-          (typ ? '<br><span class="muted">ZH\'s typical post then: ' + nf(typ) + ' (this piece ' + xf(best.v / typ) + ')</span>' : '') +
-          (best.p.a.stats.views != null ? '<br><span class="muted">' + nf(best.p.a.stats.views) + ' views now</span>' : '');
-        var br = box.getBoundingClientRect(), x = ev.clientX - br.left + 14, y = ev.clientY - br.top + 14;
-        if (x + 300 > br.width) { x = Math.max(4, ev.clientX - br.left - 314); }
-        tip.style.left = x + 'px'; tip.style.top = y + 'px';
-      });
-      svg.addEventListener('mouseleave', hide);
-    };
-    draw(false);
-    // a row in the table lights its piece's line
-    el.querySelectorAll('tr[data-open]').forEach(function (tr) {
-      var id = tr.dataset.open.split('|').slice(1).join('|');
-      tr.addEventListener('mouseenter', function () { var k = -1; d.drawn.forEach(function (p, i) { if (p.a.id === id) { k = i; } }); if (k >= 0) { hiOn(k); } });
-      tr.addEventListener('mouseleave', function () { hiOn(null); });
-    });
-    box.addEventListener('click', function (ev) { var b = ev.target.closest('[data-pn]'); if (b) { PERF.n = +b.dataset.pn; draw(true); } });
-    box.addEventListener('change', function (ev) { if (ev.target.matches('[data-pslot]')) { PERF.slot = ev.target.checked; draw(true); } });
-  }
+  // ---------- How their pieces ran: /perf.js draws it (the author desk's Stats shows each contributor the same chart of
+  // their own pieces). A comparison across contributors belongs here alone (Dan, Oct. 23: "But not vs. other
+  // contributors when we roll that out").
+  S.perf = { slot: false };
+  function perfOpts(c) { return Object.assign(S.perf, { arts: c.articles, base: (S.data && S.data.stats_base) || {}, whose: short(c) + '\'s', their: 'their' }); }
   function renderProfile() {
     var c = sel(), el = $('profile');
     el.hidden = !c;
@@ -556,7 +423,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       tile('Typical piece', kf(s.medViews), 'median views') + tile('Against its time slot', xf(s.idx), 'median, 1× typical') + tile('Beat the typical', s.n ? s.beat + ' of ' + s.n : '-', '') +
       tile('Best day', s.best ? '#' + s.best.day_rank + ' of ' + s.best.day_n : '-', s.best ? 'top ' + Math.max(1, Math.round(100 * s.best.day_rank / s.best.day_n)) + '% on ' + dayName(s.best.day) : '') +
       tile('Comments per 1,000 views', s.views ? (s.comments * 1000 / s.views).toFixed(1) : '-', base.comments_per_1k ? 'ZH typical: ' + base.comments_per_1k : '') + tile('ZH\'s Today\'s top', s.tops, 'pieces') + '</div>' +
-      '<div class="perf">' + perfHtml(c) + '</div>';
+      '<div class="perf">' + (window.ZHPerf ? ZHPerf.html(perfOpts(c)) : '') + '</div>';
     var arts = c.articles.slice().sort(function (a, b) { return String(b.updated || '').localeCompare(String(a.updated || '')); });
     h += '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Piece</th><th>Where it stands</th><th class="n">Views</th><th class="n">Vs. its slot</th><th class="n">That day</th><th class="n opt">Section, 7 days</th><th class="n opt">1 hr</th><th class="n opt">24 hr</th><th class="n opt">Comments</th><th></th></tr></thead><tbody>' +
       (arts.length ? arts.map(function (a) {
@@ -574,7 +441,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     var frame = '<iframe title="' + esc(nameOf(c)) + '\'s author desk" src="/write/?as=' + encodeURIComponent(c.login) + '&embed=1"></iframe>';
     h += '<details class="seeas" data-seeas' + (S.seeAs ? ' open' : '') + '><summary>What ' + esc(short(c)) + ' sees: ' + esc(short(c)) + '\'s author desk</summary>' + (S.seeAs ? frame : '') + '</details>';
     el.innerHTML = h;
-    bindPerf(el, c);
+    if (window.ZHPerf) { ZHPerf.bind(el.querySelector('.perf'), perfOpts(c), el.querySelectorAll('tr[data-open]'), function (tr) { return tr.dataset.open.split('|').slice(1).join('|'); }); }
     el.querySelector('[data-seeas]').addEventListener('toggle', function () {
       S.seeAs = this.open;
       if (S.seeAs && !this.querySelector('iframe')) { this.insertAdjacentHTML('beforeend', frame); }
@@ -1057,7 +924,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     if (/^invite_|^bad_invite$/.test(e.code || '')) { store('admin_invite', null); gate(e.message, true); return; }
     gate('Couldn\'t load the dashboard: ' + e.message);
   }
-  window.__dash = { state: S, perfData: perfData, perfCurve: perfCurve };
+  window.__dash = { state: S };
   if (store('token')) { load().then(deepLink).catch(failed); } else { gate(); }
 })();
 </script>
