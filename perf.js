@@ -32,6 +32,9 @@
     '.perf .pdot { fill: var(--accent); fill-opacity: .55; stroke: var(--paper); stroke-width: 2; }' +
     '.perf .pdot.on { fill-opacity: 1; }' +
     '.perf.hi .pdot:not(.on) { fill-opacity: .15; }' +
+    '.perf .ppin { fill: var(--ink); stroke: var(--paper); stroke-width: 2; }' +
+    '.perf .ppin.end { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }' +
+    '.perf.hi .ppin:not(.on) { opacity: .15; }' +
     '.perf .pmed { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }' +
     '.perf .ptyp { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }' +
     '.perf .pband { fill: var(--muted); fill-opacity: .14; stroke: none; }' +
@@ -85,6 +88,20 @@
     });
     return { typ: typ.length > 2 ? typ : [], band: band.length > 2 ? band : [] };
   }
+  // When the piece was pinned to the top of ZH's front page (the stats worker reads the page every 10 minutes and keeps
+  // each post's first and last time pinned and its minutes pinned, from Oct. 22, 2026; Dan, Oct. 23: "Any way to mark a
+  // post with a dot when it was pinned? ... where along those lines a pinned post might have increased in traffic
+  // velocity"): where on its line, and its views an hour in the hour before and the hour after.
+  function pinOf(x, p) {
+    if (!x.pin_first || !x.pub_ts || !((x.pin_min || 0) >= 10)) { return null; }
+    var s = Math.max(0, (x.pin_first - x.pub_ts) / 3600), e = x.pin_last ? (x.pin_last - x.pub_ts) / 3600 + 1 / 6 : null;   // last seen pinned, plus the 10 minutes to the next read
+    var v = s <= 48 ? at(p, s) : null;
+    if (v == null) { return { s: s, e: e, min: x.pin_min, off: true }; }
+    var lo = Math.max(p[0][0], s - 1), hi = Math.min(p[p.length - 1][0], s + 1, e != null ? Math.max(e, s + 0.25) : 99);
+    return { s: s, e: e, min: x.pin_min, v: v, ve: e != null && e > s && e <= 48 ? at(p, e) : null,
+             before: s - lo >= 0.25 ? (v - at(p, lo)) / (s - lo) : null, after: hi - s >= 0.25 ? (at(p, hi) - v) / (hi - s) : null };
+  }
+  function hm(h) { var m = Math.round(h * 60); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' hr' + (m % 60 ? ' ' + (m % 60) + ' min' : ''); }
   function range(o) { var r = o.range || keep('cd-perf') || 'n10'; return RANGES.some(function (x) { return x[0] === r; }) ? r : 'n10'; }
   function rangeName(r) { return RANGES.filter(function (x) { return x[0] === r; })[0][1]; }
   function data(o) {
@@ -94,6 +111,7 @@
     else if (r.charAt(0) === 'd') { live = live.filter(function (a) { return (a.stats.pub_ts || 0) >= now - +r.slice(1) * 86400; }); }
     var all = live.map(function (a) { return { a: a, title: a.stats.title || (a.zh && a.zh.title) || a.title || 'Untitled', pts: pts(a.stats, o.slot, o.base) }; });
     var drawn = all.filter(function (p) { return p.pts.length >= 2; });
+    drawn.forEach(function (p) { p.pin = pinOf(p.a.stats, p.pts); });
     // a piece from before the hour-by-hour counts: a dot at two days, from its first count after that (ZH posts add well
     // under 1% to their two-day views after day two), else its views now once it's two days old
     var dots = all.filter(function (p) { return p.pts.length < 2; }).map(function (p) {
@@ -130,25 +148,32 @@
     if (d.zh.typ.length) { sv += '<path class="ptyp" d="' + line(d.zh.typ) + '"/>'; }
     d.drawn.forEach(function (p, k) { sv += '<path class="pl" data-k="' + k + '" data-id="' + esc(p.a.id) + '" d="' + line(p.pts) + '"/>'; });
     if (d.med.length > 2) { sv += '<path class="pmed" d="' + line(d.med) + '"/>'; }
+    d.drawn.forEach(function (p, k) {
+      var q = p.pin; if (!q || q.off) { return; }
+      if (q.ve != null) { sv += '<circle class="ppin end" data-k="' + k + '" cx="' + X(q.e).toFixed(1) + '" cy="' + Y(q.ve).toFixed(1) + '" r="3.5"/>'; }
+      sv += '<circle class="ppin" data-k="' + k + '" cx="' + X(q.s).toFixed(1) + '" cy="' + Y(q.v).toFixed(1) + '" r="5"/>';
+    });
     d.dots.forEach(function (p, k) { sv += '<circle class="pdot" data-k="d' + k + '" data-id="' + esc(p.a.id) + '" cx="' + X(48).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="4.5"/>'; });
     sv += '<line class="pxh" x1="0" x2="0" y1="' + T + '" y2="' + (H - B) + '" visibility="hidden"/><rect x="' + L + '" y="' + T + '" width="' + (W - L - R) + '" height="' + (H - T - B) + '" fill="transparent"/></svg>';
-    var left = n - d.drawn.length - d.dots.length, lines = d.drawn.length, dl = d.dots.length;
+    var left = n - d.drawn.length - d.dots.length, lines = d.drawn.length, dl = d.dots.length, pins = d.drawn.filter(function (p) { return p.pin && !p.pin.off; }).length;
     return head + sv + '<div class="legend">' + (lines ? '<span><i style="background:var(--accent);opacity:.45"></i>' + (lines === 1 ? (their === 'your' ? 'Your piece' : 'Their piece') : 'Each of ' + lines + ' pieces') + '</span>' : '') +
       (d.med.length > 2 ? '<span><i style="background:var(--accent);height:4px"></i>' + (their === 'your' ? 'Your' : 'Their') + ' typical piece</span>' : '') +
       (dl ? '<span><i style="width:9px;height:9px;border-radius:50%;background:var(--accent);opacity:.55;box-shadow:0 0 0 2px var(--paper)"></i>Earlier piece' + (dl === 1 ? '' : 's') + ': views by two days</span>' : '') +
+      (pins ? '<span><i style="width:10px;height:10px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 2px var(--paper)"></i>Pinned to ZH\'s front page <i style="width:7px;height:7px;border-radius:50%;background:var(--paper);box-shadow:inset 0 0 0 1.5px var(--ink);margin-left:6px"></i>unpinned</span>' : '') +
       (d.zh.typ.length ? '<span><i style="background:repeating-linear-gradient(90deg,var(--muted) 0 5px,transparent 5px 9px)"></i>ZH\'s typical post</span>' : '') +
       (d.zh.band.length ? '<span><i style="background:var(--muted);opacity:.25;height:8px"></i>Middle half of ZH posts</span>' : '') + '</div>' +
       '<p class="pnote">' + rangeName(d.range) + ': ' + n + ' live piece' + (n === 1 ? '' : 's') + (dl ? ', ' + lines + ' as lines and ' + dl + ' as dots' : '') + '. ' +
       (o.slot ? 'Adjusted for time slot: each piece scaled as if it ran at a typical hour and weekday. ' : '') + 'Hover a line or dot, or a row in the table, for the piece.' +
       (dl ? ' The desk counts views hour by hour from Oct. 20, 2026, so earlier pieces are a dot at two days (ZH posts add well under 1% after that).' : '') +
       (left > 0 ? ' ' + left + ' too new to show.' : '') +
+      (pins ? ' A dark dot is where a piece was pinned to the top of ZH\'s front page (hover it for its views an hour before and after); pins are tracked from Oct. 22, 2026.' : '') +
       (d.zh.typ.length ? '' : ' ZH\'s typical curve shows once enough posts have been followed from the minute they ran.') + '</p>';
   }
   // box: the element holding html(o); rows: table rows whose rowId(tr) is a piece's id (hovering one lights its line)
   function bind(box, o, rows, rowId) {
     css();
     var d = null, Y = null, tip = null;
-    var hiOn = function (k) { box.classList.toggle('hi', k != null); box.querySelectorAll('.pl, .pdot').forEach(function (l) { l.classList.toggle('on', String(l.dataset.k) === String(k)); }); };
+    var hiOn = function (k) { box.classList.toggle('hi', k != null); box.querySelectorAll('.pl, .pdot, .ppin').forEach(function (l) { l.classList.toggle('on', String(l.dataset.k) === String(k)); }); };
     var hide = function () { hiOn(null); if (tip) { tip.remove(); tip = null; } var xh = box.querySelector('.pxh'); if (xh) { xh.setAttribute('visibility', 'hidden'); } };
     var draw = function (fresh) {
       if (fresh) { box.innerHTML = html(o); tip = null; }
@@ -159,11 +184,27 @@
         var r = svg.getBoundingClientRect(), sx = (ev.clientX - r.left) * W / r.width, sy = (ev.clientY - r.top) * H / r.height;
         var h = Math.max(0, Math.min(48, (sx - L) * 48 / (W - L - R))), best = null;
         d.drawn.forEach(function (p, k) { var v = at(p.pts, h); if (v == null) { return; } var dy = Math.abs(Y(v) - sy); if (dy <= 26 && (!best || dy < best.dy)) { best = { k: k, p: p, v: v, dy: dy, h: h }; } });
-        if (sx >= X(46)) { d.dots.forEach(function (p, k) { var dy = Math.abs(Y(p.v) - sy); if (dy <= 12 && (!best || best.dot || dy < best.dy)) { best = { k: 'd' + k, p: p, v: p.v, dy: dy, dot: true }; } }); }
+        d.drawn.forEach(function (p, k) {
+          var q = p.pin; if (!q || q.off) { return; }
+          var dd = Math.max(Math.abs(X(q.s) - sx), Math.abs(Y(q.v) - sy));
+          if (dd <= 10 && (!best || !best.pin || dd < best.dd)) { best = { k: k, p: p, v: q.v, dy: 0, dd: dd, pin: q }; }
+        });
+        if (sx >= X(46) && !(best && best.pin)) { d.dots.forEach(function (p, k) { var dy = Math.abs(Y(p.v) - sy); if (dy <= 12 && (!best || best.dot || dy < best.dy)) { best = { k: 'd' + k, p: p, v: p.v, dy: dy, dot: true }; } }); }
         var xh = svg.querySelector('.pxh'); xh.setAttribute('x1', X(h).toFixed(1)); xh.setAttribute('x2', X(h).toFixed(1)); xh.setAttribute('visibility', 'visible');
         if (!best) { hiOn(null); if (tip) { tip.remove(); tip = null; } return; }
         hiOn(best.k);
         if (best.dot) { h = 48; }
+        if (best.pin) {
+          var q = best.pin, ratio = q.before && q.after ? q.after / q.before : null;
+          if (!tip) { tip = document.createElement('div'); tip.className = 'ptip'; box.appendChild(tip); }
+          tip.innerHTML = '<b>' + esc(best.p.title) + '</b>Pinned to the top of ZH\'s front page ' + (q.s < 0.1 ? 'from the minute it ran' : 'at ' + hm(q.s)) + ', with ' + nf(q.v) + ' views' +
+            (q.e != null ? '; pinned ' + hm(q.min / 60) + (q.min < (q.e - q.s) * 60 * 0.8 ? ' on and off until ' + hm(q.e) : '') : '') + '.' +
+            (q.after != null ? '<br><span class="muted">Views an hour: ' + (q.before != null ? nf(q.before) + ' in the hour before, ' : '') + nf(q.after) + ' in the hour after' + (ratio ? ' (' + xf(ratio) + ')' : '') + (o.slot ? ', slot-adjusted' : '') + '</span>' : '');
+          var bx = box.getBoundingClientRect(), px = ev.clientX - bx.left + 14, py = ev.clientY - bx.top + 14;
+          if (px + 300 > bx.width) { px = Math.max(4, ev.clientX - bx.left - 314); }
+          tip.style.left = px + 'px'; tip.style.top = py + 'px';
+          return;
+        }
         var typ = at(d.zh.typ, h), when = best.dot ? 'about two days (counted later)' : h < 1 ? Math.round(h * 60) + ' min' : (h < 10 ? h.toFixed(1).replace(/\.0$/, '') : Math.round(h)) + ' hr';
         if (!tip) { tip = document.createElement('div'); tip.className = 'ptip'; box.appendChild(tip); }
         tip.innerHTML = '<b>' + esc(best.p.title) + '</b>' + nf(best.v) + ' views at ' + when + (o.slot ? ' (slot-adjusted)' : '') +
