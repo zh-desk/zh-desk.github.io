@@ -23,7 +23,7 @@ try {
   if (qs0.get('embed') === '1') { document.documentElement.classList.add('embed'); }
   if (th0 === 'dark' || (th0 !== 'light' && localStorage.getItem('desk.cd-theme') === 'dark')) { document.documentElement.setAttribute('data-theme', 'dark'); }
 } catch (e) { /* light */ }</script>
-<script src="/perf.js?v=3"></script>
+<script src="/perf.js?v=4"></script>
 <script id="desk-signin" type="application/json">{"clientId": "Iv23li3HIxBazcHkRTlw", "worker": "https://zh-desk-signin.zeropointnowagain.workers.dev/", "redirect": "https://zh-desk.github.io/"}</script>
 <style>
 :root { --paper: #f4f5f7; --panel: #fff; --ink: #171b22; --muted: #5d6673; --rule: #d8dde5; --accent: #b4520f; --accent-ink: #fff; --good: #1f7a45; --warn: #9a5b00; --bad: #ad2a20; --code: #f0f2f5; color-scheme: light; }
@@ -366,6 +366,10 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     (S.data.contributors || []).forEach(function (c) { c.articles.forEach(function (a) { out.push({ c: c, a: a }); }); });
     return out;
   }
+  // Their pieces on ZH from before the author desk count in their numbers and charts (Dan, Oct. 23: "Now you can backfill
+  // Josh's performance"; data/contributors/backfill.json, matched from the headlines they filed). They aren't desk pieces,
+  // so the funnel and the board leave them out, and they open on ZH, not here.
+  function withHistory(c) { return c.articles.concat(c.history || []); }
   function tile(k, v, s) { return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + (s || '&nbsp;') + '</div></div>'; }
   function summary(arts) {
     var live = arts.filter(function (a) { return a.status === 'live'; }), st = live.map(function (a) { return a.stats; }).filter(Boolean);
@@ -377,7 +381,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
              tops: st.filter(function (x) { return x.top_best; }).length, inWorks: arts.filter(function (a) { return ['assigned', 'returned', 'prep', 'ready', 'accepted'].indexOf(a.status) >= 0; }).length };
   }
   function renderTotals() {
-    var d = S.data, base = d.stats_base, arts = allPieces().map(function (x) { return x.a; }), s = summary(arts);
+    var d = S.data, base = d.stats_base, arts = [].concat.apply([], (d.contributors || []).map(withHistory)), s = summary(arts);
     var pitches = []; d.contributors.forEach(function (c) { (c.pitches || []).forEach(function (p) { pitches.push(p); }); });
     var open = pitches.filter(function (p) { return p.status === 'open'; }).length;
     $('upd').textContent = base && base.updated ? 'ZeroHedge numbers updated ' + when(base.updated) : 'ZeroHedge numbers start within the hour';
@@ -390,10 +394,10 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       tile('ZH\'s Today\'s top', s.tops, 'pieces on ZH\'s own top list');
   }
   function renderPeople() {
-    var d = S.data, list = d.contributors.slice().sort(function (a, b) { return summary(b.articles).views - summary(a.articles).views || nameOf(a).localeCompare(nameOf(b)); });
+    var d = S.data, list = d.contributors.slice().sort(function (a, b) { return summary(withHistory(b)).views - summary(withHistory(a)).views || nameOf(a).localeCompare(nameOf(b)); });
     $('people-empty').hidden = !!list.length;
     $('people').innerHTML = list.map(function (c) {
-      var s = summary(c.articles), open = (c.pitches || []).filter(function (p) { return p.status === 'open'; }).length;
+      var s = summary(withHistory(c)), open = (c.pitches || []).filter(function (p) { return p.status === 'open'; }).length;
       return '<button type="button" class="person' + (S.sel === c.login ? ' on' : '') + '" data-person="' + esc(c.login) + '"><div class="nm">' + esc(nameOf(c)) + '</div>' +
         '<div class="nk">' + esc(ghOf(c)) + ' on GitHub' + (c.nickname ? '' : ' &middot; no name given yet') + '</div>' +
         '<div class="nums"><span><b>' + s.live + '</b> live</span><span><b>' + kf(s.views) + '</b> views</span><span><b>' + xf(s.idx) + '</b> vs slot</span>' +
@@ -406,12 +410,12 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   // their own pieces). A comparison across contributors belongs here alone (Dan, Oct. 23: "But not vs. other
   // contributors when we roll that out").
   S.perf = { slot: false };
-  function perfOpts(c) { return Object.assign(S.perf, { arts: c.articles, base: (S.data && S.data.stats_base) || {}, whose: short(c) + '\'s', their: 'their' }); }
+  function perfOpts(c) { return Object.assign(S.perf, { arts: withHistory(c), base: (S.data && S.data.stats_base) || {}, whose: short(c) + '\'s', their: 'their' }); }
   function renderProfile() {
     var c = sel(), el = $('profile');
     el.hidden = !c;
     if (!c) { return; }
-    var s = summary(c.articles), base = S.data.stats_base || {};
+    var s = summary(withHistory(c)), base = S.data.stats_base || {}, hist = c.history || [];
     var h = '<div class="ptitle"><h2>' + esc(nameOf(c)) + '</h2><span class="muted small">' + esc(ghOf(c)) + ' on GitHub' + (c.joined ? ' &middot; joined ' + esc(when(c.joined)) : '') + '</span></div>' +
       '<div class="row" style="margin:10px 0">' +
       '<button type="button" class="primary" data-act="assign">Give ' + esc(short(c)) + ' an article</button>' +
@@ -419,21 +423,22 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       '<div class="row small" style="margin-bottom:12px">Email: <input type="email" style="width:240px" data-email value="' + esc(c.email) + '" placeholder="their address, for notifications">' +
       '<label class="row" style="gap:4px"><input type="checkbox" data-notify' + (c.notify ? ' checked' : '') + '> send them email</label><button type="button" data-act="contact">Save</button>' +
       '<span class="hint">' + (S.data.email_ready ? 'Assignments, pitch decisions and notes go out by email when you tick the box.' : 'Email isn\'t switched on in the helper yet: the dashboard opens a ready email in your mail program instead.') + '</span></div>' +
-      '<div class="tiles" style="margin-bottom:14px">' + tile('Live on ZeroHedge', s.live, 'of ' + s.sent + ' submitted') + tile('Total views', nf(s.views), nf(s.comments) + ' comments') +
+      '<div class="tiles" style="margin-bottom:14px">' + tile('Live on ZeroHedge', s.live, 'of ' + s.sent + ' submitted' + (hist.length ? ' &middot; ' + hist.length + ' from before the author desk' : '')) + tile('Total views', nf(s.views), nf(s.comments) + ' comments') +
       tile('Typical piece', kf(s.medViews), 'median views') + tile('Against its time slot', xf(s.idx), 'median, 1× typical') + tile('Beat the typical', s.n ? s.beat + ' of ' + s.n : '-', '') +
       tile('Best day', s.best ? '#' + s.best.day_rank + ' of ' + s.best.day_n : '-', s.best ? 'top ' + Math.max(1, Math.round(100 * s.best.day_rank / s.best.day_n)) + '% on ' + dayName(s.best.day) : '') +
       tile('Comments per 1,000 views', s.views ? (s.comments * 1000 / s.views).toFixed(1) : '-', base.comments_per_1k ? 'ZH typical: ' + base.comments_per_1k : '') + tile('ZH\'s Today\'s top', s.tops, 'pieces') + '</div>' +
       '<div class="perf">' + (window.ZHPerf ? ZHPerf.html(perfOpts(c)) : '') + '</div>';
-    var arts = c.articles.slice().sort(function (a, b) { return String(b.updated || '').localeCompare(String(a.updated || '')); });
+    var when2 = function (a) { return String(a.updated || (a.zh && a.zh.published) || ''); };
+    var arts = withHistory(c).sort(function (a, b) { return when2(b).localeCompare(when2(a)); });
     h += '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Piece</th><th>Where it stands</th><th class="n">Views</th><th class="n">Vs. its slot</th><th class="n">That day</th><th class="n opt">Section, 7 days</th><th class="n opt">1 hr</th><th class="n opt">24 hr</th><th class="n opt">Comments</th><th></th></tr></thead><tbody>' +
       (arts.length ? arts.map(function (a) {
         var x = a.stats || {}, sg = stage(a);
-        return '<tr data-open="' + esc(c.login) + '|' + esc(a.id) + '" title="Open it"><td class="hl"><span class="ttl">' + esc(x.title || (a.zh && a.zh.title) || a.title || 'Untitled') + '</span>' + (a.zh ? ' <a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener" title="Open it on ZeroHedge">ZH &#8599;</a>' : '') +
-          '<span class="sub">' + (a.assigned ? 'Assigned &middot; ' : '') + (x.channel ? esc(secName(x.channel)) + ' &middot; ' : '') + (x.day ? 'ran ' + esc(dayName(x.day)) : a.submitted ? 'submitted ' + esc(when(a.submitted)) : 'updated ' + esc(when(a.updated))) + '</span></td>' +
+        return '<tr' + (a.history ? ' data-hist="' + esc(a.id) + '"' : ' data-open="' + esc(c.login) + '|' + esc(a.id) + '" title="Open it"') + '><td class="hl"><span class="ttl">' + esc(x.title || (a.zh && a.zh.title) || a.title || 'Untitled') + '</span>' + (a.zh ? ' <a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener" title="Open it on ZeroHedge">ZH &#8599;</a>' : '') +
+          '<span class="sub">' + (a.history ? 'Before the author desk &middot; ' : '') + (a.assigned ? 'Assigned &middot; ' : '') + (x.channel ? esc(secName(x.channel)) + ' &middot; ' : '') + (x.day ? 'ran ' + esc(dayName(x.day)) : a.submitted ? 'submitted ' + esc(when(a.submitted)) : 'updated ' + esc(when(a.updated))) + '</span></td>' +
           '<td><span class="stage ' + sg.k + '">' + esc(sg.w) + '</span></td><td class="n">' + nf(x.views) + '</td><td class="n">' + idxHtml(x.idx) + '</td>' +
           '<td class="n">' + (x.day_rank ? '#' + x.day_rank + ' of ' + x.day_n : '-') + '</td><td class="n opt">' + (x.chan_rank ? '#' + x.chan_rank + ' of ' + x.chan_n : '-') + '</td>' +
           '<td class="n opt">' + kf(x.m1) + '</td><td class="n opt">' + kf(x.m24) + '</td><td class="n opt">' + nf(x.comments) + '</td>' +
-          '<td>' + (a.issue ? '<button type="button" class="small" data-act="note" data-id="' + esc(a.id) + '">Note</button>' : '') + '</td></tr>';
+          '<td>' + (a.issue && !a.history ? '<button type="button" class="small" data-act="note" data-id="' + esc(a.id) + '">Note</button>' : '') + '</td></tr>';
       }).join('') : '<tr><td colspan="10" class="muted">Nothing yet.</td></tr>') + '</tbody></table></div>';
     var ps = c.pitches || [];
     h += '<h2 style="margin-top:16px">Pitches (' + ps.length + ')</h2>' + (ps.length ? ps.map(function (p) { return pitchHtml(c, p, true); }).join('') : '<p class="muted small">No pitches yet. They pitch from their author desk.</p>');
@@ -441,7 +446,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     var frame = '<iframe title="' + esc(nameOf(c)) + '\'s author desk" src="/write/?as=' + encodeURIComponent(c.login) + '&embed=1"></iframe>';
     h += '<details class="seeas" data-seeas' + (S.seeAs ? ' open' : '') + '><summary>What ' + esc(short(c)) + ' sees: ' + esc(short(c)) + '\'s author desk</summary>' + (S.seeAs ? frame : '') + '</details>';
     el.innerHTML = h;
-    if (window.ZHPerf) { ZHPerf.bind(el.querySelector('.perf'), perfOpts(c), el.querySelectorAll('tr[data-open]'), function (tr) { return tr.dataset.open.split('|').slice(1).join('|'); }); }
+    if (window.ZHPerf) { ZHPerf.bind(el.querySelector('.perf'), perfOpts(c), el.querySelectorAll('tr[data-open], tr[data-hist]'), function (tr) { return tr.dataset.hist || tr.dataset.open.split('|').slice(1).join('|'); }); }
     el.querySelector('[data-seeas]').addEventListener('toggle', function () {
       S.seeAs = this.open;
       if (S.seeAs && !this.querySelector('iframe')) { this.insertAdjacentHTML('beforeend', frame); }

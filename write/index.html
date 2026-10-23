@@ -17,7 +17,7 @@
   has one of their posts.
 -->
 <script>/* Light unless Dark mode was chosen (Dan, Oct. 20); shared with the contributor dashboard. */ try { if (localStorage.getItem('desk.cd-theme') === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); } } catch (e) { /* light */ }</script>
-<script src="/perf.js?v=3"></script>
+<script src="/perf.js?v=4"></script>
 <script id="desk-signin" type="application/json">{"clientId": "Iv23li3HIxBazcHkRTlw", "worker": "https://zh-desk-signin.zeropointnowagain.workers.dev/", "redirect": "https://zh-desk.github.io/"}</script>
 <style>
 :root { --paper: #f4f5f7; --panel: #fff; --ink: #171b22; --muted: #5d6673; --rule: #d8dde5; --accent: #b4520f; --accent-ink: #fff; --good: #1f7a45; --warn: #9a5b00; --bad: #ad2a20; --code: #f0f2f5; color-scheme: light; }
@@ -705,7 +705,9 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   function basisWord(b) { return b === 48 ? 'at 2 days' : b ? 'at ' + b + (b === 1 ? ' hour' : ' hours') : ''; }
 
   function renderDash() {
-    var j = S.me || {}, base = j.stats_base, arts = j.articles || [];
+    // with their pieces on ZH from before the author desk (Dan, Oct. 23: "Now you can backfill Josh's performance"; history,
+    // from data/contributors/backfill.json): in the numbers, the chart and the table, opening on ZH
+    var j = S.me || {}, base = j.stats_base, arts = (j.articles || []).concat(j.history || []);
     var sent = arts.filter(function (a) { return a.status && a.status !== 'draft' && a.status !== 'assigned'; });
     var live = arts.filter(function (a) { return a.status === 'live'; }), rows = live.filter(function (a) { return a.stats; });
     $('dash-title').textContent = S.viewing ? shown() + '\'s numbers on ZeroHedge' : 'Your numbers on ZeroHedge';
@@ -774,7 +776,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   }
   function perfOpts() {
     var j = S.me || {};
-    return Object.assign(D.perf, { arts: j.articles || [], base: j.stats_base || {}, whose: S.viewing ? shown() + '\'s' : 'your', their: S.viewing ? 'their' : 'your' });
+    return Object.assign(D.perf, { arts: (j.articles || []).concat(j.history || []), base: j.stats_base || {}, whose: S.viewing ? shown() + '\'s' : 'your', their: S.viewing ? 'their' : 'your' });
   }
   function detailHtml(a, base) {
     var x = a.stats, b = base || {}, hf = (b.hour || [])[x.hour], df = (b.dow || [])[x.dow], cf = ((b.chan || {})[x.channel] || {}).factor;

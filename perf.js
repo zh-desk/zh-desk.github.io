@@ -31,6 +31,8 @@
     '.perf.hi .pl:not(.on), .perf.hi .pmed { stroke-opacity: .12; }' +
     '.perf .pdot { fill: var(--accent); fill-opacity: .55; stroke: var(--paper); stroke-width: 2; }' +
     '.perf .pdot.on { fill-opacity: 1; }' +
+    '.perf .pdmed { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }' +
+    '.perf.hi .pdmed { stroke-opacity: .2; }' +
     '.perf.hi .pdot:not(.on) { fill-opacity: .15; }' +
     '.perf .ppin { fill: var(--ink); stroke: var(--paper); stroke-width: 2; }' +
     '.perf .ppin.end { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }' +
@@ -123,6 +125,7 @@
     return { range: r, live: live, drawn: drawn, dots: dots, med: drawn.length >= 3 ? curve(drawn) : [], zh: typical(o.base) };
   }
   function X(h) { return L + (W - L - R) * h / 48; }
+  function dotX(k, n) { return X(48) + (n > 12 ? ((k * 0.618034) % 1) * 24 - 12 : 0); }   // many earlier pieces spread a little sideways
   function scale(d) {   // round gridlines (10K, 20K, 25K, 50K ...) up past the highest line
     var top = 10; d.drawn.forEach(function (p) { p.pts.forEach(function (q) { top = Math.max(top, q[1]); }); }); d.dots.forEach(function (p) { top = Math.max(top, p.v); }); d.zh.band.forEach(function (q) { top = Math.max(top, q[2]); });
     var mag = Math.pow(10, Math.floor(Math.log(top / 5) / Math.LN10)), step = [1, 2, 2.5, 5, 10, 20].map(function (f) { return f * mag; }).filter(function (x) { return Math.ceil(top / x) <= 5; })[0];
@@ -153,12 +156,16 @@
       if (q.ve != null) { sv += '<circle class="ppin end" data-k="' + k + '" cx="' + X(q.e).toFixed(1) + '" cy="' + Y(q.ve).toFixed(1) + '" r="3.5"/>'; }
       sv += '<circle class="ppin" data-k="' + k + '" cx="' + X(q.s).toFixed(1) + '" cy="' + Y(q.v).toFixed(1) + '" r="5"/>';
     });
-    d.dots.forEach(function (p, k) { sv += '<circle class="pdot" data-k="d' + k + '" data-id="' + esc(p.a.id) + '" cx="' + X(48).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="4.5"/>'; });
+    // many earlier pieces: spread a little sideways so each shows, with their median as a bar across them
+    var many = d.dots.length > 12;
+    d.dots.forEach(function (p, k) { sv += '<circle class="pdot" data-k="d' + k + '" data-id="' + esc(p.a.id) + '" cx="' + dotX(k, d.dots.length).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="' + (many ? 3.2 : 4.5) + '"/>'; });
+    var dmed = d.dots.length >= 5 ? med(d.dots.map(function (p) { return p.v; })) : null;
+    if (dmed != null) { sv += '<line class="pdmed" x1="' + (X(48) - 16).toFixed(1) + '" x2="' + (X(48) + 16).toFixed(1) + '" y1="' + Y(dmed).toFixed(1) + '" y2="' + Y(dmed).toFixed(1) + '"/>'; }
     sv += '<line class="pxh" x1="0" x2="0" y1="' + T + '" y2="' + (H - B) + '" visibility="hidden"/><rect x="' + L + '" y="' + T + '" width="' + (W - L - R) + '" height="' + (H - T - B) + '" fill="transparent"/></svg>';
     var left = n - d.drawn.length - d.dots.length, lines = d.drawn.length, dl = d.dots.length, pins = d.drawn.filter(function (p) { return p.pin && !p.pin.off; }).length;
     return head + sv + '<div class="legend">' + (lines ? '<span><i style="background:var(--accent);opacity:.45"></i>' + (lines === 1 ? (their === 'your' ? 'Your piece' : 'Their piece') : 'Each of ' + lines + ' pieces') + '</span>' : '') +
       (d.med.length > 2 ? '<span><i style="background:var(--accent);height:4px"></i>' + (their === 'your' ? 'Your' : 'Their') + ' typical piece</span>' : '') +
-      (dl ? '<span><i style="width:9px;height:9px;border-radius:50%;background:var(--accent);opacity:.55;box-shadow:0 0 0 2px var(--paper)"></i>Earlier piece' + (dl === 1 ? '' : 's') + ': views by two days</span>' : '') +
+      (dl ? '<span><i style="width:9px;height:9px;border-radius:50%;background:var(--accent);opacity:.55;box-shadow:0 0 0 2px var(--paper)"></i>Earlier piece' + (dl === 1 ? '' : 's') + ': views by two days' + (dl >= 5 ? ' (the bar: their median, ' + kf(med(d.dots.map(function (p) { return p.v; }))) + ')' : '') + '</span>' : '') +
       (pins ? '<span><i style="width:10px;height:10px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 2px var(--paper)"></i>Pinned to ZH\'s front page <i style="width:7px;height:7px;border-radius:50%;background:var(--paper);box-shadow:inset 0 0 0 1.5px var(--ink);margin-left:6px"></i>unpinned</span>' : '') +
       (d.zh.typ.length ? '<span><i style="background:repeating-linear-gradient(90deg,var(--muted) 0 5px,transparent 5px 9px)"></i>ZH\'s typical post</span>' : '') +
       (d.zh.band.length ? '<span><i style="background:var(--muted);opacity:.25;height:8px"></i>Middle half of ZH posts</span>' : '') + '</div>' +
@@ -189,7 +196,7 @@
           var dd = Math.max(Math.abs(X(q.s) - sx), Math.abs(Y(q.v) - sy));
           if (dd <= 10 && (!best || !best.pin || dd < best.dd)) { best = { k: k, p: p, v: q.v, dy: 0, dd: dd, pin: q }; }
         });
-        if (sx >= X(46) && !(best && best.pin)) { d.dots.forEach(function (p, k) { var dy = Math.abs(Y(p.v) - sy); if (dy <= 12 && (!best || best.dot || dy < best.dy)) { best = { k: 'd' + k, p: p, v: p.v, dy: dy, dot: true }; } }); }
+        if (sx >= X(46) - 14 && !(best && best.pin)) { d.dots.forEach(function (p, k) { var dd = Math.max(Math.abs(Y(p.v) - sy), Math.abs(dotX(k, d.dots.length) - sx) * 0.5); if (dd <= 8 && (!best || !best.dot || dd < best.dy)) { best = { k: 'd' + k, p: p, v: p.v, dy: dd, dot: true }; } }); }
         var xh = svg.querySelector('.pxh'); xh.setAttribute('x1', X(h).toFixed(1)); xh.setAttribute('x2', X(h).toFixed(1)); xh.setAttribute('visibility', 'visible');
         if (!best) { hiOn(null); if (tip) { tip.remove(); tip = null; } return; }
         hiOn(best.k);
