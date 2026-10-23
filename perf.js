@@ -15,11 +15,19 @@
 (function () {
   'use strict';
   var MS = [1, 3, 6, 12, 24, 48], CURVE_MIN = 20;
-  var RANGES = [['n5', 'Last 5 pieces'], ['n10', 'Last 10 pieces'], ['n25', 'Last 25 pieces'], ['d30', 'Past 30 days'], ['d90', 'Past 3 months'], ['all', 'All time']];
+  // which pieces (Dan, Oct. 23: "make the 'all time' dropdown into 1d, 7d, 1mo, 3mo, 6mo, 12mo and then the dropdown is
+  // 'last X posts'"): how far back, as buttons, and how many of the newest in that span, as the menu; both remembered
+  var SPANS = [['1d', '1d', 1, 'the past day'], ['7d', '7d', 7, 'the past 7 days'], ['1mo', '1mo', 30, 'the past month'], ['3mo', '3mo', 91, 'the past 3 months'],
+               ['6mo', '6mo', 182, 'the past 6 months'], ['12mo', '12mo', 365, 'the past 12 months'], ['all', 'All', 0, 'all time']];
+  var COUNTS = [['5', 'Last 5 posts'], ['10', 'Last 10 posts'], ['25', 'Last 25 posts'], ['50', 'Last 50 posts'], ['all', 'All posts']];
   var W = 640, H = 250, L = 48, R = 12, T = 10, B = 26;
   var CSS = '.perf { border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px 8px; margin: 0 0 14px; background: var(--paper); position: relative; }' +
     '.perf .phead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }' +
     '.perf .phead h3 { margin: 0; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); flex: 1; min-width: 200px; }' +
+    '.perf .pseg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }' +
+    '.perf .pseg button { border: 0; border-radius: 0; margin: 0; padding: 3px 9px; font: inherit; font-size: .78rem; background: var(--panel); color: var(--muted); cursor: pointer; width: auto; }' +
+    '.perf .pseg button + button { border-left: 1px solid var(--rule); }' +
+    '.perf .pseg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }' +
     '.perf select { font: inherit; font-size: .8rem; padding: 3px 6px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); color: var(--ink); width: auto; }' +
     '.perf label.pslot { font-size: .78rem; color: var(--muted); display: inline-flex; gap: 5px; align-items: center; margin: 0; font-weight: 400; }' +
     '.perf label.pslot input { width: auto; margin: 0; }' +
@@ -104,13 +112,20 @@
              before: s - lo >= 0.25 ? (v - at(p, lo)) / (s - lo) : null, after: hi - s >= 0.25 ? (at(p, hi) - v) / (hi - s) : null };
   }
   function hm(h) { var m = Math.round(h * 60); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' hr' + (m % 60 ? ' ' + (m % 60) + ' min' : ''); }
-  function range(o) { var r = o.range || keep('cd-perf') || 'n10'; return RANGES.some(function (x) { return x[0] === r; }) ? r : 'n10'; }
-  function rangeName(r) { return RANGES.filter(function (x) { return x[0] === r; })[0][1]; }
+  function pick(o) {
+    var old = keep('cd-perf') || '';   // the one menu it had before (Last 10 pieces, Past 3 months, All time ...)
+    var sp = o.span || keep('cd-perf-span') || (old === 'd30' ? '1mo' : old === 'd90' ? '3mo' : 'all');
+    var ct = o.count || keep('cd-perf-n') || (/^n\d+$/.test(old) ? old.slice(1) : old === 'all' || /^d/.test(old) ? 'all' : '10');
+    if (!SPANS.some(function (x) { return x[0] === sp; })) { sp = 'all'; }
+    if (!COUNTS.some(function (x) { return x[0] === ct; })) { ct = '10'; }
+    return { span: sp, count: ct };
+  }
+  function rangeName(r) { return (r.count === 'all' ? 'All posts' : 'Last ' + r.count + ' posts') + (r.span === 'all' ? '' : ' from ' + SPANS.filter(function (x) { return x[0] === r.span; })[0][3]); }
   function data(o) {
-    var r = range(o), now = Date.now() / 1000;
+    var r = pick(o), now = Date.now() / 1000, days = SPANS.filter(function (x) { return x[0] === r.span; })[0][2];
     var live = (o.arts || []).filter(function (a) { return a.status === 'live' && a.stats; }).sort(function (a, b) { return (b.stats.pub_ts || 0) - (a.stats.pub_ts || 0); });
-    if (r.charAt(0) === 'n') { live = live.slice(0, +r.slice(1)); }
-    else if (r.charAt(0) === 'd') { live = live.filter(function (a) { return (a.stats.pub_ts || 0) >= now - +r.slice(1) * 86400; }); }
+    if (days) { live = live.filter(function (a) { return (a.stats.pub_ts || 0) >= now - days * 86400; }); }
+    if (r.count !== 'all') { live = live.slice(0, +r.count); }
     var all = live.map(function (a) { return { a: a, title: a.stats.title || (a.zh && a.zh.title) || a.title || 'Untitled', pts: pts(a.stats, o.slot, o.base) }; });
     var drawn = all.filter(function (p) { return p.pts.length >= 2; });
     drawn.forEach(function (p) { p.pin = pinOf(p.a.stats, p.pts); });
@@ -136,11 +151,13 @@
   function html(o) {
     var d = data(o), n = d.live.length, their = o.their || 'their';
     var head = '<div class="phead"><h3>How ' + esc(o.whose || 'their') + ' pieces ran: views, first two days</h3>' +
-      '<select data-prange aria-label="Which pieces">' + RANGES.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === d.range ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>' +
+      '<span class="pseg" role="group" aria-label="How far back">' + SPANS.map(function (x) { return '<button type="button" data-pspan="' + x[0] + '" aria-pressed="' + (x[0] === d.range.span) + '" title="Pieces from ' + x[3] + '">' + x[1] + '</button>'; }).join('') + '</span>' +
+      '<select data-pcount aria-label="How many posts">' + COUNTS.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === d.range.count ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>' +
       '<label class="pslot" title="Each piece scaled to a typical slot: its views times ZH\'s typical two-day views over what its publish hour and weekday expect"><input type="checkbox" data-pslot' + (o.slot ? ' checked' : '') + '> Adjust for time slot</label></div>';
     if (!d.drawn.length && !d.dots.length) {
-      return head + '<p class="pnote">' + (n ? 'None of the ' + n + ' live piece' + (n === 1 ? '' : 's') + ' in ' + rangeName(d.range).toLowerCase() + ' can be drawn yet: the desk counts ZeroHedge views hour by hour from Oct. 20, 2026, and ' + (n === 1 ? 'it' : 'they') + ' ran before that, or only minutes ago.' :
-        'Nothing live on ZeroHedge in ' + rangeName(d.range).toLowerCase() + '.') + '</p>';
+      var spanWord = SPANS.filter(function (x) { return x[0] === d.range.span; })[0][3];
+      return head + '<p class="pnote">' + (n ? 'None of the ' + n + ' live piece' + (n === 1 ? '' : 's') + ' from ' + spanWord + ' can be drawn yet: ' + (n === 1 ? 'it' : 'they') + ' ran only minutes ago.' :
+        (d.range.span === 'all' ? 'Nothing live on ZeroHedge yet.' : 'Nothing live on ZeroHedge in ' + spanWord + '.')) + '</p>';
     }
     var sc = scale(d), Y = sc.Y;
     var line = function (arr) { return arr.map(function (q, i) { return (i ? 'L' : 'M') + X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' '); };
@@ -229,11 +246,15 @@
       tr.addEventListener('mouseenter', function () { var k = null; d.drawn.forEach(function (p, i) { if (p.a.id === id) { k = i; } }); d.dots.forEach(function (p, i) { if (p.a.id === id) { k = 'd' + i; } }); if (k != null) { hiOn(k); } });
       tr.addEventListener('mouseleave', function () { hiOn(null); });
     });
+    box.addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-pspan]'); if (!b) { return; }
+      o.span = b.dataset.pspan; keep('cd-perf-span', o.span); draw(true);
+    });
     box.addEventListener('change', function (ev) {
-      if (ev.target.matches('[data-prange]')) { o.range = ev.target.value; keep('cd-perf', o.range); draw(true); }
+      if (ev.target.matches('[data-pcount]')) { o.count = ev.target.value; keep('cd-perf-n', o.count); draw(true); }
       else if (ev.target.matches('[data-pslot]')) { o.slot = ev.target.checked; draw(true); }
     });
   }
   css();
-  window.ZHPerf = { html: html, bind: bind, data: data, curve: curve, ranges: RANGES };
+  window.ZHPerf = { html: html, bind: bind, data: data, curve: curve, spans: SPANS, counts: COUNTS };
 })();
