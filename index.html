@@ -9,8 +9,8 @@
 <!--
   The desk page loader (published as index.html in the public zh-desk.github.io repo; its source lives in
   zh-desk/desk at page/loader.html). It signs the person in, then runs the desk page from the private repo:
-  page/index.html (live), or page/preview.html (?v=preview) or page/previous.html (?v=previous), or page/v2.html
-  (?v=v2: the desk v2 on test, built by page/v2/build.js from page/index.html, Oct 22, 2026).
+  page/v2.html (live since Oct 24, 2026: the desk v2, built by page/v2/build.js from page/index.html), or page/index.html
+  (?v=classic: the desk before v2), page/preview.html (?v=preview) or page/previous.html (?v=previous). ?v=v2 opens the live desk.
   Two ways to sign in: Sign in with GitHub (a GitHub App plus the small Cloudflare Worker in tools/signin-worker.js,
   set in desk-signin below; empty means off), or a GitHub access key pasted once per browser.
   Keep it small and stable: the desk page changes; this doesn't.
@@ -85,15 +85,17 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
 (function () {
   'use strict';
   var PAGE = 'https://api.github.com/repos/zh-desk/desk/contents/page/';
-  var FILES = { live: 'index.html', preview: 'preview.html', previous: 'previous.html', v2: 'v2.html' };
-  var NAMES = { preview: 'a preview of a desk page change', previous: 'the previous version of the desk page', v2: 'the desk v2 (test drive). Approvals, posts and notes here are real, the same as on the live desk' };
+  // Oct 24, 2026 (Dan: "make ?v=v2 live now"): the desk v2 is the live desk; the old page stays at ?v=classic. page/index.html is still
+  // what Make it live, Undo and the sweeps edit (v2.html is built from it by desk-v2-build), so the two stay in step.
+  var FILES = { live: 'v2.html', classic: 'index.html', preview: 'preview.html', previous: 'previous.html', v2: 'v2.html' };
+  var NAMES = { classic: 'the classic desk page (before v2). Approvals, posts and notes here are real, the same as on the live desk', preview: 'a preview of a desk page change', previous: 'the previous version of the desk page' };
   var CFG = {};
   try { CFG = JSON.parse(document.getElementById('desk-signin').textContent) || {}; } catch (e) { CFG = {}; }
   var GH = !!(CFG.clientId && CFG.worker);
   var REDIRECT = CFG.redirect || (location.origin + '/');
   var query = new URLSearchParams(location.search);
   var v = query.get('v');
-  var which = FILES[v] ? v : 'live';
+  var which = FILES[v] && v !== 'v2' ? v : 'live';   // ?v=v2 links and bookmarks open the live desk, which is v2 now
   function $(id) { return document.getElementById(id); }
   function keep(area, k, val) {
     try {
@@ -204,7 +206,7 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
     document.write(html);
     document.close();
     if (which !== 'live') {
-      note('You\'re looking at ' + NAMES[which] + '. <a href="/" style="color:#fff">Back to the live desk</a>', which === 'preview' ? '#6b3fc4' : which === 'v2' ? '#1f6b3f' : '#8a5a00');
+      note('You\'re looking at ' + NAMES[which] + '. <a href="/" style="color:#fff">Back to the live desk</a>', which === 'preview' ? '#6b3fc4' : '#8a5a00');
     }
     setTimeout(function () {
       if (started()) { return; }
