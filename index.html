@@ -10,7 +10,8 @@
   The desk page loader (published as index.html in the public zh-desk.github.io repo; its source lives in
   zh-desk/desk at page/loader.html). It signs the person in, then runs the desk page from the private repo:
   page/v2.html (live since Oct 24, 2026: the desk v2, built by page/v2/build.js from page/index.html), or page/index.html
-  (?v=classic: the desk before v2), page/preview.html (?v=preview) or page/previous.html (?v=previous). ?v=v2 opens the live desk.
+  (?v=classic: the desk before v2), page/preview.html (?v=preview, shown as desk v2 through page/v2-preview.html once it's
+  built from it) or page/previous.html (?v=previous). ?v=v2 opens the live desk.
   Two ways to sign in: Sign in with GitHub (a GitHub App plus the small Cloudflare Worker in tools/signin-worker.js,
   set in desk-signin below; empty means off), or a GitHub access key pasted once per browser.
   Keep it small and stable: the desk page changes; this doesn't.
@@ -124,8 +125,8 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
     }
     if (GH && !keyProblem) { $('gh-go').focus(); } else { $('key').focus(); }
   }
-  function getPage(token) {
-    return fetch(PAGE + FILES[which] + '?ref=main', {
+  function getFile(token, name) {
+    return fetch(PAGE + name + '?ref=main', {
       headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github.raw+json', 'X-GitHub-Api-Version': '2022-11-28' },
       cache: 'no-cache'
     }).then(function (r) {
@@ -133,6 +134,22 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
       var e = new Error('GitHub said ' + r.status); e.status = r.status; throw e;
     });
   }
+  // ?v=preview opens the desk v2 build of the preview (page/v2-preview.html, built by page/v2/build.js from
+  // page/preview.html; Oct. 25, Dan: "Why is preview showing me the classic version?") when it was built from the preview
+  // as it stands (its build line carries the preview's sha256). Until the build catches up, the preview itself.
+  function getPreview(token) {
+    return getFile(token, 'preview.html').then(function (src) {
+      return getFile(token, 'v2-preview.html').then(function (v2) {
+        var m = /<!-- ZH Desk v2: built [^>]*?sha256 ([0-9a-f]{64})/.exec(v2.slice(0, 600));
+        if (!m || !window.crypto || !crypto.subtle || !window.TextEncoder) { return src; }
+        return crypto.subtle.digest('SHA-256', new TextEncoder().encode(src)).then(function (d) {
+          var hex = Array.prototype.map.call(new Uint8Array(d), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+          return hex === m[1] ? v2 : src;
+        });
+      }).catch(function () { return src; });
+    });
+  }
+  function getPage(token) { return which === 'preview' ? getPreview(token) : getFile(token, FILES[which]); }
 
   // ---- GitHub sign-in
   function saveAuth(t) {
