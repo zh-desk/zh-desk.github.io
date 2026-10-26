@@ -88,8 +88,8 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
   var PAGE = 'https://api.github.com/repos/zh-desk/desk/contents/page/';
   // Oct 24, 2026 (Dan: "make ?v=v2 live now"): the desk v2 is the live desk; the old page stays at ?v=classic. page/index.html is still
   // what Make it live, Undo and the sweeps edit (v2.html is built from it by desk-v2-build), so the two stay in step.
-  var FILES = { live: 'v2.html', classic: 'index.html', preview: 'preview.html', previous: 'previous.html', v2: 'v2.html' };
-  var NAMES = { classic: 'the classic desk page (before v2). Approvals, posts and notes here are real, the same as on the live desk', preview: 'a preview of a desk page change', previous: 'the previous version of the desk page' };
+  var FILES = { live: 'v2.html', classic: 'index.html', preview: 'preview.html', previous: 'previous.html', v2: 'v2.html', blogs: 'v2-blogs.html' };   // blogs (Oct. 26): the Blogs test page, the live desk plus the Blogs view, nothing in it saved
+  var NAMES = { classic: 'the classic desk page (before v2). Approvals, posts and notes here are real, the same as on the live desk', preview: 'a preview of a desk page change', previous: 'the previous version of the desk page', blogs: 'the Blogs test page: the live desk plus the Blogs view. Approve, Add to New scans and Skip in that view save nothing; everything else here is real' };
   var CFG = {};
   try { CFG = JSON.parse(document.getElementById('desk-signin').textContent) || {}; } catch (e) { CFG = {}; }
   var GH = !!(CFG.clientId && CFG.worker);
