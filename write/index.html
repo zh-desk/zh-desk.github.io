@@ -18,6 +18,7 @@
 -->
 <script>/* Light unless Dark mode was chosen (Dan, Oct. 20); shared with the contributor dashboard. */ try { if (localStorage.getItem('desk.cd-theme') === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); } } catch (e) { /* light */ }</script>
 <script src="/perf.js?v=5"></script>
+<script src="/rangecal.js?v=1"></script>
 <script id="desk-signin" type="application/json">{"clientId": "Iv23li3HIxBazcHkRTlw", "worker": "https://zh-desk-signin.zeropointnowagain.workers.dev/", "redirect": "https://zh-desk.github.io/"}</script>
 <style>
 :root { --paper: #f4f5f7; --panel: #fff; --ink: #171b22; --muted: #5d6673; --rule: #d8dde5; --accent: #b4520f; --accent-ink: #fff; --good: #1f7a45; --warn: #9a5b00; --bad: #ad2a20; --code: #f0f2f5; color-scheme: light; }
@@ -140,7 +141,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 .vtabs button:hover { color: var(--ink); }
 .vtabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .vtabs .cnt { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; background: var(--code); color: var(--ink); font-size: .7rem; letter-spacing: 0; }
-.solo aside, .solo .vtabs, .solo #v-stats, .solo #v-articles { display: none !important; }
+.solo aside, .solo .vtabs, .solo #v-stats, .solo #v-articles, .solo #v-away { display: none !important; }
 .solo .wrap { grid-template-columns: minmax(0, 1fr); }
 .solo main { max-width: none; padding-top: 12px; }
 .trk-sum { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; font-size: .84rem; }
@@ -173,6 +174,16 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 .plist .pp { font-size: .86rem; margin-top: 4px; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .plist .ans { font-size: .84rem; margin-top: 6px; border-left: 2px solid var(--accent); padding-left: 8px; }
 .view-as #pitch-box, .view-as #pitch-new { display: none !important; }
+/* Time off (Oct. 26, Dan: "the ability to mark down when they're going to be off-desk ... one of those nice smooth
+   calendar views that pops up like a hotel booking site"): /rangecal.js draws the picker. */
+.awaybox { max-width: 520px; }
+.awaybox .rc-wrap { max-width: 100%; }
+.awaylist li { cursor: default; display: flex; gap: 12px; align-items: center; }
+.awaylist li:hover { border-color: var(--rule); }
+.awaylist .when { flex: 1 1 auto; min-width: 0; }
+.awaylist .sub { font-size: .82rem; color: var(--muted); margin-top: 2px; }
+.awaylist .now { color: var(--accent); font-weight: 700; }
+.view-as #away-box, .view-as .awaylist button { display: none !important; }
 .chev { display: inline-block; width: 1em; color: var(--muted); font-size: .8em; }
 #theme { white-space: nowrap; }
 .embed #theme { display: none; }
@@ -256,6 +267,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
         <button type="button" role="tab" data-view="compose" aria-selected="true">Compose</button>
         <button type="button" role="tab" data-view="articles" aria-selected="false">My articles<span class="cnt" id="vt-n"></span></button>
         <button type="button" role="tab" data-view="pitches" aria-selected="false">Pitches<span class="cnt" id="vt-p"></span></button>
+        <button type="button" role="tab" data-view="away" aria-selected="false">Time off<span class="cnt" id="vt-a"></span></button>
       </nav>
       <section id="v-stats" hidden>
       <div class="dash" id="dash"><div class="dash-head"><span id="dash-title">Your numbers on ZeroHedge</span><span class="upd" id="dash-upd"></span></div><div class="dash-body" id="dash-body"></div></div>
@@ -275,6 +287,18 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
         <h3 class="plist-h" id="pitch-head">Your pitches</h3>
         <ul class="plist" id="pitches"></ul>
         <p class="muted small" id="pitches-empty">No pitches yet.</p>
+      </section>
+      <section id="v-away" hidden>
+        <div class="pitchbox awaybox" id="away-box">
+          <h3>Mark time off</h3>
+          <p class="muted small" style="margin:2px 0 12px">Going to be away? Pick the first and the last day you'll be off. The editors see it on their desk three days before you go, so they can plan around it.</p>
+          <div id="away-cal"></div>
+          <label for="away-note">Note (optional)</label><input type="text" id="away-note" maxlength="140" placeholder="Traveling, back on email Tuesday">
+          <div class="pf-acts"><button type="button" class="primary" id="away-save" disabled>Mark these days off</button></div>
+        </div>
+        <h3 class="plist-h" id="away-head">Your time off</h3>
+        <ul class="plist awaylist" id="away-list"></ul>
+        <p class="muted small" id="away-empty">Nothing marked.</p>
       </section>
       <section id="v-compose">
       <input class="title" id="title" placeholder="Headline" aria-label="Headline" autocomplete="off">
@@ -663,6 +687,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     renderList();
     renderDash();
     renderPitches();
+    renderAway();
   }
   // In View as, an editor can also work on the contributor's draft (a draft, an assignment, or one sent back): save,
   // never submit. The banner says which it is.
@@ -851,15 +876,59 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     if (tr) { D.open = D.open === tr.dataset.piece ? null : tr.dataset.piece; renderDash(); }
   });
 
+  // ---------- Time off (Oct. 26): the days a contributor will be off the desk. The picker (/rangecal.js) works in whole
+  // days; the helper keeps them in the desk's config/off-desk.json, joins a stretch that overlaps one already marked,
+  // and the editors' desk flags each stretch three days ahead. The editors can mark it for them too, on the dashboard.
+  var AWAY = { cal: null };
+  function awayRange(e) { return window.RangeCal ? RangeCal.range(e.from, e.to) : e.from + ' to ' + e.to; }
+  function awayWhen(e) {
+    if (!window.RangeCal) { return ''; }
+    var t = RangeCal.today(), n = RangeCal.span(t, e.from) - 1;
+    if (e.from <= t) { return '<span class="now">Off now</span> &middot; back ' + esc(RangeCal.fmt(RangeCal.add(e.to, 1))); }
+    return n === 1 ? 'Starts tomorrow' : 'Starts in ' + n + ' days';
+  }
+  function renderAway() {
+    var list = (S.me && S.me.away) || [];
+    if (!AWAY.cal && window.RangeCal && $('away-cal')) {
+      AWAY.cal = RangeCal.field($('away-cal'), { marked: function () { return ((S.me && S.me.away) || []).map(function (e) { return { from: e.from, to: e.to, label: 'Already marked: ' + awayRange(e) }; }); },
+        onChange: function (a) { $('away-save').disabled = !a; } });
+    }
+    $('vt-a').textContent = list.length ? String(list.length) : '';
+    $('away-empty').hidden = list.length > 0;
+    $('away-head').hidden = !list.length;
+    $('away-list').innerHTML = list.map(function (e) {
+      return '<li><div class="when"><div class="t">' + esc(awayRange(e)) + '</div><div class="sub">' + (window.RangeCal ? esc(RangeCal.days(e.from, e.to)) + ' &middot; ' : '') + awayWhen(e) +
+        (e.note ? ' &middot; ' + esc(e.note) : '') + (e.by_name && S.me && e.by !== S.me.login ? ' &middot; marked by ' + esc(e.by_name) : '') + '</div></div>' +
+        '<button type="button" class="small" data-away-del="' + esc(e.id) + '">Remove</button></li>';
+    }).join('');
+    if (AWAY.cal) { AWAY.cal.refresh(); }
+  }
+  $('away-save').addEventListener('click', function () {
+    var v = AWAY.cal && AWAY.cal.get(); if (!v || !v.from) { return; }
+    var b = this; b.disabled = true;
+    call('away', { from: v.from, to: v.to, note: $('away-note').value.trim() }).then(function (j) {
+      S.me.away = j.away || []; AWAY.cal.clear(); $('away-note').value = ''; renderAway();
+      toast('Marked: ' + awayRange({ from: v.from, to: v.to }) + '. The editors will see it on their desk.');
+    }).catch(function (e) { b.disabled = false; toast('Couldn\'t save it: ' + e.message, true); });
+  });
+  $('away-list').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-away-del]'); if (!b) { return; }
+    var e = ((S.me && S.me.away) || []).filter(function (x) { return x.id === b.dataset.awayDel; })[0];
+    if (!e || !window.confirm('Take ' + awayRange(e) + ' off your time off?')) { return; }
+    b.disabled = true;
+    call('away', { op: 'remove', eid: e.id }).then(function (j) { S.me.away = j.away || []; renderAway(); toast('Removed.'); })
+      .catch(function (er) { b.disabled = false; toast('Couldn\'t remove it: ' + er.message, true); });
+  });
+
   // ---------- Stats / Compose / My articles (Oct. 20). The choice is remembered on this device; an assignment waiting
   // always opens in Compose.
-  var VIEWS = ['stats', 'compose', 'articles', 'pitches'];
+  var VIEWS = ['stats', 'compose', 'articles', 'pitches', 'away'];
   S.view = 'compose';
   function setView(v, quiet) {
     if (VIEWS.indexOf(v) < 0) { v = 'compose'; }
     S.view = v;
     document.querySelectorAll('.vtabs [data-view]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.view === v)); });
-    $('v-stats').hidden = v !== 'stats'; $('v-compose').hidden = v !== 'compose'; $('v-articles').hidden = v !== 'articles'; $('v-pitches').hidden = v !== 'pitches';
+    $('v-stats').hidden = v !== 'stats'; $('v-compose').hidden = v !== 'compose'; $('v-articles').hidden = v !== 'articles'; $('v-pitches').hidden = v !== 'pitches'; $('v-away').hidden = v !== 'away';
     if (v === 'articles') { renderTracker(); }
     if (v === 'compose') { try { window.dispatchEvent(new Event('resize')); } catch (e) { /* the editor redraws on its own */ } }
     if (!quiet) { S.viewChosen = true; if (!S.viewing) { store('wtab', v); } }

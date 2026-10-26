@@ -24,6 +24,7 @@ try {
   if (th0 === 'dark' || (th0 !== 'light' && localStorage.getItem('desk.cd-theme') === 'dark')) { document.documentElement.setAttribute('data-theme', 'dark'); }
 } catch (e) { /* light */ }</script>
 <script src="/perf.js?v=5"></script>
+<script src="/rangecal.js?v=1"></script>
 <script id="desk-signin" type="application/json">{"clientId": "Iv23li3HIxBazcHkRTlw", "worker": "https://zh-desk-signin.zeropointnowagain.workers.dev/", "redirect": "https://zh-desk.github.io/"}</script>
 <style>
 :root { --paper: #f4f5f7; --panel: #fff; --ink: #171b22; --muted: #5d6673; --rule: #d8dde5; --accent: #b4520f; --accent-ink: #fff; --good: #1f7a45; --warn: #9a5b00; --bad: #ad2a20; --code: #f0f2f5; color-scheme: light; }
@@ -79,6 +80,19 @@ header .who { color: var(--muted); font-size: .9rem; }
 .person .nk { color: var(--muted); font-size: .82rem; }
 .person .nums { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .person .nums b { color: var(--ink); }
+/* Time off (Oct. 26): each contributor's days off the desk, marked by them on the author desk or by anyone here. */
+.person .off { display: inline-block; margin-top: 6px; padding: 1px 8px; border-radius: 10px; font-size: .76rem; font-weight: 700; background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
+.awayp { border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); padding: 10px 12px; margin: 0 0 14px; }
+.awayp h3 { margin: 0; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+.awayp h3 .grow { flex: 1 1 auto; }
+.awayp ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.awayp li { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--rule); font-size: .9rem; }
+.awayp li:first-child { border-top: 0; }
+.awayp li .w { flex: 1 1 auto; min-width: 0; }
+.awayp li .sub { color: var(--muted); font-size: .8rem; }
+.awayp li .now { color: var(--warn); font-weight: 700; }
+.awayp .addoff { margin-top: 10px; display: grid; gap: 8px; max-width: 480px; }
+.awayp .addoff input[type=text] { width: 100%; }
 .tbl-wrap { overflow-x: auto; }
 table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-variant-numeric: tabular-nums; }
 .tbl th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid var(--rule); padding: 6px; white-space: nowrap; }
@@ -401,10 +415,45 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       return '<button type="button" class="person' + (S.sel === c.login ? ' on' : '') + '" data-person="' + esc(c.login) + '"><div class="nm">' + esc(nameOf(c)) + '</div>' +
         '<div class="nk">' + esc(ghOf(c)) + ' on GitHub' + (c.nickname ? '' : ' &middot; no name given yet') + '</div>' +
         '<div class="nums"><span><b>' + s.live + '</b> live</span><span><b>' + kf(s.views) + '</b> views</span><span><b>' + xf(s.idx) + '</b> vs slot</span>' +
-        (s.inWorks ? '<span><b>' + s.inWorks + '</b> in the works</span>' : '') + (open ? '<span><b>' + open + '</b> pitch' + (open === 1 ? '' : 'es') + ' waiting</span>' : '') + '</div></button>';
+        (s.inWorks ? '<span><b>' + s.inWorks + '</b> in the works</span>' : '') + (open ? '<span><b>' + open + '</b> pitch' + (open === 1 ? '' : 'es') + ' waiting</span>' : '') + '</div>' + awayPill(c) + '</button>';
     }).join('');
   }
   function sel() { return ((S.data && S.data.contributors) || []).filter(function (c) { return c.login === S.sel; })[0] || null; }
+
+  // ---------- Time off (Oct. 26, Dan: "Josh told me this on X"): each contributor's days off the desk, from config/off-desk.json
+  // through the helper. They mark their own on the author desk; anyone here can mark it for them (/admin/away) or take a
+  // stretch back off. The desk v2 rail flags each stretch three days before it starts. /rangecal.js draws the picker.
+  function awayRange(e) { return window.RangeCal ? RangeCal.range(e.from, e.to) : e.from + ' to ' + e.to; }
+  function awayStarts(e) {
+    if (!window.RangeCal) { return ''; }
+    var t = RangeCal.today(), n = RangeCal.span(t, e.from) - 1;
+    return e.from <= t ? '<span class="now">Off now</span>, back ' + esc(RangeCal.fmt(RangeCal.add(e.to, 1))) : n === 1 ? 'starts tomorrow' : 'starts in ' + n + ' days';
+  }
+  // The card's pill: a stretch going on now, or one starting within two weeks.
+  function awayPill(c) {
+    if (!window.RangeCal) { return ''; }
+    var t = RangeCal.today(), soon = RangeCal.add(t, 14), e = (c.away || []).filter(function (x) { return x.from <= soon && x.to >= t; })[0];
+    if (!e) { return ''; }
+    return '<span class="off" title="' + esc(awayRange(e) + (e.note ? ': ' + e.note : '')) + '">' + (e.from <= t ? 'Off until ' + esc(RangeCal.fmt(e.to)) : 'Off from ' + esc(RangeCal.fmt(e.from))) + '</span>';
+  }
+  function awayHtml(c) {
+    var list = c.away || [];
+    return '<div class="awayp" data-away-box><h3><span class="grow">Time off</span><button type="button" class="small" data-act="away-open"' + (S.awayOpen === c.login ? ' hidden' : '') + '>Mark ' + esc(short(c)) + ' off</button></h3>' +
+      (list.length ? '<ul>' + list.map(function (e) {
+        return '<li><div class="w"><div><b>' + esc(awayRange(e)) + '</b></div><div class="sub">' + (window.RangeCal ? esc(RangeCal.days(e.from, e.to)) + ' &middot; ' : '') + awayStarts(e) +
+          (e.note ? ' &middot; ' + esc(e.note) : '') + (e.by_name ? ' &middot; marked by ' + esc(e.by && e.by.toLowerCase() === c.login ? short(c) : e.by_name) : '') + '</div></div>' +
+          '<button type="button" class="small" data-act="away-del" data-eid="' + esc(e.id) + '">Remove</button></li>';
+      }).join('') + '</ul>' : '<p class="muted small" style="margin:6px 0 0">Nothing marked. ' + esc(short(c)) + ' can mark days off from the author desk\'s Time off tab.</p>') +
+      (S.awayOpen === c.login ? '<div class="addoff"><div data-away-cal></div><input type="text" data-away-note maxlength="140" placeholder="Note (optional): traveling, told Dan on X">' +
+        '<div class="row"><button type="button" class="primary" data-act="away-save" disabled>Mark these days off</button><button type="button" data-act="away-cancel">Cancel</button></div></div>' : '') + '</div>';
+  }
+  function awayBind(c, el) {
+    var host = el.querySelector('[data-away-cal]');
+    if (!host || !window.RangeCal) { return; }
+    S.awayCal = RangeCal.field(host, { marked: (c.away || []).map(function (e) { return { from: e.from, to: e.to, label: 'Already marked: ' + awayRange(e) }; }),
+      onChange: function (a) { var b = el.querySelector('[data-act="away-save"]'); if (b) { b.disabled = !a; } } });
+  }
+  function awaySet(login, list) { (S.data.contributors || []).forEach(function (x) { if (x.login === login) { x.away = list || []; } }); renderPeople(); renderProfile(); }
 
   // ---------- How their pieces ran: /perf.js draws it (the author desk's Stats shows each contributor the same chart of
   // their own pieces). A comparison across contributors belongs here alone (Dan, Oct. 23: "But not vs. other
@@ -423,6 +472,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       '<div class="row small" style="margin-bottom:12px">Email: <input type="email" style="width:240px" data-email value="' + esc(c.email) + '" placeholder="their address, for notifications">' +
       '<label class="row" style="gap:4px"><input type="checkbox" data-notify' + (c.notify ? ' checked' : '') + '> send them email</label><button type="button" data-act="contact">Save</button>' +
       '<span class="hint">' + (S.data.email_ready ? 'Assignments, pitch decisions and notes go out by email when you tick the box.' : 'Email isn\'t switched on in the helper yet: the dashboard opens a ready email in your mail program instead.') + '</span></div>' +
+      awayHtml(c) +
       '<div class="tiles" style="margin-bottom:14px">' + tile('Live on ZeroHedge', s.live, 'of ' + s.sent + ' submitted' + (hist.length ? ' &middot; ' + hist.length + ' from before the author desk' : '')) + tile('Total views', nf(s.views), nf(s.comments) + ' comments') +
       tile('Typical piece', kf(s.medViews), 'median views') + tile('Against its time slot', xf(s.idx), 'median, 1× typical') + tile('Beat the typical', s.n ? s.beat + ' of ' + s.n : '-', '') +
       tile('Best day', s.best ? '#' + s.best.day_rank + ' of ' + s.best.day_n : '-', s.best ? 'top ' + Math.max(1, Math.round(100 * s.best.day_rank / s.best.day_n)) + '% on ' + dayName(s.best.day) : '') +
@@ -445,7 +495,9 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     // Their own author desk, as they see it: folded away under the pitches (Dan, Oct. 20), loaded only when opened.
     var frame = '<iframe title="' + esc(nameOf(c)) + '\'s author desk" src="/write/?as=' + encodeURIComponent(c.login) + '&embed=1"></iframe>';
     h += '<details class="seeas" data-seeas' + (S.seeAs ? ' open' : '') + '><summary>What ' + esc(short(c)) + ' sees: ' + esc(short(c)) + '\'s author desk</summary>' + (S.seeAs ? frame : '') + '</details>';
+    if (S.awayCal) { S.awayCal.destroy(); S.awayCal = null; }
     el.innerHTML = h;
+    awayBind(c, el);
     if (window.ZHPerf) { ZHPerf.bind(el.querySelector('.perf'), perfOpts(c), el.querySelectorAll('tr[data-open], tr[data-hist]'), function (tr) { return tr.dataset.hist || tr.dataset.open.split('|').slice(1).join('|'); }); }
     el.querySelector('[data-seeas]').addEventListener('toggle', function () {
       S.seeAs = this.open;
@@ -825,6 +877,25 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       if (a === 'contact' && c) {
         var em = $('profile').querySelector('[data-email]').value.trim(), on = $('profile').querySelector('[data-notify]').checked;
         call('contact', { login: c.login, email: em, notify: on }).then(function () { toast('Saved.'); return load(); }).catch(function (e) { toast(e.message, true); });
+        return;
+      }
+      if (a === 'away-open' && c) { S.awayOpen = c.login; renderProfile(); if (S.awayCal) { S.awayCal.open(); } return; }
+      if (a === 'away-cancel') { S.awayOpen = ''; renderProfile(); return; }
+      if (a === 'away-save' && c && S.awayCal) {
+        var av = S.awayCal.get(), an = ($('profile').querySelector('[data-away-note]') || {}).value || '';
+        if (!av.from) { return; }
+        act.disabled = true;
+        call('away', { login: c.login, from: av.from, to: av.to, note: an.trim() }).then(function (j) {
+          S.awayOpen = ''; awaySet(c.login, j.away); toast(nameOf(c) + ' marked off ' + awayRange({ from: av.from, to: av.to }) + '. The desk flags it three days ahead.');
+        }).catch(function (e) { act.disabled = false; toast('Couldn\'t save it: ' + e.message, true); });
+        return;
+      }
+      if (a === 'away-del' && c) {
+        var ae = (c.away || []).filter(function (x) { return x.id === act.dataset.eid; })[0];
+        if (!ae || !window.confirm('Take ' + awayRange(ae) + ' off ' + nameOf(c) + '\'s time off?')) { return; }
+        act.disabled = true;
+        call('away', { login: c.login, op: 'remove', eid: ae.id }).then(function (j) { awaySet(c.login, j.away); toast('Removed.'); })
+          .catch(function (e) { act.disabled = false; toast('Couldn\'t remove it: ' + e.message, true); });
         return;
       }
       if (a === 'note' && c) {
