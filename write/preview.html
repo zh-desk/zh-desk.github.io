@@ -1,0 +1,1994 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>ZH Author Desk (preview)</title>
+<!--
+  The author desk (Oct. 7, 2026; editor and invite links Oct. 12). Contributors sign in with GitHub and write ZH originals
+  here; each sees only their own articles. They have no access to the desk repository: the desk's sign-in helper
+  (tools/signin-worker.js in zh-desk/desk, routes /author/*) checks who they are against config/authors.json and reads
+  and writes only authors/<their login>/ for them. A link with ?invite=CODE lets a new contributor join (one use per code).
+  Submitting sends the article to the desk's Contributor lane and a Claude prep run.
+  The editor is TinyMCE 8 (write/tinymce/, self-hosted under the GPL), set up like the ZH CMS toolbar. Tweets, YouTube
+  and other embeds sit in the article as locked blocks that show the real post or player; the HTML saved is the embed
+  code exactly as given. Nothing else loads from outside, except X's and Instagram's own embed scripts when an article
+  has one of their posts.
+
+  PREVIEW (Oct. 29, 2026; Dan: "emulate all of the features of CKEditor for the contributors"): write/preview.html is the
+  next editor on trial, built from write/index.html, with the same articles and helper. Links on their own line embed
+  (X in its full native form, YouTube with its title and start time, Rumble, Vimeo, TikTok, Instagram, Facebook, Spotify,
+  Odysee), drafts keep a copy in the browser and save themselves, version history with Restore, typing shortcuts, a /
+  menu, a link balloon, picture captions under each picture, and cleaner pastes from Google Docs and Word.
+-->
+<script>/* Light unless Dark mode was chosen (Dan, Oct. 20); shared with the contributor dashboard. */ try { if (localStorage.getItem('desk.cd-theme') === 'dark') { document.documentElement.setAttribute('data-theme', 'dark'); } } catch (e) { /* light */ }</script>
+<script src="/perf.js?v=5"></script>
+<script src="/rangecal.js?v=1"></script>
+<script id="desk-signin" type="application/json">{"clientId": "Iv23li3HIxBazcHkRTlw", "worker": "https://zh-desk-signin.zeropointnowagain.workers.dev/", "redirect": "https://zh-desk.github.io/"}</script>
+<style>
+:root { --paper: #f4f5f7; --panel: #fff; --ink: #171b22; --muted: #5d6673; --rule: #d8dde5; --accent: #b4520f; --accent-ink: #fff; --good: #1f7a45; --warn: #9a5b00; --bad: #ad2a20; --code: #f0f2f5; color-scheme: light; }
+:root[data-theme="dark"] { --paper: #11141a; --panel: #191e26; --ink: #e6e9ee; --muted: #a0a9b6; --rule: #2c3440; --accent: #f08a3c; --accent-ink: #1a1206; --good: #6fcf97; --warn: #f2c26b; --bad: #f0948a; --code: #12161c; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+a { color: var(--accent); }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 1px solid var(--rule); background: var(--panel); border-radius: 6px; padding: 6px 12px; }
+button:disabled { opacity: .55; cursor: default; }
+.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px; padding: 10px 20px; border-bottom: 1px solid var(--rule); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+header .brand { justify-self: start; display: flex; align-items: center; color: var(--ink); }
+header h1 { font: 700 1.3rem/1.1 Georgia, "Times New Roman", serif; margin: 0; text-align: center; }
+header .right { justify-self: end; display: flex; align-items: center; gap: 12px; }
+header .who { color: var(--muted); font-size: .9rem; }
+.zh-logo { display: block; height: 30px; width: auto; color: var(--ink); }
+.box .zh-logo { height: 46px; margin: 0 auto 6px; }
+.box .desk-name { font: 700 1.6rem/1.15 Georgia, "Times New Roman", serif; margin: 0 0 14px; }
+.lib-back { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 30; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px; }
+.lib { background: var(--panel); color: var(--ink); border-radius: 10px; width: min(980px, 100%); max-height: 86vh; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.lib-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+.lib-head h2 { margin: 0; font-size: 1.05rem; flex: 1; }
+.lib-head input { flex: 0 1 260px; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); }
+.lib-grid { overflow: auto; padding: 14px 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+.lib-item { border: 1px solid var(--rule); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 4px; font-size: .82rem; }
+.lib-item img { width: 100%; height: 120px; object-fit: cover; border-radius: 4px; background: var(--paper); }
+.lib-item .from { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-item .cap { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.lib-item button { margin-top: auto; }
+@media (max-width: 760px) { header { grid-template-columns: auto 1fr auto; padding: 8px 12px; } header h1 { font-size: 1.05rem; } header .who { display: none; } .zh-logo { height: 24px; } }
+.wrap { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 0; min-height: calc(100vh - 54px); }
+aside { border-right: 1px solid var(--rule); padding: 14px; background: var(--panel); }
+aside h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 10px; }
+.list { list-style: none; margin: 10px 0 0; padding: 0; }
+.list li { padding: 8px 10px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.list li:hover { background: var(--paper); }
+.list li.on { border-color: var(--accent); background: var(--paper); }
+.list .t { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip { display: inline-block; font-size: .72rem; padding: 1px 7px; border-radius: 10px; border: 1px solid var(--rule); color: var(--muted); }
+.chip.returned { color: var(--bad); border-color: var(--bad); }
+.chip.prep, .chip.ready { color: var(--warn); border-color: var(--warn); }
+.chip.posted { color: var(--good); border-color: var(--good); }
+.chip.accepted { color: var(--warn); border-color: var(--warn); }
+.chip.live { color: #fff; background: var(--good); border-color: var(--good); text-decoration: none; }
+a.chip.live:hover { text-decoration: underline; }
+main { padding: 18px 24px 60px; max-width: 1040px; width: 100%; min-width: 0; }
+.title { width: 100%; font: 700 1.7rem/1.2 Georgia, "Times New Roman", serif; border: 0; border-bottom: 1px solid var(--rule); background: transparent; padding: 6px 0; outline: none; }
+.deck { width: 100%; font: 600 1.08rem/1.4 Georgia, "Times New Roman", serif; border: 0; border-bottom: 1px solid var(--rule); background: transparent; padding: 8px 0 6px; outline: none; resize: none; overflow: hidden; display: block; }
+.banner { margin: 12px 0; padding: 10px 12px; border-radius: 6px; border-left: 4px solid var(--warn); background: var(--panel); }
+.banner.returned { border-left-color: var(--bad); }
+.banner.posted, .banner.live { border-left-color: var(--good); }
+.tabs { display: flex; gap: 4px; margin: 14px 0 0; }
+.tabs button { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0; }
+.tabs button[aria-selected="true"] { background: var(--panel); font-weight: 600; box-shadow: inset 0 3px 0 var(--accent); }
+.tabs button[aria-selected="false"] { background: transparent; }
+.pane { border: 1px solid var(--rule); background: var(--panel); border-radius: 0 6px 6px 6px; }
+.pane .tox-tinymce { border: 0; border-radius: 0 6px 6px 6px; }
+#editor-wait { padding: 30px 20px; color: var(--muted); }
+#html { width: 100%; min-height: 520px; border: 0; padding: 14px; font: 13px/1.5 ui-monospace, Consolas, monospace; background: var(--code); resize: vertical; display: block; }
+#preview { padding: 16px 20px; font: 17px/1.6 Georgia, "Times New Roman", serif; overflow-wrap: anywhere; }
+#preview h1 { font-size: 1.8rem; line-height: 1.2; }
+#preview img { max-width: 100%; height: auto; }
+#preview iframe { max-width: 100%; }
+#preview blockquote { border-left: 3px solid var(--rule); margin: 1em 0; padding: 0 0 0 14px; color: var(--muted); }
+#preview .script-note { border: 1px dashed var(--rule); padding: 6px 8px; font: 12px/1.4 ui-monospace, Consolas, monospace; color: var(--muted); }
+.drop { margin: 12px 0; padding: 14px; border: 2px dashed var(--rule); border-radius: 8px; text-align: center; color: var(--muted); }
+.drop.over { border-color: var(--accent); color: var(--ink); }
+.pics { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-top: 8px; }
+.pic { border: 1px solid var(--rule); border-radius: 6px; padding: 8px; background: var(--panel); }
+.pic img { width: 100%; height: 120px; object-fit: cover; border-radius: 4px; background: var(--paper); }
+.pic input[type=text] { width: 100%; margin-top: 4px; padding: 4px 6px; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.hint { color: var(--muted); font-size: .85rem; margin: 6px 0 0; }
+textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); }
+.notes { margin-top: 18px; }
+.notes .n { border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; margin: 6px 0; background: var(--panel); white-space: pre-wrap; }
+.notes .n.author { border-style: dashed; }
+.box { max-width: 520px; margin: 12vh auto 0; padding: 0 20px; text-align: center; }
+.box h1 { font: 700 2rem/1.15 Georgia, "Times New Roman", serif; margin: 0 0 10px; }
+.box form { margin: 18px 0; text-align: left; }
+.box form input { width: 100%; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); margin: 6px 0 12px; }
+.toast { position: fixed; right: 18px; bottom: 18px; background: var(--ink); color: var(--paper); padding: 10px 14px; border-radius: 6px; max-width: 420px; z-index: 20; }
+.toast.bad { background: var(--bad); color: #fff; }
+/* The dashboard (Oct. 20): how a contributor's pieces did on ZeroHedge, and View as for the editors */
+.viewas { background: var(--warn); color: #fff; padding: 8px 20px; font-weight: 600; font-size: .9rem; }
+.view-as #new, .view-as #signout, .view-as .row, .view-as #drop, .view-as #lib-open, .view-as #reply, .view-as #reply-send { display: none !important; }
+.embed header { display: none; }
+.chip.assigned { color: var(--accent); border-color: var(--accent); }
+.chip.p-open { color: var(--warn); border-color: var(--warn); } .chip.p-approved { color: var(--good); border-color: var(--good); } .chip.p-denied { color: var(--bad); border-color: var(--bad); }
+.view-as #pitch-new, .view-as #settings-open { display: none !important; }
+.view-as:not(.coediting) .lib-hint { display: none; }
+.deck[hidden] { display: none; }
+/* While a saved sign-in is checked, "Opening..." rather than the sign-in box (Dan, Oct. 20: it flashed for a second or
+   two every time the dashboard opened a piece). */
+.loading { padding: 20vh 20px; text-align: center; color: var(--muted); }
+.embed .loading { padding: 12vh 20px; }
+.view-as.coediting #drop:not([hidden]) { display: block !important; } .view-as.coediting #lib-open { display: inline-block !important; }
+.view-as.coediting .row { display: flex !important; } .view-as.coediting #submit { display: none !important; }
+.viewas button { margin-left: 10px; background: #fff; color: var(--warn); border-color: #fff; font-weight: 600; padding: 3px 10px; }
+.pv-bar { background: #1f2933; color: #fff; font: 500 13px/1.45 system-ui, sans-serif; padding: 7px 14px; text-align: center; }
+.pv-bar a { color: #ffd29a; }
+html.embed .pv-bar, html.solo .pv-bar { display: none; }
+.restore { margin: 10px 0; padding: 10px 12px; border-radius: 6px; border-left: 4px solid var(--accent); background: var(--panel); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.restore[hidden] { display: none; }
+.restore .grow { flex: 1 1 260px; }
+.wc { margin-left: auto; }
+.vers { list-style: none; padding: 0; margin: 8px 0 0; max-height: 46vh; overflow: auto; }
+.vers li { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--rule); }
+.vers li:first-child { border-top: 0; }
+.vers .w { flex: 1 1 auto; min-width: 0; }
+.vers .sub { color: var(--muted); font-size: .8rem; display: block; }
+.vers-look { margin-top: 10px; border-top: 1px solid var(--rule); padding-top: 10px; max-height: 40vh; overflow: auto; }
+.vers-look img { max-width: 100%; height: auto; }
+.dlg-back { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 30; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px; overflow: auto; }
+.dlg { background: var(--panel); color: var(--ink); border-radius: 10px; width: min(640px, 100%); padding: 16px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+.dlg h2 { margin: 0 0 6px; font-size: 1.1rem; }
+.dlg label { display: block; font-size: .82rem; font-weight: 600; margin: 10px 0 4px; }
+.dlg input[type=text], .dlg input[type=email], .dlg textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); }
+.dlg textarea { min-height: 90px; resize: vertical; }
+.dlg .thread { list-style: none; padding: 0; margin: 10px 0; font-size: .86rem; }
+.dlg .thread li { border-left: 2px solid var(--rule); padding: 2px 0 2px 8px; margin: 6px 0; white-space: pre-wrap; }
+.dlg .thread li.editors { border-left-color: var(--accent); }
+.brief { white-space: pre-wrap; }
+.dash { margin: 0 0 18px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); }
+.dash-head { padding: 10px 14px; font-weight: 700; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+/* Stats / Compose / My articles (Oct. 20, Dan: "At the top of the contributor portal, let's have tabs"; the article you
+   pick in the list opens in Compose, right beside the list, not under the numbers). */
+.vtabs { display: flex; gap: 0; margin: 0 0 16px; border-bottom: 1px solid var(--rule); overflow-x: auto; scrollbar-width: none; }
+@media (max-width: 760px) { .vtabs button { padding: 8px 9px 6px; letter-spacing: .03em; font-size: .74rem; white-space: nowrap; } }
+.vtabs button { border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: transparent; padding: 9px 16px 7px; font-size: .8rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.vtabs button:hover { color: var(--ink); }
+.vtabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.vtabs .cnt { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; background: var(--code); color: var(--ink); font-size: .7rem; letter-spacing: 0; }
+.solo aside, .solo .vtabs, .solo #v-stats, .solo #v-articles, .solo #v-away { display: none !important; }
+.solo .wrap { grid-template-columns: minmax(0, 1fr); }
+.solo main { max-width: none; padding-top: 12px; }
+.trk-sum { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; font-size: .84rem; }
+.trk-sum span { border: 1px solid var(--rule); border-radius: 12px; padding: 1px 10px; background: var(--panel); }
+.trk-sum b { font-variant-numeric: tabular-nums; }
+.trk tr.trow { cursor: pointer; }
+.trk tr.trow:hover, .trk tr.trow.open { background: var(--paper); }
+.trk .hl .t { font-weight: 600; }
+.tl { list-style: none; margin: 0 0 10px; padding: 0; font-size: .86rem; }
+.tl li { position: relative; padding: 2px 0 2px 18px; }
+.tl li::before { content: ''; position: absolute; left: 4px; top: .7em; width: 7px; height: 7px; border-radius: 50%; background: var(--rule); }
+.tl li.done::before { background: var(--accent); }
+.tl li.live::before { background: var(--good); }
+.tl .when { color: var(--muted); }
+.pitch-btn { width: 100%; margin-top: 8px; border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.pitchbox { border: 1px solid var(--accent); border-radius: 8px; background: var(--panel); padding: 12px 14px 14px; margin-bottom: 18px; }
+.pitchbox h3, .plist-h { margin: 0; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.pitchbox label { display: block; font-size: .82rem; font-weight: 600; margin: 10px 0 4px; }
+.pitchbox input[type=text], .pitchbox textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); }
+.pitchbox textarea { min-height: 90px; resize: vertical; }
+.pf-acts { margin-top: 10px; }
+.pf-opt + .pf-opt, #pf-more .pf-opt { border-top: 1px dashed var(--rule); margin-top: 12px; padding-top: 6px; }
+.pf-on { font-weight: 700; font-size: .84rem; color: var(--accent); margin-top: 6px; display: flex; gap: 8px; align-items: center; }
+.plist .opts { margin: 6px 0 0; padding-left: 18px; font-size: .86rem; }
+.plist .opts li { border: 0; padding: 2px 0; margin: 0; background: none; cursor: inherit; }
+.plist { list-style: none; margin: 8px 0 0; padding: 0; }
+.plist li { border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); padding: 10px 12px; margin: 0 0 8px; cursor: pointer; }
+.plist li:hover { border-color: var(--accent); }
+.plist .t { font-weight: 700; }
+.plist .pp { font-size: .86rem; margin-top: 4px; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.plist .ans { font-size: .84rem; margin-top: 6px; border-left: 2px solid var(--accent); padding-left: 8px; }
+.view-as #pitch-box, .view-as #pitch-new { display: none !important; }
+/* Time off (Oct. 26, Dan: "the ability to mark down when they're going to be off-desk ... one of those nice smooth
+   calendar views that pops up like a hotel booking site"): /rangecal.js draws the picker. */
+.awaybox { max-width: 520px; }
+.awaybox .rc-wrap { max-width: 100%; }
+.awaylist li { cursor: default; display: flex; gap: 12px; align-items: center; }
+.awaylist li:hover { border-color: var(--rule); }
+.awaylist .when { flex: 1 1 auto; min-width: 0; }
+.awaylist .sub { font-size: .82rem; color: var(--muted); margin-top: 2px; }
+.awaylist .now { color: var(--accent); font-weight: 700; }
+.view-as #away-box, .view-as .awaylist button { display: none !important; }
+.chev { display: inline-block; width: 1em; color: var(--muted); font-size: .8em; }
+#theme { white-space: nowrap; }
+.embed #theme { display: none; }
+.dash .upd { font-weight: 400; color: var(--muted); font-size: .78rem; margin-left: auto; }
+.dash-body { padding: 0 14px 14px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 2px 0 14px; }
+.tile { border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; background: var(--paper); min-width: 0; }
+.tile .k { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.tile .v { font-weight: 700; font-size: 1.35rem; line-height: 1.25; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tile .s { font-size: .76rem; color: var(--muted); overflow-wrap: anywhere; }
+.ptab-wrap { overflow-x: auto; }
+.ptab { width: 100%; border-collapse: collapse; font-size: .84rem; font-variant-numeric: tabular-nums; }
+.ptab th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid var(--rule); padding: 6px; cursor: pointer; white-space: nowrap; user-select: none; }
+.ptab th.n, .ptab td.n { text-align: right; white-space: nowrap; }
+.ptab td { border-bottom: 1px solid var(--rule); padding: 6px; vertical-align: top; }
+.ptab tr.prow { cursor: pointer; }
+.ptab tr.prow:hover, .ptab tr.prow.open { background: var(--paper); }
+.ptab .hl { min-width: 200px; max-width: 380px; }
+.ptab .hl a { color: var(--ink); text-decoration: none; font-weight: 600; }
+.ptab .hl a:hover { text-decoration: underline; }
+.ptab .sub { display: block; font-size: .74rem; color: var(--muted); }
+.idx { display: inline-block; padding: 0 7px; border-radius: 10px; font-weight: 700; }
+.idx.hi { background: rgba(31,122,69,.14); color: var(--good); }
+.idx.mid { background: var(--code); }
+.idx.lo { background: rgba(154,91,0,.14); color: var(--warn); }
+.pdetail > td { background: var(--paper); padding: 12px; }
+.dgrid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; }
+.dgrid h4 { margin: 0 0 4px; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.dgrid p { margin: 4px 0; font-size: .86rem; }
+.curve svg { width: 100%; height: auto; display: block; }
+.curve .legend { font-size: .74rem; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
+.curve .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+.top5 { margin: 4px 0; padding-left: 22px; font-size: .84rem; }
+.top5 li.mine { font-weight: 700; }
+.secs { margin-top: 14px; }
+.secs .b { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 64px; gap: 10px; align-items: center; font-size: .84rem; padding: 3px 0; }
+.secs .bar { height: 8px; background: var(--code); border-radius: 4px; position: relative; }
+.secs .bar i { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 4px; background: var(--accent); }
+.secs .bar b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--muted); }
+.dash .how { font-size: .76rem; color: var(--muted); margin: 10px 0 0; }
+@media (max-width: 760px) { .dgrid { grid-template-columns: minmax(0, 1fr); } .ptab .opt { display: none; } .viewas { padding: 8px 12px; } }
+@media (max-width: 760px) { .wrap { grid-template-columns: minmax(0, 1fr); } aside { border-right: 0; border-bottom: 1px solid var(--rule); } main { padding: 14px 16px 60px; } }
+</style>
+</head>
+<body>
+<div class="pv-bar">Preview of the new editor. Your articles here are the real ones: what you save or submit here is saved and submitted. <a href="/write/">Back to the current editor</a></div>
+<div class="loading" id="loading">Opening...</div>
+<div class="box" id="gate" hidden>
+  <h1 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">ZeroHedge Author Desk</h1>
+  <div id="gate-logo"></div>
+  <p class="desk-name">Author Desk</p>
+  <p class="muted" id="gate-msg">Write and submit articles for ZeroHedge. Sign in with your GitHub account.</p>
+  <p class="small" id="gate-invite" hidden>You've been invited to write for ZeroHedge. Sign in with GitHub to join. No GitHub account yet? <a href="https://github.com/signup" target="_blank" rel="noopener">Make one</a> (it's free), then come back to this page and press the button.</p>
+  <p><button class="primary" type="button" id="gh-go">Sign in with GitHub</button></p>
+  <form id="join" hidden>
+    <label for="join-name"><strong>Your name</strong>, as the editors should see it</label>
+    <input id="join-name" autocomplete="name" maxlength="80" placeholder="First and last name">
+    <button class="primary" type="submit" id="join-go">Join the author desk</button>
+  </form>
+  <p class="muted small" id="gate-foot">The first time, GitHub asks you to authorize ZH Desk. You'll only ever see your own articles here.</p>
+</div>
+
+<div id="app" hidden>
+  <div class="viewas" id="viewas" hidden></div>
+  <header>
+    <div class="brand" id="head-logo"></div>
+    <h1>Author Desk</h1>
+    <div class="right"><span class="who" id="who"></span><button type="button" id="theme" aria-pressed="false">Dark mode</button><button type="button" id="signout">Sign out</button></div>
+  </header>
+  <div class="wrap">
+    <aside>
+      <button class="primary" type="button" id="new" style="width:100%">+ New article</button>
+      <button type="button" id="pitch-new" class="pitch-btn">+ Pitch an idea</button>
+      <h2 style="margin-top:18px">My articles</h2>
+      <ul class="list" id="list"></ul>
+      <p class="muted small" id="list-empty" hidden>Nothing yet. Start a new article, or drop a Word file or HTML onto the page.</p>
+      <p class="small" style="margin-top:18px"><a href="#" id="settings-open">Email settings</a></p>
+    </aside>
+    <main>
+      <nav class="vtabs" id="vtabs" role="tablist" aria-label="Author desk">
+        <button type="button" role="tab" data-view="stats" aria-selected="false">Stats</button>
+        <button type="button" role="tab" data-view="compose" aria-selected="true">Compose</button>
+        <button type="button" role="tab" data-view="articles" aria-selected="false">My articles<span class="cnt" id="vt-n"></span></button>
+        <button type="button" role="tab" data-view="pitches" aria-selected="false">Pitches<span class="cnt" id="vt-p"></span></button>
+        <button type="button" role="tab" data-view="away" aria-selected="false">Time off<span class="cnt" id="vt-a"></span></button>
+      </nav>
+      <section id="v-stats" hidden>
+      <div class="dash" id="dash"><div class="dash-head"><span id="dash-title">Your numbers on ZeroHedge</span><span class="upd" id="dash-upd"></span></div><div class="dash-body" id="dash-body"></div></div>
+      </section>
+      <section id="v-articles" hidden><div id="tracker"></div></section>
+      <section id="v-pitches" hidden>
+        <div class="pitchbox" id="pitch-box">
+          <h3>Pitch an idea</h3>
+          <p class="muted small" style="margin:2px 0 8px">The editors read every pitch and approve it or say why not. An approved pitch can come back to you as an assignment.</p>
+          <form id="pitch-form"><div class="pf-opt" data-n="1"><div class="pf-on" hidden>Option 1</div><label for="pf-title">Headline or working title</label><input type="text" id="pf-title" maxlength="300" required>
+            <label for="pf-text">The pitch: what it is, why ZH readers will care, what's new</label><textarea id="pf-text"></textarea>
+            <label for="pf-links">Links (sources, one per line)</label><textarea id="pf-links" style="min-height:60px" placeholder="https://..."></textarea></div>
+            <div id="pf-more"></div>
+            <p class="muted small" style="margin:8px 0 0">More than one angle? <button type="button" class="small" id="pf-add">+ Add another option</button> The editors approve or pass on each one.</p>
+            <div class="pf-acts"><button type="submit" class="primary">Send the pitch</button></div></form>
+        </div>
+        <h3 class="plist-h" id="pitch-head">Your pitches</h3>
+        <ul class="plist" id="pitches"></ul>
+        <p class="muted small" id="pitches-empty">No pitches yet.</p>
+      </section>
+      <section id="v-away" hidden>
+        <div class="pitchbox awaybox" id="away-box">
+          <h3>Mark time off</h3>
+          <p class="muted small" style="margin:2px 0 12px">Going to be away? Pick the first and the last day you'll be off. The editors see it on their desk three days before you go, so they can plan around it.</p>
+          <div id="away-cal"></div>
+          <label for="away-note">Note (optional)</label><input type="text" id="away-note" maxlength="140" placeholder="Traveling, back on email Tuesday">
+          <div class="pf-acts"><button type="button" class="primary" id="away-save" disabled>Mark these days off</button></div>
+        </div>
+        <h3 class="plist-h" id="away-head">Your time off</h3>
+        <ul class="plist awaylist" id="away-list"></ul>
+        <p class="muted small" id="away-empty">Nothing marked.</p>
+      </section>
+      <section id="v-compose">
+      <input class="title" id="title" placeholder="Headline" aria-label="Headline" autocomplete="off">
+      <textarea class="deck" id="deck" rows="1" placeholder="Subheadline (optional)" aria-label="Subheadline"></textarea>
+      <div id="banner" class="banner" hidden></div>
+      <div id="restore" class="restore" hidden></div>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="write" aria-selected="true">Write</button>
+        <button type="button" role="tab" data-tab="html" aria-selected="false">HTML</button>
+        <button type="button" role="tab" data-tab="preview" aria-selected="false">Preview</button>
+      </div>
+      <div class="pane">
+        <div id="pane-write">
+          <div id="editor-wait">Loading the editor...</div>
+          <textarea id="write" aria-label="Article" hidden></textarea>
+          <input type="file" id="pic-file" accept="image/jpeg,image/png,image/gif,image/webp" multiple hidden>
+        </div>
+        <div id="pane-html" hidden><textarea id="html" spellcheck="false" aria-label="Article HTML"></textarea></div>
+        <div id="pane-preview" hidden><div id="preview"></div></div>
+      </div>
+      <div class="drop" id="drop">Drop a Word file (.docx), an HTML file or a text file here to load it, or <button type="button" id="open-file">choose a file</button>.
+        <input type="file" id="file" accept=".docx,.html,.htm,.txt,.md" hidden></div>
+      <p class="hint">Tweets and videos: paste or drop a link to an X post, YouTube, Rumble, Vimeo, TikTok, Instagram, Facebook or Spotify on its own line (or type it and press Enter) and it becomes the post or player. <strong>X post</strong>, <strong>YouTube</strong> and <strong>Embed</strong> in the toolbar work too. Type <strong>/</strong> on an empty line for the insert menu. Your draft saves itself.</p>
+      <h2 class="muted small" style="margin:18px 0 0;text-transform:uppercase;letter-spacing:.06em">Pictures</h2>
+      <p class="muted small" style="margin:4px 0">Add a caption and credit for each. Mark the one that should lead the article.<span class="lib-hint"> <button type="button" class="small" id="lib-open">Picture library</button> reuses one you uploaded before.</span></p>
+      <div class="pics" id="pics"></div>
+      <h2 class="muted small" style="margin:18px 0 4px;text-transform:uppercase;letter-spacing:.06em">Note to the editors</h2>
+      <textarea class="note" id="note" placeholder="Anything the editors should know: sources, timing, what to check."></textarea>
+      <div class="row">
+        <button type="button" id="save">Save draft</button>
+        <button type="button" class="primary" id="submit">Submit to the editors</button>
+        <button type="button" id="versions" title="Earlier saves of this article">Versions</button>
+        <span class="muted small" id="saved"></span>
+        <span class="muted small wc" id="wc"></span>
+      </div>
+      <div class="notes" id="notes" hidden>
+        <h2 class="muted small" style="text-transform:uppercase;letter-spacing:.06em">Notes</h2>
+        <div id="notes-list"></div>
+        <textarea class="note" id="reply" placeholder="Reply to the editors"></textarea>
+        <div class="row"><button type="button" id="reply-send">Send reply</button></div>
+      </div>
+      </section>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script src="tinymce/tinymce.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var CFG = {};
+  try { CFG = JSON.parse(document.getElementById('desk-signin').textContent) || {}; } catch (e) { CFG = {}; }
+  var WORKER = String(CFG.worker || '').replace(/\/?$/, '/');
+  var REDIRECT = CFG.redirect || (location.origin + '/');
+  var DARK = document.documentElement.getAttribute('data-theme') === 'dark';
+  function $(id) { return document.getElementById(id); }
+  function keep(area, k, val) {
+    try {
+      var s = window[area];
+      if (val === undefined) { return s.getItem('desk.' + k); }
+      if (val === null) { s.removeItem('desk.' + k); } else { s.setItem('desk.' + k, val); }
+    } catch (e) { return null; }
+    return null;
+  }
+  function store(k, v) { return keep('localStorage', k, v); }
+  function sess(k, v) { return keep('sessionStorage', k, v); }
+  function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  var toastT = null;
+  function toast(text, bad, ms) {
+    var t = $('toast'); t.textContent = text; t.className = 'toast' + (bad ? ' bad' : ''); t.hidden = false;
+    clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, ms || (bad ? 9000 : 4000));
+  }
+
+  // The ZeroHedge logo (zerohedge.com/images/logo/logo-mobile.svg: the mark and wordmark, no tagline), drawn in the
+  // page's ink color so it reads in light and dark. Each copy gets its own ids for the mask inside it.
+  var LOGO = '<svg class="zh-logo" role="img" aria-label="ZeroHedge" viewBox="0 0 170 40" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><defs><polygon id="zhl-p-__K__" points="30.3068515 0.0337739872 0.000121505013 0.0337739872 0.000121505013 38.4322527 30.3068515 38.4322527 30.3068515 0.0337739872"></polygon></defs><g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd"><g><g><path d="M38.85,28 L54.75,28 L55.65,23.25 L55.15,23.25 C54.4,25.775 53.4,26.95 50.7,26.95 L42.7,26.95 L54.6,11.1 L54.6,10.75 L39.975,10.75 L39.625,15.275 L40.125,15.275 C40.475,12.1 42.35,11.8 45.15,11.8 L50.725,11.8 L38.775,27.65 L38.85,28 Z M59.7394738,20.025 C59.7644738,18.45 61.0894738,16.75 62.7394738,16.75 C64.7894738,16.75 65.4394738,18.2 65.4394738,20.025 L59.7394738,20.025 Z M67.8394738,20.775 C67.8144738,18.075 66.0394738,16 63.3144738,16 C59.6644738,16 57.7894738,19.25 57.7894738,22.575 C57.7894738,25.825 59.7644738,28.25 63.1394738,28.25 C65.6394738,28.25 67.4894738,26.075 68.4644738,24 L68.0394738,23.725 C67.1894738,25.025 65.8894738,26.35 63.7144738,26.35 C60.9894738,26.35 59.6894738,23.9 59.6894738,21.1 L59.6894738,20.775 L67.8394738,20.775 Z M70.6539475,28 L76.9539475,28 L76.9539475,27.5 C75.1039475,27.5 74.8289475,27.225 74.8289475,25.25 L74.8289475,19.425 C74.8289475,19.3 75.8039475,17.7 76.7039475,17.7 C77.0039475,17.7 77.1789475,17.875 77.3789475,18.05 C77.5789475,18.225 77.8289475,18.4 78.2289475,18.4 C78.8539475,18.4 79.4289475,17.925 79.4289475,17.275 C79.4289475,16.45 78.7039475,16 77.9539475,16 C76.7289475,16 75.5539475,17.425 74.8289475,18.225 L74.8289475,16 L74.7039475,16 C73.4289475,16.45 72.0289475,16.85 70.6539475,17.2 L70.6539475,17.7 C72.4039475,17.7 72.6289475,17.925 72.6289475,19.725 L72.6289475,25.2 C72.6289475,27.05 72.5539475,27.4 70.6539475,27.5 L70.6539475,28 Z M83.6184213,21.3 C83.6184213,19.075 84.4684213,16.75 87.0184213,16.75 C90.0434213,16.75 90.8184213,20.475 90.8184213,23.15 C90.8184213,25 89.8934213,27.5 87.6684213,27.5 C84.6184213,27.5 83.6184213,23.725 83.6184213,21.3 Z M93.2184213,22.175 C93.2184213,18.4 91.0184213,16 87.1934213,16 C83.7934213,16 81.2184213,18.8 81.2184213,22.175 C81.2184213,25.625 83.6934213,28.25 87.1934213,28.25 C90.5934213,28.25 93.2184213,25.575 93.2184213,22.175 Z M95.5078951,28 L103.607895,28 L103.607895,27.5 C101.607895,27.5 100.907895,27.1 100.907895,25.05 L100.907895,19.425 L109.832895,19.425 L109.832895,25.05 C109.832895,27.1 109.132895,27.5 107.132895,27.5 L107.132895,28 L115.232895,28 L115.232895,27.5 C113.232895,27.5 112.532895,27.1 112.532895,25.05 L112.532895,13.7 C112.532895,11.65 113.232895,11.25 115.232895,11.25 L115.232895,10.75 L107.132895,10.75 L107.132895,11.25 C109.132895,11.25 109.832895,11.65 109.832895,13.7 L109.832895,18.375 L100.907895,18.375 L100.907895,13.7 C100.907895,11.65 101.607895,11.25 103.607895,11.25 L103.607895,10.75 L95.5078951,10.75 L95.5078951,11.25 C97.5078951,11.25 98.2078951,11.65 98.2078951,13.7 L98.2078951,25.05 C98.2078951,27.1 97.5078951,27.5 95.5078951,27.5 L95.5078951,28 Z M119.472369,20.025 C119.497369,18.45 120.822369,16.75 122.472369,16.75 C124.522369,16.75 125.172369,18.2 125.172369,20.025 L119.472369,20.025 Z M127.572369,20.775 C127.547369,18.075 125.772369,16 123.047369,16 C119.397369,16 117.522369,19.25 117.522369,22.575 C117.522369,25.825 119.497369,28.25 122.872369,28.25 C125.372369,28.25 127.222369,26.075 128.197369,24 L127.772369,23.725 C126.922369,25.025 125.622369,26.35 123.447369,26.35 C120.722369,26.35 119.422369,23.9 119.422369,21.1 L119.422369,20.775 L127.572369,20.775 Z M133.011843,21.7 C133.011843,19.525 133.886843,16.75 136.411843,16.75 C137.711843,16.75 138.711843,17.35 139.286843,18.6 C139.411843,18.85 139.411843,19.575 139.411843,20.175 L139.411843,25.825 C139.411843,26.2 138.261843,26.7 136.886843,26.7 C134.186843,26.7 133.011843,24.025 133.011843,21.7 Z M139.411843,17.175 C138.461843,16.375 137.661843,16 136.411843,16 C133.236843,16 130.811843,19.05 130.811843,22.475 C130.811843,27.725 134.611843,28.25 135.836843,28.25 C137.186843,28.25 138.386843,27.875 139.461843,26.525 L139.511843,26.525 L139.511843,28.25 C140.686843,27.825 141.911843,27.475 143.136843,27.2 L143.136843,26.7 C141.711843,26.7 141.611843,26.35 141.611843,24.9 L141.611843,10.125 C140.436843,10.375 139.036843,10.925 137.711843,11.2 L137.711843,11.7 L137.986843,11.7 C138.686843,11.7 139.411843,11.85 139.411843,12.675 L139.411843,17.175 Z M146.726316,30.5 C146.726316,29.65 147.626316,28.525 147.976316,28.4 C154.801316,28.4 155.401316,28.75 155.376316,30 C155.376316,31.8 152.701316,32.6 151.351316,32.6 C149.951316,32.6 146.726316,32.525 146.726316,30.5 Z M150.276316,16.75 C152.151316,16.75 152.726316,19.6 152.726316,21.025 C152.726316,22.2 152.276316,23.725 150.826316,23.725 C148.901316,23.725 148.351316,20.875 148.351316,19.4 C148.351316,16.9 149.801316,16.75 150.276316,16.75 Z M156.351316,16.925 L153.351316,16.925 C153.176316,16.875 152.701316,16 150.501316,16 C148.251316,16 146.151316,18 146.151316,20.275 C146.151316,22.025 146.751316,23.125 148.226316,24.075 C147.576316,24.625 146.326316,25.825 146.326316,26.75 C146.326316,27.375 146.701316,27.95 147.251316,28.2 C146.526316,28.9 145.276316,30.25 145.276316,31.325 C145.276316,33.3 147.751316,33.85 149.301316,33.85 C152.126316,33.85 156.501316,32.475 156.501316,29.125 C156.501316,26.5 153.026316,26.775 151.201316,26.7 C148.651316,26.6 148.076316,26.4 148.076316,25.45 C148.076316,24.775 148.626316,24.4 148.926316,24.4 C149.026316,24.4 149.326316,24.475 150.376316,24.475 C153.001316,24.475 154.926316,22.75 154.926316,20.125 C154.926316,19.35 154.651316,18.6 154.326316,17.85 L156.351316,17.85 L156.351316,16.925 Z M160.74079,20.025 C160.76579,18.45 162.09079,16.75 163.74079,16.75 C165.79079,16.75 166.44079,18.2 166.44079,20.025 L160.74079,20.025 Z M168.84079,20.775 C168.81579,18.075 167.04079,16 164.31579,16 C160.66579,16 158.79079,19.25 158.79079,22.575 C158.79079,25.825 160.76579,28.25 164.14079,28.25 C166.64079,28.25 168.49079,26.075 169.46579,24 L169.04079,23.725 C168.19079,25.025 166.89079,26.35 164.71579,26.35 C161.99079,26.35 160.69079,23.9 160.69079,21.1 L160.69079,20.775 L168.84079,20.775 Z" fill="currentColor"></path><g><path d="M21.7782035,30.0901769 C21.7724475,28.9063404 21.6463919,21.6717194 19.2116196,21.5476874 C18.9537525,21.5354589 15.3603049,21.5342942 14.8405414,21.5342942 C14.500364,21.5342942 11.5107169,21.5342942 11.2914148,21.5406997 C8.87275916,21.62397 9.05119401,29.5078668 9.05119401,29.5078668 C9.05119401,29.5078668 8.81807752,29.4944736 8.62467717,29.5078668 C8.58380983,29.3168691 7.45103634,24.8651082 7.10970775,20.8675492 C6.83975309,17.7003644 7.26742113,14.222226 7.65364623,11.5861081 C7.71005467,11.5872727 7.9529563,11.5948427 8.01799868,11.597172 C8.19988711,14.5529782 9.28258372,18.7467757 10.2921796,18.890024 C10.7900704,18.9581543 11.2580302,19.0035744 11.687425,19.0216261 C11.9119075,19.0321076 14.2989053,19.0321076 14.7858598,19.0321076 C15.1047401,19.0321076 19.1454261,19.030943 19.434951,19.0117268 C21.2572888,18.8964294 21.7166147,11.9215187 21.7166147,11.9215187 C21.7166147,11.9215187 21.907137,11.9226833 22.0999618,11.9203541 C22.4412904,13.5013261 23.183234,17.0225554 23.2586371,20.602598 C23.3397962,24.5186336 22.5541072,28.4434039 22.1770917,30.0901769 L21.7782035,30.0901769 Z" fill="currentColor"></path><g transform="translate(0.000000, 0.548769)"><mask id="zhl-m-__K__" fill="white"><use xlink:href="#zhl-p-__K__"></use></mask><g></g><path d="M20.3178581,34.4159841 C18.8333953,35.9899684 15.8673477,37.0806352 13.1482308,35.8909757 C9.74472998,34.4037556 7.95577672,30.3147739 6.99510653,26.1110771 C6.85005626,25.4763591 6.72400068,24.8410587 6.61348619,24.2098346 C5.94924808,20.4050202 5.84794313,16.1337755 6.45231923,12.3574943 C6.9835946,9.03192118 8.06283763,6.09067274 9.78502172,4.18593633 C10.6046708,3.28044408 11.8416272,2.34467172 13.5914399,2.13212852 C17.1860387,1.69539593 19.3825142,3.68107345 20.7610673,5.85425483 C21.8167108,7.51733255 22.6628374,9.80173517 23.2499456,12.3790398 C24.2215521,16.6438791 24.4748145,21.7146357 23.772587,26.1110771 C23.2309509,29.5082744 22.1165965,32.5065892 20.3178581,34.4159841 M26.6609292,5.27776781 C24.2664486,2.00227336 20.0910732,-0.322308654 14.7345742,0.0783207117 C12.1323034,0.273394603 10.0549764,1.16083523 8.32703633,2.32429086 C3.36021599,5.66558635 0.261205594,11.821769 0.0160015767,19.717312 C-0.164735657,25.5200324 1.2057591,29.9589824 3.69521303,33.1966267 C6.15300916,36.392927 10.210963,38.7687523 15.624446,38.3931623 C20.1952561,38.0781325 23.8197859,35.2189898 26.1538289,31.8479965 C28.5350707,28.4100375 30.0195335,24.3198912 30.2774006,18.8188074 C30.5352678,13.3229645 29.080736,8.58645394 26.6609292,5.27776781" fill="currentColor" mask="url(#zhl-m-__K__)"></path></g></g></g></g></g></svg>';
+  ['gate-logo', 'head-logo'].forEach(function (id, k) { $(id).innerHTML = LOGO.split('__K__').join(String(k)); });
+
+  // An invite link (?invite=CODE) is kept through the GitHub sign-in, which leaves this page and comes back.
+  (function () {
+    var inv = new URLSearchParams(location.search).get('invite');
+    if (inv) { store('invite', inv.trim()); history.replaceState(null, '', location.pathname); }
+  })();
+
+  // ---------- sign-in (GitHub, through the desk's sign-in helper; the desk loader at / finishes it and sends people back)
+  function b64url(bytes) { var s = ''; for (var i = 0; i < bytes.length; i++) { s += String.fromCharCode(bytes[i]); } return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function random() { var a = new Uint8Array(32); crypto.getRandomValues(a); return b64url(a); }
+  function startGitHub() {
+    var state = random(), verifier = random();
+    sess('state', state); sess('verifier', verifier); sess('v', null); sess('after', location.pathname);
+    $('gh-go').disabled = true;
+    crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)).then(function (h) {
+      var p = new URLSearchParams({ client_id: CFG.clientId, redirect_uri: REDIRECT, state: state, code_challenge: b64url(new Uint8Array(h)), code_challenge_method: 'S256' });
+      location.assign('https://github.com/login/oauth/authorize?' + p.toString());
+    }).catch(function (e) { $('gh-go').disabled = false; gate('Couldn\'t start the GitHub sign-in: ' + e.message); });
+  }
+  function gate(msg, noButton) {
+    $('app').hidden = true; $('gate').hidden = false; $('join').hidden = true; $('loading').hidden = true;
+    if (msg) { $('gate-msg').textContent = msg; }
+    $('gh-go').hidden = !!noButton;
+    $('gate-invite').hidden = !store('invite') || !!store('token');
+  }
+  function renew() {
+    var rt = store('refresh');
+    if (!rt) { return Promise.reject(new Error('signed out')); }
+    return fetch(WORKER, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) })
+      .then(function (r) { return r.json(); }).then(function (t) {
+        if (!t.access_token) { throw new Error('signed out'); }
+        store('token', t.access_token); store('refresh', t.refresh_token || null);
+        store('expires', t.expires_in ? String(Date.now() + t.expires_in * 1000) : null); store('auth', 'github');
+        return t.access_token;
+      });
+  }
+  // View as (Oct. 20): an editor opens /write/?as=LOGIN to see a contributor's desk exactly as they do, read-only; the
+  // desk's Contributors view shows it with &embed=1 (no header).
+  var QS = new URLSearchParams(location.search), AS = (QS.get('as') || '').trim(), EMBED = QS.get('embed') === '1';
+  if (EMBED) { document.documentElement.classList.add('embed'); }
+  // One article on its own (Oct. 20): the contributor dashboard opens a piece from its board with &solo=1&open=ID: just
+  // that article, compose and preview, no list, tabs or numbers.
+  var OPEN = (QS.get('open') || '').trim(), SOLO = QS.get('solo') === '1' && !!OPEN, COEDIT = QS.get('coedit') === '1';
+  if (SOLO) { document.documentElement.classList.add('solo'); }
+  function call(route, body, retried) {
+    var payload = Object.assign({ github_token: store('token') || '' }, AS ? { as: AS } : {}, AS && S.coedit ? { coedit: true } : {}, body || {});
+    return fetch(WORKER + 'author/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), cache: 'no-store' })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (r.status === 401 && !retried) { return renew().then(function () { return call(route, body, true); }); }
+          if (!r.ok) { var e = new Error(j.error_description || j.error || ('the helper said ' + r.status)); e.code = j.error; e.status = r.status; e.login = j.login || ''; throw e; }
+          return j;
+        });
+      });
+  }
+
+  // ---------- state
+  var S = { me: null, list: [], cur: null, dirty: false, tab: 'write', pics: [], blobs: {}, names: {}, files: {}, busy: false, loading: false };
+  // The picture of this article that has exactly these bytes, if any (its name), so a reread isn't a new upload.
+  function sameAsOurs(b) {
+    var cands = S.pics.map(function (p) { return p.name; }).filter(function (nm) { var f = S.files[nm]; return f && f.size === b.size; });
+    if (!cands.length || !b.arrayBuffer) { return Promise.resolve(null); }
+    return b.arrayBuffer().then(function (want) {
+      var w = new Uint8Array(want);
+      return cands.reduce(function (pr, nm) {
+        return pr.then(function (hit) {
+          if (hit) { return hit; }
+          return S.files[nm].arrayBuffer().then(function (have) { var h = new Uint8Array(have); for (var i = 0; i < w.length; i++) { if (h[i] !== w[i]) { return null; } } return nm; });
+        });
+      }, Promise.resolve(null));
+    }).catch(function () { return null; });
+  }
+  var ED = null;           // the TinyMCE editor, once it's up
+  function editable() { return (!S.viewing || S.coedit) && (!S.cur || S.cur.editable !== false); }
+
+  // ---------- embeds: tweets, YouTube and other players
+  // In the editor each embed is one locked block (class zh-embed) that shows the real post or player and carries the
+  // embed code exactly as given (data-zh, base64). Saving puts that code back; the editor never rewrites it.
+  var LOADERS = /^https:\/\/(platform\.(twitter|x)\.com\/widgets\.js|www\.instagram\.com\/embed\.js|www\.tiktok\.com\/embed\.js)/i;
+  var X_SCRIPT = '<script async src="https://platform.x.com/widgets.js" charset="utf-8"><\/script>';
+  var IG_SCRIPT = '<script async src="https://www.instagram.com/embed.js"><\/script>', TT_SCRIPT = '<script async src="https://www.tiktok.com/embed.js"><\/script>';
+  function enc(t) { var b = new TextEncoder().encode(t), s = ''; for (var i = 0; i < b.length; i++) { s += String.fromCharCode(b[i]); } return btoa(s); }
+  function dec(t) { var s = atob(t), b = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) { b[i] = s.charCodeAt(i); } return new TextDecoder().decode(b); }
+  function kindOf(el) {
+    if (el.tagName === 'BLOCKQUOTE') {
+      if (el.classList.contains('twitter-tweet') || el.classList.contains('twitter-video')) { return 'X post'; }
+      if (el.classList.contains('instagram-media')) { return 'Instagram post'; }
+      if (el.classList.contains('tiktok-embed')) { return 'TikTok'; }
+      return '';
+    }
+    if (el.tagName === 'IFRAME') {
+      var src = el.getAttribute('src') || '';
+      if (/youtube(-nocookie)?\.com\/embed\//i.test(src)) { return 'YouTube video'; }
+      if (/rumble\.com/i.test(src)) { return 'Rumble video'; }
+      if (/odysee\.com/i.test(src)) { return 'Odysee video'; }
+      if (/facebook\.com/i.test(src)) { return 'Facebook post'; }
+      if (/instagram\.com/i.test(src)) { return 'Instagram post'; }
+      if (/vimeo\.com/i.test(src)) { return 'Vimeo video'; }
+      if (/spotify\.com/i.test(src)) { return 'Spotify'; }
+      if (/platform\.(twitter|x)\.com|twitter\.com\/i\/videos/i.test(src)) { return 'X video'; }
+      return 'Embedded player';
+    }
+    if (el.tagName === 'SCRIPT') { return 'Script'; }
+    return '';
+  }
+  function isEmbed(el) { return el && el.nodeType === 1 && !!kindOf(el); }
+  // A link that becomes an embed (Oct. 29 preview): each site's own embed code for a link to one of its posts or videos.
+  // An X link starts link-only and is swapped for X's full native embed once the helper has it (enrich, below).
+  var RUMBLE_PAGE = /^https?:\/\/(?:www\.)?rumble\.com\/v[a-z0-9]+-[^\s?#]+\.html(?:[?#]\S*)?$/i;   // needs Rumble's own embed service
+  function ytSecs(rest) {
+    var m = /[?&#](?:t|start)=([0-9hms]+)/i.exec(rest || ''), t = 0;
+    if (!m) { return 0; }
+    if (/^\d+$/.test(m[1])) { return +m[1]; }
+    m[1].replace(/(\d+)([hms])/gi, function (_, n, u) { t += +n * (/h/i.test(u) ? 3600 : /m/i.test(u) ? 60 : 1); });
+    return t;
+  }
+  var FB_ALLOW = ' style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"';
+  function linkEmbed(t) {
+    var m = /^https?:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/([A-Za-z0-9_]{1,15})\/status(?:es)?\/(\d{5,25})(?:[/?#]\S*)?$/i.exec(t);
+    if (m) { return '<blockquote class="twitter-tweet"><a href="https://x.com/' + m[1] + '/status/' + m[2] + '?ref_src=twsrc%5Etfw"></a></blockquote>'; }
+    if ((m = /^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:\S*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})(\S*)$/i.exec(t))) {
+      var sec = ytSecs(m[2]);
+      return '<iframe width="560" height="315" src="https://www.youtube.com/embed/' + m[1] + (sec ? '?start=' + sec : '') + '" title="YouTube video player" frameborder="0" allowfullscreen></iframe>';
+    }
+    if ((m = /^https?:\/\/(?:www\.)?rumble\.com\/embed\/(v[a-z0-9]+)\/?(?:\?\S*)?$/i.exec(t))) { return '<iframe class="rumble" width="640" height="360" src="https://rumble.com/embed/' + m[1] + '/" frameborder="0" allowfullscreen></iframe>'; }
+    if ((m = /^https?:\/\/(?:www\.)?vimeo\.com\/(\d{5,12})(?:\/([0-9a-f]{6,20}))?\/?(?:[?#]\S*)?$/i.exec(t))) {
+      return '<iframe src="https://player.vimeo.com/video/' + m[1] + (m[2] ? '?h=' + m[2] : '') + '" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>';
+    }
+    if ((m = /^https?:\/\/(?:www\.)?tiktok\.com\/@([\w.-]{1,40})\/video\/(\d{8,25})(?:[/?#]\S*)?$/i.exec(t))) {
+      return '<blockquote class="tiktok-embed" cite="https://www.tiktok.com/@' + m[1] + '/video/' + m[2] + '" data-video-id="' + m[2] + '" style="max-width: 605px;min-width: 325px;"><section></section></blockquote>';
+    }
+    if ((m = /^https?:\/\/(?:www\.)?instagram\.com\/(?:[\w.]{1,30}\/)?(p|reel|tv)\/([\w-]{5,40})\/?(?:[?#]\S*)?$/i.exec(t))) {
+      return '<blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/' + m[1] + '/' + m[2] + '/" data-instgrm-version="14"></blockquote>';
+    }
+    if ((m = /^https?:\/\/open\.spotify\.com\/(?:intl-[a-z-]{2,8}\/)?(track|album|playlist|episode|show|artist)\/([A-Za-z0-9]{10,30})(?:[?#]\S*)?$/i.exec(t))) {
+      return '<iframe src="https://open.spotify.com/embed/' + m[1] + '/' + m[2] + '" width="100%" height="' + (/^(track|episode)$/i.test(m[1]) ? 152 : 352) + '" frameborder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>';
+    }
+    if ((m = /^https?:\/\/odysee\.com\/(@[^\s/?#]+\/[^\s/?#]+)(?:[?#]\S*)?$/i.exec(t))) { return '<iframe width="560" height="315" src="https://odysee.com/$/embed/' + m[1] + '" allowfullscreen></iframe>'; }
+    if (/^https?:\/\/(?:www\.|m\.|web\.)?facebook\.com\/\S+$/i.test(t) || /^https?:\/\/fb\.watch\/\S+$/i.test(t)) {
+      var video = /\/videos?\/|\/watch\/?\?|\/reel\/|fb\.watch/i.test(t);
+      if (!video && !/\/(posts|permalink\.php|story\.php|photo)/i.test(t)) { return null; }   // a page or a profile, not a post
+      var href = encodeURIComponent(t.replace(/^https?:\/\/(?:m\.|web\.)?facebook\.com/i, 'https://www.facebook.com'));
+      return video ? '<iframe src="https://www.facebook.com/plugins/video.php?href=' + href + '&show_text=false&width=560" width="560" height="314"' + FB_ALLOW + '></iframe>'
+        : '<iframe src="https://www.facebook.com/plugins/post.php?href=' + href + '&show_text=true&width=500" width="500" height="600"' + FB_ALLOW + '></iframe>';
+    }
+    return null;
+  }
+  // Turn a link or a piece of embed code into embed HTML, or null if it isn't one.
+  function embedFrom(text) {
+    var t = String(text || '').trim();
+    if (!t) { return null; }
+    var lk = linkEmbed(t);
+    if (lk) { return lk; }
+    if (!/^</.test(t)) { return null; }
+    var d = document.createElement('div'); d.innerHTML = t;
+    var els = Array.prototype.filter.call(d.childNodes, function (c) { return c.nodeType === 1; });
+    if (!els.length || !els.every(function (e) { return isEmbed(e) || e.tagName === 'SCRIPT'; }) || !els.some(isEmbed)) { return null; }
+    for (var i = 0; i < els.length; i++) {
+      var e = els[i];
+      if (e.tagName === 'IFRAME' && !/^https:\/\//i.test(e.getAttribute('src') || '')) { return null; }
+      if (e.tagName === 'SCRIPT' && !LOADERS.test(e.getAttribute('src') || '')) { return null; }
+    }
+    return els.filter(function (e) { return e.tagName !== 'SCRIPT'; }).map(function (e) { return e.outerHTML; }).join('\n');
+  }
+  function wrapEmbed(html, kind) {
+    return '<div class="zh-embed" contenteditable="false" data-kind="' + esc(kind) + '" data-zh="' + enc(html) + '">' + html + '</div>';
+  }
+  // ZeroHedge's own HTML (Oct. 20): its article bodies give pictures their address in data-src, often with no src, and
+  // the CMS can write ZH's picture paths without the host (/s3fs-public/... is assets.zerohedge.com, /s3/files/... is
+  // cms.zerohedge.com). Give each picture an address the editor and Preview can show, and that's kept when saved.
+  function zhImg(im) {
+    var src = im.getAttribute('src') || im.getAttribute('data-src') || '';
+    if (/^\/s3fs-public\//.test(src)) { src = 'https://assets.zerohedge.com' + src; } else if (/^\/s3\/files\//.test(src)) { src = 'https://cms.zerohedge.com' + src; }
+    if (src && src !== im.getAttribute('src')) { im.setAttribute('src', src); }
+    im.removeAttribute('data-src');
+  }
+  // Stored HTML (what's saved and what the desk gets) -> what the editor shows.
+  function toEditor(html) {
+    var d = document.createElement('div'); d.innerHTML = html || '';
+    d.querySelectorAll('img').forEach(function (im) {
+      zhImg(im);
+      var m = /^img\/([\w.-]+)$/.exec(im.getAttribute('src') || '');
+      if (m) { im.setAttribute('data-name', m[1]); im.setAttribute('src', blobFor(m[1]) || 'data:image/gif;base64,R0lGODlhAQABAAAAACw='); }
+    });
+    d.querySelectorAll('script').forEach(function (s) {
+      if (LOADERS.test(s.getAttribute('src') || '')) { s.remove(); return; }      // X's and the others' loaders: added back on save
+      var t = document.createElement('template'); t.innerHTML = wrapEmbed(s.outerHTML, 'Script (kept as is)'); s.replaceWith(t.content);
+    });
+    d.querySelectorAll('blockquote, iframe').forEach(function (el) {
+      if (!d.contains(el) || el.closest('.zh-embed')) { return; }
+      var k = kindOf(el); if (!k) { return; }
+      var host = el.parentNode && el.parentNode !== d && el.parentNode.tagName === 'P' && el.parentNode.childNodes.length === 1 ? el.parentNode : el;
+      var t = document.createElement('template'); t.innerHTML = wrapEmbed(el.outerHTML, k); host.replaceWith(t.content);
+    });
+    return d.innerHTML;
+  }
+  // What the editor holds -> stored HTML: pictures back to img/NAME, embeds back to their code, X's script once at the end.
+  function toStored(html) {
+    var d = document.createElement('div'); d.innerHTML = html || '';
+    d.querySelectorAll('img').forEach(function (im) {
+      var name = im.getAttribute('data-name') || S.names[im.getAttribute('src') || ''];
+      if (name) { im.setAttribute('src', 'img/' + name); }
+      im.removeAttribute('data-name'); im.removeAttribute('data-mce-src');
+    });
+    d.querySelectorAll('.zh-embed[data-zh]').forEach(function (el) { var t = document.createElement('template'); t.innerHTML = dec(el.getAttribute('data-zh')); el.replaceWith(t.content); });
+    d.querySelectorAll('[data-zh-cap]').forEach(function (el) { el.removeAttribute('data-zh-cap'); });
+    d.querySelectorAll('b, i').forEach(function (x) { var y = document.createElement(x.tagName === 'B' ? 'strong' : 'em'); y.innerHTML = x.innerHTML; x.replaceWith(y); });
+    d.querySelectorAll('script').forEach(function (s) { if (LOADERS.test(s.getAttribute('src') || '')) { s.remove(); } });
+    var out = d.innerHTML.replace(/ /g, ' ').replace(/&nbsp;/g, ' ').replace(/<p>\s*(<br>)?\s*<\/p>/g, '').replace(/\n{3,}/g, '\n\n').replace(/ allowfullscreen="(allowfullscreen)?"/g, ' allowfullscreen').trim();
+    out = out.replace(/ data-zh-drawn="1"/g, '');
+    if (/class="twitter-(tweet|video)"/.test(out)) { out += '\n' + X_SCRIPT; }
+    if (/class="instagram-media"/.test(out)) { out += '\n' + IG_SCRIPT; }   // their posts need their scripts in the CMS too
+    if (/class="tiktok-embed"/.test(out)) { out += '\n' + TT_SCRIPT; }
+    return out;
+  }
+  function blobFor(name) { return S.blobs[name] || ''; }
+  // Show the real posts: X's and Instagram's scripts turn their blockquotes into the posts.
+  function renderEmbeds(doc, win) {
+    if (!doc || !win) { return; }
+    var need = [['twitter-tweet', 'https://platform.x.com/widgets.js', function () { if (win.twttr && win.twttr.widgets) { win.twttr.widgets.load(doc.body); } }],
+                ['twitter-video', 'https://platform.x.com/widgets.js', function () { if (win.twttr && win.twttr.widgets) { win.twttr.widgets.load(doc.body); } }],
+                ['instagram-media', 'https://www.instagram.com/embed.js', function () { if (win.instgrm) { win.instgrm.Embeds.process(); } }],
+                ['tiktok-embed', 'https://www.tiktok.com/embed.js', null]];   // TikTok's script draws on load only, so it loads again for a new post
+    need.forEach(function (n) {
+      if (!doc.querySelector('blockquote.' + n[0])) { return; }
+      var have = doc.querySelector('script[data-zh-loader="' + n[1] + '"]');
+      if (have && n[2]) { n[2](); return; }
+      if (!n[2]) {
+        if (have && !doc.querySelector('blockquote.' + n[0] + ':not([data-zh-drawn])')) { return; }
+        if (have) { have.remove(); }
+        doc.querySelectorAll('blockquote.' + n[0]).forEach(function (b) { b.setAttribute('data-zh-drawn', '1'); });
+      }
+      var s = doc.createElement('script'); s.async = true; s.src = n[1]; s.setAttribute('data-zh-loader', n[1]); s.onload = n[2];
+      (doc.head || doc.body).appendChild(s);
+    });
+  }
+
+  // ---------- the editor (TinyMCE, set up like the ZH CMS)
+  var EMBED_CSS = '.zh-embed { position: relative; margin: 1em 0; padding: 26px 8px 8px; border: 1px dashed #9aa4b2; border-radius: 6px; cursor: default; max-width: 100%; overflow: hidden; }' +
+    '.zh-embed::before { content: attr(data-kind); position: absolute; top: 4px; left: 8px; font: 600 11px/1.4 system-ui, sans-serif; color: #6b7480; text-transform: uppercase; letter-spacing: .05em; }' +
+    '.zh-embed[data-mce-selected] { outline: 2px solid #b4520f; }' +
+    '.zh-embed iframe { max-width: 100%; } .zh-embed blockquote { margin: 0; }' +
+    'body { font: 17px/1.6 Georgia, "Times New Roman", serif; max-width: 760px; margin: 12px auto; padding: 0 16px; } img { max-width: 100%; height: auto; }' +
+    'blockquote { border-left: 3px solid #c9d0da; margin: 1em 0; padding: 0 0 0 14px; color: #5d6673; }' +
+    'p[data-zh-cap]::after { content: attr(data-zh-cap); display: block; margin-top: 4px; font: 13px/1.4 system-ui, sans-serif; color: #6b7480; }' +
+    'p[data-zh-cap^="No caption"]::after { color: #b4520f; }';
+  var editorReady = null;
+  function initEditor() {
+    if (editorReady) { return editorReady; }
+    editorReady = new Promise(function (ok, bad) {
+      if (!window.tinymce) { bad(new Error('the editor didn\'t load')); return; }
+      $('write').hidden = false;
+      window.tinymce.init({
+        selector: '#write', license_key: 'gpl', base_url: new URL('tinymce', location.href.replace(/[?#].*$/, '').replace(/[^/]*$/, '')).href.replace(/\/$/, ''), suffix: '.min',
+        plugins: 'lists advlist link autolink table charmap fullscreen wordcount searchreplace',
+        menubar: false, toolbar_mode: 'wrap', branding: false, promotion: false, elementpath: false, height: 620, resize: true,
+        toolbar: 'blocks | bold italic underline strikethrough superscript subscript removeformat | link unlink | outdent indent | bullist numlist | blockquote zhpicture zhlibrary zhyoutube zhtweet zhembed table hr | zhsource charmap searchreplace fullscreen | alignleft aligncenter alignright alignjustify | undo redo',
+        block_formats: 'Paragraph=p; Subhead=h2; Small subhead=h3; Heading 4=h4',
+        formats: { underline: { inline: 'u' }, strikethrough: { inline: 's' } },
+        skin: DARK ? 'oxide-dark' : 'oxide', content_css: DARK ? 'dark' : 'default', content_style: EMBED_CSS,
+        convert_urls: false, relative_urls: false, remove_script_host: false, entity_encoding: 'raw',
+        sandbox_iframes: false, convert_unsafe_embeds: false, noneditable_class: 'zh-embed',
+        extended_valid_elements: 'div[class|contenteditable|data-kind|data-zh],img[src|alt|title|width|height|data-name],iframe[*],blockquote[*],p[*]',
+        invalid_elements: 'script,style,font,center,object,embed',
+        link_default_target: '', link_assume_external_targets: 'https', target_list: false, link_title: false,
+        link_context_toolbar: true, link_quicklink: true,   // click a link: Open, Edit, Remove; Ctrl+K edits in place
+        // Typing shortcuts at the start of a line, then a space: # or ## a subhead, ### a small one, - or * a list, 1. a
+        // numbered list, > a quote, --- a rule; **bold** and *italic* as you type. No H1 (the headline is the H1).
+        text_patterns: [
+          { start: '*', end: '*', format: 'italic' }, { start: '**', end: '**', format: 'bold' },
+          { start: '#', format: 'h2', trigger: 'space' }, { start: '##', format: 'h2', trigger: 'space' }, { start: '###', format: 'h3', trigger: 'space' }, { start: '####', format: 'h4', trigger: 'space' },
+          { start: '1.', cmd: 'InsertOrderedList', trigger: 'space' }, { start: '*', cmd: 'InsertUnorderedList', trigger: 'space' }, { start: '-', cmd: 'InsertUnorderedList', trigger: 'space' },
+          { start: '>', cmd: 'mceBlockQuote', trigger: 'space' }, { start: '---', cmd: 'InsertHorizontalRule', trigger: 'space' },
+        ],
+        paste_data_images: true, automatic_uploads: true,
+        images_upload_handler: function (blobInfo) {
+          // A picture this page already uploaded (from a Word file, the toolbar, or reopening) keeps its file.
+          var mine = ED && Array.prototype.filter.call(ED.getBody().querySelectorAll('img[data-name]'), function (im) { return im.getAttribute('src') === blobInfo.blobUri(); })[0];
+          if (mine) { return Promise.resolve(S.blobs[mine.getAttribute('data-name')] || blobInfo.blobUri()); }
+          var fresh = blobInfo.blob();
+          return sameAsOurs(fresh).then(function (had) { return had || uploadPic(fresh, blobInfo.filename()); }).then(function (nm) { return S.blobs[nm]; });
+        },
+        paste_preprocess: function (ed, args) { args.content = cleanPaste(args.content); },
+        setup: function (ed) {
+          ed.ui.registry.addButton('zhpicture', { icon: 'image', tooltip: 'Insert a picture', onAction: function () { $('pic-file').click(); } });
+          ed.ui.registry.addButton('zhlibrary', { icon: 'gallery', text: 'Library', tooltip: 'Reuse a picture you uploaded before', onAction: function () { openLibrary(); } });
+          ed.ui.registry.addButton('zhyoutube', { text: 'YouTube', tooltip: 'Embed a YouTube video', onAction: function () { embedDialog('youtube'); } });
+          ed.ui.registry.addButton('zhtweet', { text: 'X post', tooltip: 'Embed an X post', onAction: function () { embedDialog('x'); } });
+          ed.ui.registry.addButton('zhembed', { icon: 'embed', tooltip: 'Paste embed code (Rumble, Instagram, any player)', onAction: function () { embedDialog('code'); } });
+          ed.ui.registry.addButton('zhsource', { icon: 'sourcecode', text: 'Source', tooltip: 'Edit the HTML', onAction: function () { setTab('html'); } });
+          ed.addShortcut('meta+s', 'Save draft', function () { save(false).catch(function () {}); });
+          ed.on('init', function () { ED = ed; $('editor-wait').hidden = true; ok(ed); });
+          // Never save the captions the editor shows under pictures.
+          ed.on('PreInit', function () { ed.serializer.addAttributeFilter('data-zh-cap,data-zh-drawn', function (nodes, name) { nodes.forEach(function (n) { n.attr(name, null); }); }); });
+          ed.on('SetContent', function () { setTimeout(showCaps, 0); });
+          ed.on('input ExecCommand SetContent Undo Redo', wordCount);
+          // The insert menu: / on an empty line.
+          ed.ui.registry.addAutocompleter('zhslash', {
+            trigger: '/', minChars: 0, columns: 1,
+            fetch: function (pattern) {
+              var blk = ed.dom.getParent(ed.selection.getNode(), 'p'), q = String(pattern || '').toLowerCase();
+              if (!blk || blk.textContent.replace(/\u00a0|\u200b/g, ' ').trim() !== '/' + pattern) { return Promise.resolve([]); }
+              return Promise.resolve(SLASH.filter(function (it) { return !q || it.text.toLowerCase().indexOf(q) >= 0 || it.value.indexOf(q) === 0; })
+                .map(function (it) { return { type: 'autocompleteitem', value: it.value, text: it.text, icon: it.icon }; }));
+            },
+            onAction: function (api, rng, value) { ed.selection.setRng(rng); ed.insertContent(''); api.hide(); slashDo(value); },
+          });
+          // A picture's caption, credit, alt text and lead: click the picture.
+          ed.ui.registry.addButton('zhpicinfo', { icon: 'edit-image', text: 'Caption and credit', tooltip: 'Caption, credit, alt text, lead picture', onAction: function () { picDialog(ed.selection.getNode()); } });
+          ed.ui.registry.addContextToolbar('zhimg', { predicate: function (n) { return n.nodeName === 'IMG' && !ed.dom.getParent(n, '.zh-embed'); }, items: 'zhpicinfo', position: 'node', scope: 'node' });
+          // Enter after a link alone on its line embeds it.
+          ed.on('keydown', function (ev) {
+            if (ev.key !== 'Enter' || ev.shiftKey || !editable()) { return; }
+            var blk = ed.dom.getParent(ed.selection.getNode(), 'p');
+            if (!blk || ed.dom.getParent(blk, 'li,td,th,blockquote') || blk.querySelector('img,iframe,.zh-embed')) { return; }
+            var t = blk.textContent.replace(/\u00a0|\u200b/g, ' ').trim();
+            if (!/^https?:\/\/\S+$/.test(t)) { return; }
+            var html = linkEmbed(t);
+            if (!html && !RUMBLE_PAGE.test(t)) { return; }
+            ev.preventDefault();
+            ed.undoManager.transact(function () { blk.innerHTML = '<br data-mce-bogus="1">'; });
+            ed.selection.setCursorLocation(blk, 0);
+            if (html) { insertEmbed(html); } else { embedLater(t); }
+          });
+          // A link dragged in from another tab embeds where it's dropped.
+          ed.on('drop', function (ev) {
+            var dt = ev.dataTransfer;
+            if (!dt || !editable() || (dt.files && dt.files.length) || Array.prototype.indexOf.call(dt.types || [], 'x-tinymce/html') >= 0) { return; }
+            var t = String(dt.getData('text/uri-list') || dt.getData('text/plain') || '').split(/\r?\n/).filter(function (l) { return l && l.charAt(0) !== '#'; })[0] || '';
+            t = t.trim();
+            if (!/^https?:\/\/\S+$/.test(t)) { return; }
+            var html = linkEmbed(t);
+            if (!html && !RUMBLE_PAGE.test(t)) { return; }
+            ev.preventDefault();
+            var doc = ed.getDoc(), rng = doc.caretRangeFromPoint ? doc.caretRangeFromPoint(ev.clientX, ev.clientY) : null;
+            if (rng) { ed.selection.setRng(rng); }
+            var blk = ed.dom.getParent(ed.selection.getNode(), 'p,h2,h3,h4,li,blockquote');
+            if (blk && blk.textContent.trim()) { var np = ed.dom.create('p', {}, '<br>'); ed.dom.insertAfter(np, ed.dom.getParent(blk, 'ul,ol,blockquote') || blk); ed.selection.setCursorLocation(np, 0); }
+            if (html) { insertEmbed(html); } else { embedLater(t); }
+          });
+          ed.on('SetContent', function () { setTimeout(function () { renderEmbeds(ed.getDoc(), ed.getWin()); }, 0); });
+          ed.on('input Undo Redo', function () { if (!S.loading) { markDirty(); } });
+          // Only a real change counts: X's script drawing a post, or the editor waking up, changes the editor's own
+          // copy but not the article (Oct. 20: closing a piece asked about unsaved changes nobody had made).
+          ed.on('ExecCommand', function () { if (!S.loading && realChange()) { markDirty(); } });
+          ed.on('NodeChange', function () { if (!S.loading && ed.isDirty()) { ed.setDirty(false); if (realChange()) { markDirty(); } } });
+          // A link or embed code pasted on its own becomes the embed.
+          ed.on('paste', function (ev) {
+            var dt = ev.clipboardData; if (!dt) { return; }
+            var text = String(dt.getData('text/plain') || '').trim(), isCode = /^</.test(text);
+            if (!text || (!isCode && !onEmptyLine())) { return; }   // in a sentence, or over selected words: a link, not an embed
+            var html = embedFrom(text);
+            if (html) { ev.preventDefault(); insertEmbed(html); return; }
+            if (!isCode && RUMBLE_PAGE.test(text)) { ev.preventDefault(); embedLater(text); }
+          });
+        },
+      }).catch(bad);
+    });
+    return editorReady;
+  }
+  function insertEmbed(html) {
+    if (!ED) { return; }
+    var d = document.createElement('div'); d.innerHTML = html;
+    var parts = Array.prototype.filter.call(d.childNodes, function (c) { return c.nodeType === 1; }).map(function (e) { return wrapEmbed(e.outerHTML, kindOf(e)); });
+    // Never inside another embed: start a fresh paragraph after it.
+    var host = ED.dom.getParent(ED.selection.getNode(), '.zh-embed');
+    if (host) { var p = ED.dom.create('p', {}, '<br>'); ED.dom.insertAfter(p, host); ED.selection.setCursorLocation(p, 0); }
+    // On an empty line, the embed takes the line's place rather than leaving it empty above.
+    var blk = ED.dom.getParent(ED.selection.getNode(), 'p');
+    var emptyLine = blk && !blk.textContent.replace(/\u00a0|\u200b/g, '').trim() && !blk.querySelector('img,iframe,.zh-embed') && !ED.dom.getParent(blk, 'li,td,th,blockquote');
+    ED.undoManager.transact(function () {
+      ED.insertContent(parts.map(function (h) { return h.replace('<div class="zh-embed"', '<div class="zh-embed" data-zh-new="1"'); }).join('') + '<p id="zh-after"><br></p>');
+      if (emptyLine && blk.isConnected && blk.id !== 'zh-after' && !blk.textContent.replace(/\u00a0|\u200b/g, '').trim() && !blk.querySelector('img,iframe,.zh-embed')) { ED.dom.remove(blk); }
+    });
+    var after = ED.dom.get('zh-after');
+    if (after) { after.removeAttribute('id'); ED.selection.setCursorLocation(after, 0); }
+    markDirty();
+    renderEmbeds(ED.getDoc(), ED.getWin());
+    ED.getBody().querySelectorAll('.zh-embed[data-zh-new]').forEach(function (el) { el.removeAttribute('data-zh-new'); enrich(el); });
+  }
+  function onEmptyLine() {
+    if (!ED || !ED.selection.isCollapsed()) { return false; }
+    var blk = ED.dom.getParent(ED.selection.getNode(), 'p,h2,h3,h4,li,td,th,blockquote');
+    if (!blk) { return true; }
+    return blk.nodeName === 'P' && !ED.dom.getParent(blk, 'li,td,th,blockquote') && !blk.textContent.replace(/\u00a0|\u200b/g, '').trim() && !blk.querySelector('img,iframe,.zh-embed');
+  }
+  function firstEl(html) { var d = document.createElement('div'); d.innerHTML = html; return d.firstElementChild; }
+  // An X post goes in X's full native form (its text, name and date), and a YouTube video gets its own title, from the
+  // sites' oEmbed services through the sign-in helper. If the helper can't get them, the embed stays as it went in.
+  function enrich(el) {
+    var code = dec(el.getAttribute('data-zh') || ''), m;
+    var done = function (html) {
+      if (!html || !ED || !ED.getBody().contains(el)) { return; }
+      // In place, so the editor's selection (often this very block) stays good.
+      ED.undoManager.transact(function () { el.setAttribute('data-zh', enc(html)); el.setAttribute('data-kind', kindOf(firstEl(html)) || el.getAttribute('data-kind')); el.innerHTML = html; });
+      markDirty(); renderEmbeds(ED.getDoc(), ED.getWin());
+    };
+    if ((m = /^<blockquote class="twitter-tweet"><a href="(https:\/\/x\.com\/\w+\/status\/\d+)/.exec(code))) {
+      call('oembed', { url: m[1] }).then(function (j) { done(j && j.html ? embedFrom(j.html) : null); }).catch(function () {});
+    } else if ((m = /youtube\.com\/embed\/([\w-]{11})[^"]*" title="YouTube video player"/.exec(code))) {
+      call('oembed', { url: 'https://www.youtube.com/watch?v=' + m[1] }).then(function (j) { done(j && j.title ? code.replace('title="YouTube video player"', 'title="' + esc(j.title) + '"') : null); }).catch(function () {});
+    }
+  }
+  // A Rumble page link needs Rumble's own embed service: the player goes in when it answers, or the link stays a link.
+  function embedLater(text) {
+    var bm = ED.selection.getBookmark(2, true), was = $('saved').textContent;
+    $('saved').textContent = 'Getting the player...';
+    call('oembed', { url: text }).catch(function () { return null; }).then(function (j) {
+      $('saved').textContent = was;
+      ED.selection.moveToBookmark(bm);
+      var html = j && j.html ? embedFrom(j.html) : null;
+      if (html) { insertEmbed(html); return; }
+      ED.insertContent('<a href="' + esc(text) + '">' + esc(text) + '</a>');
+      toast('Couldn\'t get the player for that link, so it\'s in as a link.', true);
+    });
+  }
+  // The / menu.
+  var SLASH = [{ value: 'x', text: 'X post', icon: 'embed' }, { value: 'youtube', text: 'YouTube video', icon: 'embed' }, { value: 'embed', text: 'Embed code (any player)', icon: 'embed' },
+               { value: 'picture', text: 'Picture', icon: 'image' }, { value: 'library', text: 'Picture library', icon: 'gallery' },
+               { value: 'h2', text: 'Subhead', icon: 'format' }, { value: 'h3', text: 'Small subhead', icon: 'format' }, { value: 'quote', text: 'Quote', icon: 'quote' },
+               { value: 'ul', text: 'Bulleted list', icon: 'unordered-list' }, { value: 'ol', text: 'Numbered list', icon: 'ordered-list' },
+               { value: 'table', text: 'Table', icon: 'table' }, { value: 'hr', text: 'Rule', icon: 'horizontal-rule' }];
+  function slashDo(v) {
+    if (v === 'x') { embedDialog('x'); } else if (v === 'youtube') { embedDialog('youtube'); } else if (v === 'embed') { embedDialog('code'); }
+    else if (v === 'picture') { $('pic-file').click(); } else if (v === 'library') { openLibrary(); }
+    else if (v === 'h2' || v === 'h3') { ED.execCommand('FormatBlock', false, v); } else if (v === 'quote') { ED.execCommand('mceBlockQuote'); }
+    else if (v === 'ul') { ED.execCommand('InsertUnorderedList'); } else if (v === 'ol') { ED.execCommand('InsertOrderedList'); }
+    else if (v === 'table') { ED.execCommand('mceInsertTable', false, { rows: 3, columns: 2 }); } else if (v === 'hr') { ED.execCommand('InsertHorizontalRule'); }
+    markDirty();
+  }
+  // Pictures: the caption and credit (and "Lead picture") show under each picture in the editor, never in what's saved.
+  function picOf(im) { var nm = im && (im.getAttribute('data-name') || S.names[im.getAttribute('src') || '']); return nm ? S.pics.filter(function (p) { return p.name === nm; })[0] || null : null; }
+  function showCaps() {
+    if (!ED) { return; }
+    ED.undoManager.ignore(function () {
+      ED.getBody().querySelectorAll('img').forEach(function (im) {
+        var host = im.parentNode; if (!host || host.nodeName !== 'P' || ED.dom.getParent(im, '.zh-embed')) { return; }
+        var p = picOf(im), cap = '';
+        if (p) { cap = [p.caption, p.credit].filter(function (x) { return x && x.trim(); }).join(' \u00b7 ') || 'No caption yet: click the picture, then Caption and credit'; if (p.hero) { cap = 'Lead picture \u00b7 ' + cap; } }
+        if ((host.getAttribute('data-zh-cap') || '') !== cap) { if (cap) { host.setAttribute('data-zh-cap', cap); } else { host.removeAttribute('data-zh-cap'); } }
+      });
+    });
+  }
+  function picDialog(im) {
+    var p = picOf(im);
+    if (!p || !editable()) { return; }
+    ED.windowManager.open({
+      title: 'Picture: ' + p.name,
+      body: { type: 'panel', items: [{ type: 'input', name: 'caption', label: 'Caption' }, { type: 'input', name: 'credit', label: 'Credit' },
+        { type: 'input', name: 'alt', label: 'Alt text (what the picture shows, for screen readers)' }, { type: 'checkbox', name: 'hero', label: 'Lead picture (it heads the article)' }] },
+      initialData: { caption: p.caption || '', credit: p.credit || '', alt: im.getAttribute('alt') || '', hero: !!p.hero },
+      buttons: [{ type: 'cancel', text: 'Cancel' }, { type: 'submit', text: 'Done', primary: true }],
+      onSubmit: function (api) {
+        var d = api.getData();
+        p.caption = d.caption; p.credit = d.credit;
+        if (d.hero) { S.pics.forEach(function (x) { x.hero = false; }); p.hero = true; } else { p.hero = false; }
+        ED.dom.setAttrib(im, 'alt', d.alt || '');
+        api.close(); renderPics(); markDirty();
+      },
+    });
+  }
+  // Words and reading time, under the article.
+  var wcT = null;
+  function wordCount() {
+    clearTimeout(wcT);
+    wcT = setTimeout(function () {
+      var n = 0;
+      try { n = ED && ED.plugins.wordcount ? ED.plugins.wordcount.body.getWordCount() : 0; } catch (e) { n = 0; }
+      $('wc').textContent = n ? n.toLocaleString('en-US') + ' words \u00b7 about ' + Math.max(1, Math.round(n / 230)) + ' min read' : '';
+    }, 300);
+  }
+  function embedDialog(kind) {
+    if (!ED || !editable()) { return; }
+    var label = kind === 'x' ? 'Link to the X post' : kind === 'youtube' ? 'Link to the YouTube video' : 'Embed code';
+    var hint = kind === 'x' ? 'Paste the post\'s link (x.com/NAME/status/...) or the code from "Embed post".'
+      : kind === 'youtube' ? 'Paste the video\'s link, or the code from Share, Embed.'
+      : 'Paste the embed code the site gives you (an iframe, or a blockquote and its script). Links to X posts and YouTube videos work too.';
+    ED.windowManager.open({
+      title: kind === 'x' ? 'Embed an X post' : kind === 'youtube' ? 'Embed a YouTube video' : 'Embed',
+      body: { type: 'panel', items: [{ type: 'textarea', name: 'code', label: label }, { type: 'htmlpanel', html: '<p style="margin:0;color:#6b7480;font-size:13px">' + esc(hint) + '</p>' }] },
+      buttons: [{ type: 'cancel', text: 'Cancel' }, { type: 'submit', text: 'Insert', primary: true }],
+      onSubmit: function (api) {
+        var html = embedFrom(api.getData().code);
+        if (!html) { ED.windowManager.alert('That isn\'t a link to an X post or a YouTube video, or embed code this desk knows. Copy it again from the site\'s Embed or Share button.'); return; }
+        api.close(); insertEmbed(html);
+      },
+    });
+  }
+
+  function bodyHtml() { return S.tab === 'html' ? $('html').value : toStored(ED ? ED.getContent() : ''); }
+  function setBody(html) {
+    S.loading = true;
+    if (ED) { ED.setContent(toEditor(html)); ED.undoManager.clear(); ED.setDirty(false); }
+    $('html').value = html; renderPreview();
+    S.clean = ED ? toStored(ED.getContent()) : null;
+    S.loading = false;
+    wordCount(); showCaps();
+  }
+  function realChange() { try { return S.clean == null || toStored(ED.getContent()) !== S.clean; } catch (e) { return true; } }
+  function editorText() { return ED ? ED.getContent({ format: 'text' }).trim() + (ED.getBody().querySelector('img, .zh-embed') ? 'x' : '') : ''; }
+  function renderPreview() {
+    var d = document.createElement('div'); d.innerHTML = bodyHtml();
+    d.querySelectorAll('img').forEach(function (im) { zhImg(im); var m = /^img\/([\w.-]+)$/.exec(im.getAttribute('src') || ''); if (m && blobFor(m[1])) { im.setAttribute('src', blobFor(m[1])); } });
+    d.querySelectorAll('script').forEach(function (s) {
+      if (LOADERS.test(s.getAttribute('src') || '')) { s.remove(); return; }
+      var n = document.createElement('div'); n.className = 'script-note'; n.textContent = 'Script: ' + (s.getAttribute('src') || 'inline') + ' (kept as is)'; s.replaceWith(n);
+    });
+    $('preview').innerHTML = '<h1>' + esc($('title').value) + '</h1>' + ($('deck').value.trim() ? '<p><strong>' + esc($('deck').value.trim()) + '</strong></p>' : '') + d.innerHTML;
+    if (S.tab === 'preview') { renderEmbeds(document, window); }
+  }
+  function markDirty() { if (!S.dirty) { S.dirty = true; $('saved').textContent = 'Unsaved changes'; } if (!S.loading) { scheduleSave(); } }
+  // ---------- autosave (Oct. 29 preview): a copy in this browser a moment after each change (a crash or a closed tab
+  // offers it back), and a save to the desk once typing stops for 20 seconds, at most once a minute, and when the tab is
+  // left. A save never overwrites a newer one someone else made.
+  var AUTO_T = String(store('autosave-ms') || '').split(','), IDLE_MS = +AUTO_T[0] || 20000, GAP_MS = +AUTO_T[1] || 60000, COPY_MS = 1200, copyT = null, idleT = null, lastDeskSave = 0;   // the tests shorten the waits
+  function copyKey(id) { return 'draftcopy.' + ((S.me && S.me.login) || 'me').toLowerCase() + (AS ? '.as.' + AS.toLowerCase() : '') + '.' + (id || 'new'); }
+  function snapshot() {
+    return { title: $('title').value, deck: $('deck').value, html: bodyHtml(), note: $('note').value, base: (S.cur && S.cur.updated) || null, at: new Date().toISOString(),
+             images: S.pics.map(function (p) { return { name: p.name, caption: p.caption || '', credit: p.credit || '', hero: !!p.hero }; }) };
+  }
+  function keepCopyNow() {
+    clearTimeout(copyT);
+    if (!S.dirty || !S.cur || !editable()) { return; }
+    store(copyKey(S.cur.id), JSON.stringify(snapshot()));
+    if (!S.busy && /^Unsaved/.test($('saved').textContent)) { $('saved').textContent = 'Unsaved changes, kept in this browser'; }
+  }
+  function readCopy(id) { try { var c = JSON.parse(store(copyKey(id)) || 'null'); return c && typeof c.html === 'string' ? c : null; } catch (e) { return null; } }
+  function dropCopy(id) { store(copyKey(id), null); }
+  function scheduleSave() {
+    clearTimeout(copyT); copyT = setTimeout(keepCopyNow, COPY_MS);
+    clearTimeout(idleT); idleT = setTimeout(function () { autoSave(false); }, IDLE_MS);
+  }
+  function canAutoSave() { return S.dirty && editable() && !S.busy && !S.stopAuto && S.cur && S.tab !== 'html' && (S.cur.id || (!S.viewing && ($('title').value.trim() || editorText()))); }
+  function autoSave(now) {
+    if (!canAutoSave()) { return; }
+    var wait = lastDeskSave + GAP_MS - Date.now();
+    if (!now && wait > 0) { clearTimeout(idleT); idleT = setTimeout(function () { autoSave(false); }, wait); return; }
+    save(false, true).catch(function () {});
+  }
+  function hideRestore() { $('restore').hidden = true; $('restore').innerHTML = ''; $('restore').dataset.for = ''; }
+  // Changes this browser kept that the desk never got: offer them back, never put them back on their own.
+  function offerRestore(cp, id) {
+    var b = $('restore'), at = when(cp.at), newer = S.cur && S.cur.updated && cp.base && cp.base !== S.cur.updated;
+    b.innerHTML = '<span class="grow"><strong>This browser kept changes that weren\'t saved</strong> (' + esc(at) + (cp.title ? ', "' + esc(cp.title.slice(0, 80)) + '"' : '') + ').' +
+      (newer ? ' The article has been saved again since then; putting them back replaces that version (it stays under Versions).' : '') + '</span>' +
+      '<button type="button" class="primary" data-restore="put">Put them back</button><button type="button" data-restore="drop">Throw them away</button>';
+    b.hidden = false; b.dataset.for = id || 'new';
+    b.onclick = function (ev) {
+      var a = ev.target.closest('[data-restore]'); if (!a) { return; }
+      if (a.dataset.restore === 'drop') { if (!confirm('Throw away the changes this browser kept?')) { return; } dropCopy(id); hideRestore(); return; }
+      if (!S.cur || (id ? S.cur.id !== id : S.cur.id)) { blank(); }
+      putBack(cp, 'Put back the changes this browser kept. They save on their own in a moment.');
+      hideRestore();
+    };
+  }
+  function putBack(v, msg) {
+    var clean = S.clean;
+    $('title').value = v.title || ''; $('deck').value = v.deck || ''; fitDeck(); $('note').value = v.note || '';
+    S.pics = (v.images || []).map(function (im) { return Object.assign({}, im); });
+    setBody(v.html || ''); S.clean = clean; renderPics();
+    S.pics.forEach(function (p) { fetchPic(p.name); });
+    S.dirty = false; markDirty(); keepCopyNow();
+    toast(msg);
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { keepCopyNow(); autoSave(true); } });
+  window.addEventListener('pagehide', keepCopyNow);
+
+  // ---------- the list
+  function renderList() {
+    var ul = $('list');
+    ul.innerHTML = S.list.map(function (a) {
+      // Live on ZeroHedge (#1304): the chip is the link to the post; accepted ones aren't on ZeroHedge yet.
+      var chip = a.status === 'live' && a.zh && /^https:\/\/(www\.)?zerohedge\.com\//.test(a.zh.url) ?
+        '<a class="chip live" href="' + esc(a.zh.url) + '" target="_blank" rel="noopener" title="Open it on ZeroHedge">' + esc(a.word || 'Live on ZeroHedge') + ' &#8599;</a>' :
+        '<span class="chip ' + esc(a.status) + '">' + esc(a.word || a.status) + '</span>';
+      return '<li data-id="' + esc(a.id) + '"' + (S.cur && S.cur.id === a.id ? ' class="on"' : '') + '><span class="t">' + esc(a.title || 'Untitled') + '</span>' +
+        chip + ' <span class="muted small">' + esc(when(a.status === 'live' && a.zh && a.zh.published ? a.zh.published : a.updated)) + '</span></li>';
+    }).join('');
+    $('list-empty').hidden = S.list.length > 0;
+    $('vt-n').textContent = S.list.length ? String(S.list.length) : '';
+    if (S.view === 'articles') { renderTracker(); }
+  }
+  function when(iso) {
+    if (!iso) { return ''; }
+    var d = new Date(iso); return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+  function showMe(j) {
+    S.me = j; S.list = j.articles || [];
+    S.viewing = !!j.viewing_as;
+    document.documentElement.classList.toggle('view-as', S.viewing);
+    $('viewas').hidden = !S.viewing;
+    renderViewAs();
+    $('who').textContent = S.viewing ? 'Viewing ' + shown() : 'Signed in as ' + j.name + (j.editor ? ' (editor)' : '');
+    renderList();
+    renderDash();
+    renderPitches();
+    renderAway();
+  }
+  // In View as, an editor can also work on the contributor's draft (a draft, an assignment, or one sent back): save,
+  // never submit. The banner says which it is.
+  // The editors see a contributor by the name they gave them (config/author-nicknames.json), never their sign-up name.
+  function shown() { var v = (S.me && S.me.viewing_as) || {}; return v.nickname || (S.me && S.me.name) || ''; }
+  function renderViewAs() {
+    if (!S.viewing || !S.me) { return; }
+    var nm = shown(), first = (S.me.viewing_as || {}).nickname ? nm : nm.split(' ')[0];
+    var can = canCoedit();
+    document.documentElement.classList.toggle('coediting', !!S.coedit);
+    $('viewas').innerHTML = S.coedit ? 'You\'re editing ' + esc(nm) + '\'s draft. Save to keep your changes; ' + esc(first) + ' sees them the next time they open it. <button type="button" id="coedit-off">Stop editing</button>'
+      : (SOLO ? 'This is ' + esc(nm) + '\'s article as ' + esc(first) + ' sees it. Read-only: nothing changes unless you choose to work on it.'
+              : 'You\'re seeing ' + esc(nm) + '\'s author desk exactly as ' + esc(first) + ' sees it. Read-only: nothing can be changed from here.') +
+        (can ? ' <button type="button" id="coedit-on">Work on this draft with ' + esc(first) + '</button>' : '');
+  }
+  function canCoedit() { var c = S.cur; return !!(c && c.id && c.editable !== false && ['draft', 'assigned', 'returned'].indexOf(c.status) >= 0); }
+  $('viewas').addEventListener('click', function (ev) {
+    if (ev.target.id === 'coedit-on') { S.coedit = true; renderViewAs(); renderState(); setView('compose'); if (S.tab === 'preview') { setTab('write'); } }
+    if (ev.target.id === 'coedit-off') { if (S.dirty && !confirm('Leave without saving your changes?')) { return; } S.coedit = false; S.dirty = false; renderViewAs(); if (S.cur && S.cur.id) { open(S.cur.id); } }
+  });
+  function loadList() { return call('me').then(showMe); }
+
+
+  // ---------- the dashboard (Oct. 20, Dan: "Can he have a dashboard up top?"): how each piece did on ZeroHedge. The
+  // numbers are ZeroHedge's own view and comment counters, collected every 10 minutes by the desk's zh-stats worker and
+  // published hourly; each piece is set against the median for the hour and weekday it ran (ZH's traffic ebbs and
+  // flows through the day and week), against that day's other posts, and against its section.
+  var D = { sort: 'pub', dir: -1, perf: { slot: false } };   // open: the piece whose details show; the newest live piece's at first
+  function nf(n) { return n == null ? '-' : Math.round(n).toLocaleString('en-US'); }
+  function kf(n) { if (n == null) { return '-'; } n = Math.round(n); return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'K' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n); }
+  function xf(x) { return x == null ? '-' : (x >= 10 ? Math.round(x) : x.toFixed(1)) + '×'; }
+  function idxCls(x) { return x == null ? '' : x >= 1.25 ? 'hi' : x >= 0.8 ? 'mid' : 'lo'; }
+  function idxHtml(x) { return x == null ? '<span class="muted">-</span>' : '<span class="idx ' + idxCls(x) + '">' + xf(x) + '</span>'; }
+  function dayName(d) { if (!d) { return ''; } var p = d.split('-'); return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2], 12)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }); }
+  function hourName(h) { return h == null ? '' : ((h % 12) || 12) + (h < 12 ? ' a.m.' : ' p.m.'); }
+  var DOWS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  function secName(c) { return String(c || '').split('-').map(function (w) { return w === 'ai' ? 'AI' : w === 'us' ? 'US' : w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); }
+  function topPct(r, n) { return r && n ? Math.max(1, Math.round((100 * r) / n)) : null; }
+  function med(a) { a = a.filter(function (x) { return x != null; }).sort(function (x, y) { return x - y; }); return a.length ? (a[Math.floor((a.length - 1) / 2)] + a[Math.ceil((a.length - 1) / 2)]) / 2 : null; }
+  function basisWord(b) { return b === 48 ? 'at 2 days' : b ? 'at ' + b + (b === 1 ? ' hour' : ' hours') : ''; }
+
+  function renderDash() {
+    // with their pieces on ZH from before the author desk (Dan, Oct. 23: "Now you can backfill Josh's performance"; history,
+    // from data/contributors/backfill.json): in the numbers, the chart and the table, opening on ZH
+    var j = S.me || {}, base = j.stats_base, arts = (j.articles || []).concat(j.history || []);
+    var sent = arts.filter(function (a) { return a.status && a.status !== 'draft' && a.status !== 'assigned'; });
+    var live = arts.filter(function (a) { return a.status === 'live'; }), rows = live.filter(function (a) { return a.stats; });
+    $('dash-title').textContent = S.viewing ? shown() + '\'s numbers on ZeroHedge' : 'Your numbers on ZeroHedge';
+    if (!sent.length) {
+      $('dash-upd').textContent = '';
+      $('dash-body').innerHTML = '<p class="muted">Nothing has gone to the editors yet. Once a piece runs on ZeroHedge, its views, comments and how it did against the other posts that day show here.</p>';
+      return;
+    }
+    $('dash-upd').textContent = base && base.updated ? 'Updated ' + when(base.updated) + ', from ZeroHedge\'s own view counter' : 'The numbers show here within the hour';
+    var st = rows.map(function (a) { return a.stats; });
+    var views = st.reduce(function (t, x) { return t + (x.views || 0); }, 0), comments = st.reduce(function (t, x) { return t + (x.comments || 0); }, 0);
+    var idxs = st.map(function (x) { return x.idx; }).filter(function (x) { return x != null; });
+    var beat = idxs.filter(function (x) { return x > 1; }).length, big = idxs.filter(function (x) { return x >= 1.5; }).length;
+    var best = st.filter(function (x) { return x.day_rank; }).sort(function (a, b) { return a.day_rank / a.day_n - b.day_rank / b.day_n; })[0];
+    var tops = st.filter(function (x) { return x.top_best; }), topBest = tops.length ? Math.min.apply(null, tops.map(function (x) { return x.top_best; })) : null;
+    var onWay = sent.length - live.length;
+    var tile = function (k, v, s) { return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + (s || '&nbsp;') + '</div></div>'; };
+    var h = '<div class="tiles">' +
+      tile('Live on ZeroHedge', live.length, 'of ' + sent.length + ' submitted' + (onWay ? ' &middot; ' + onWay + ' on the way' : '')) +
+      tile('Total views', nf(views), nf(comments) + ' comments') +
+      tile('Typical piece', kf(med(st.map(function (x) { return x.views; }))), 'median views; ZH\'s typical post: ' + kf(base && base.med48) + ' in 2 days') +
+      tile('Against its time slot', idxs.length ? xf(med(idxs)) : '-', 'median; 1× is a typical ZH post for the hour and weekday it ran') +
+      tile('Beat the typical', idxs.length ? beat + ' of ' + idxs.length : '-', idxs.length ? big + ' at 1.5× or more' : '') +
+      tile('Best day', best ? '#' + best.day_rank + ' of ' + best.day_n : '-', best ? 'top ' + topPct(best.day_rank, best.day_n) + '% on ' + dayName(best.day) : '') +
+      tile('Comments per 1,000 views', views ? (comments * 1000 / views).toFixed(1) : '-', base && base.comments_per_1k ? 'ZH typical: ' + base.comments_per_1k : '') +
+      tile('ZH\'s Today\'s top', tops.length ? tops.length + (tops.length === 1 ? ' piece' : ' pieces') : '-', topBest ? '#' + topBest + ' at best' : 'tracked from Oct. 20') +
+      '</div>';
+    if (!live.length) {
+      h += '<p class="muted">Nothing is live on ZeroHedge yet. Pieces show up here, with their numbers, once they run.</p>';
+    } else {
+      // how their pieces ran over the first two days against ZH's typical post (/perf.js; Dan, Oct. 23: "let Josh see this
+      // too on his own contributor page. But not vs. other contributors when we roll that out": their own pieces only)
+      if (window.ZHPerf) { h += '<div class="perf">' + ZHPerf.html(perfOpts()) + '</div>'; }
+      h += '<div class="ptab-wrap"><table class="ptab"><thead><tr>' + [['title', 'Piece'], ['pub', 'Ran (ET)'], ['views', 'Views', 1], ['comments', 'Comments', 1, 'opt'], ['idx', 'Vs. its slot', 1],
+        ['day', 'That day', 1], ['chan', 'Section, 7 days', 1, 'opt'], ['m1', '1 hr', 1, 'opt'], ['m24', '24 hr', 1, 'opt'], ['m48', '2 days', 1, 'opt'], ['top', 'ZH top', 1, 'opt']].map(function (c) {
+        return '<th data-dsort="' + c[0] + '" class="' + (c[2] ? 'n ' : '') + (c[3] || '') + '">' + c[1] + (D.sort === c[0] ? (D.dir < 0 ? ' ▾' : ' ▴') : '') + '</th>';
+      }).join('') + '</tr></thead><tbody>';
+      var key = function (a) {
+        var x = a.stats || {};
+        return { title: (a.title || '').toLowerCase(), pub: x.pub_ts || Date.parse((a.zh || {}).published || '') / 1000 || 0, views: x.views, comments: x.comments, idx: x.idx,
+                 day: x.day_rank ? -x.day_rank / x.day_n : null, chan: x.chan_rank ? -x.chan_rank / x.chan_n : null, m1: x.m1, m24: x.m24, m48: x.m48 != null ? x.m48 : (x.basis === 48 ? x.views : null),
+                 top: x.top_best ? -x.top_best : null }[D.sort];
+      };
+      if (D.open === undefined) { var newest = rows.slice().sort(function (a, b) { return String((b.zh || {}).published).localeCompare(String((a.zh || {}).published)); })[0]; D.open = newest ? newest.id : null; }
+      live.slice().sort(function (a, b) { var ka = key(a), kb = key(b); if (ka == null && kb == null) { return 0; } if (ka == null) { return 1; } if (kb == null) { return -1; } return (ka < kb ? -1 : ka > kb ? 1 : 0) * D.dir; })
+        .forEach(function (a) {
+          var x = a.stats, open = D.open === a.id;
+          h += '<tr class="prow' + (open ? ' open' : '') + '" data-piece="' + esc(a.id) + '" title="Click for its chart and how it did"><td class="hl"><span class="chev">' + (open ? '&#9662;' : '&#9656;') + '</span><a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc((x && x.title) || a.zh.title || a.title) + '</a>' +
+            '<span class="sub">' + esc(x ? secName(x.channel) : '') + (x && x.views == null ? ' &middot; not counted yet' : '') + '</span></td>';
+          if (!x) { h += '<td>' + esc(when(a.zh.published)) + '</td><td class="n" colspan="9"><span class="muted">Numbers within the hour</span></td></tr>'; return; }
+          h += '<td>' + esc(dayName(x.day)) + '<span class="sub">' + esc(hourName(x.hour)) + '</span></td>' +
+            '<td class="n">' + nf(x.views) + '</td><td class="n opt">' + nf(x.comments) + '</td><td class="n">' + idxHtml(x.idx) + '</td>' +
+            '<td class="n">' + (x.day_rank ? '#' + x.day_rank + ' of ' + x.day_n + '<span class="sub">top ' + topPct(x.day_rank, x.day_n) + '%</span>' : '-') + '</td>' +
+            '<td class="n opt">' + (x.chan_rank ? '#' + x.chan_rank + ' of ' + x.chan_n : '-') + '</td>' +
+            '<td class="n opt">' + kf(x.m1) + '</td><td class="n opt">' + kf(x.m24) + '</td><td class="n opt">' + kf(x.m48 != null ? x.m48 : (x.basis === 48 ? x.views : null)) + '</td>' +
+            '<td class="n opt">' + (x.top_best ? '#' + x.top_best + (x.top_min ? '<span class="sub">' + Math.round(x.top_min / 60 * 10) / 10 + ' hr on it</span>' : '') : '-') + '</td></tr>';
+          if (open) { h += '<tr class="pdetail"><td colspan="11">' + detailHtml(a, base) + '</td></tr>'; }
+        });
+      h += '</tbody></table></div>';
+      h += sectionsHtml(st);
+    }
+    h += '<p class="how">How to read it: <strong>Vs. its slot</strong> is a piece\'s views against the median ZeroHedge post published at the same hour and on the same kind of day (ZH\'s traffic ebbs and flows through the day and week), at 2 days old, or at its age for younger pieces: 1× is typical, 2× is twice the typical. <strong>That day</strong> ranks it among every ZH post that Eastern day; <strong>Section</strong>, among its section\'s posts over the week around it. Hour-by-hour numbers start from Oct. 20, 2026; earlier pieces have their totals.</p>';
+    $('dash-body').innerHTML = h;
+    var pb = $('dash-body').querySelector('.perf');
+    if (pb) { ZHPerf.bind(pb, perfOpts(), $('dash-body').querySelectorAll('tr.prow'), function (tr) { return tr.dataset.piece; }); }
+  }
+  function perfOpts() {
+    var j = S.me || {};
+    return Object.assign(D.perf, { arts: (j.articles || []).concat(j.history || []), base: j.stats_base || {}, whose: S.viewing ? shown() + '\'s' : 'your', their: S.viewing ? 'their' : 'your' });
+  }
+  function detailHtml(a, base) {
+    var x = a.stats, b = base || {}, hf = (b.hour || [])[x.hour], df = (b.dow || [])[x.dow], cf = ((b.chan || {})[x.channel] || {}).factor;
+    var p = [];
+    p.push('<p>Ran ' + esc(dayName(x.day)) + ' at ' + esc(hourName(x.hour)) + ' Eastern. ' + (hf ? 'Posts at that hour draw ' + xf(hf) + ' the typical, ' : '') +
+      (df ? DOWS[x.dow] + ' posts ' + xf(df) + '. ' : '') + 'A typical post in that slot gets about <strong>' + nf(x.exp48) + '</strong> views in 2 days; this one ' +
+      (x.idx == null ? 'has <strong>' + nf(x.views) + '</strong> so far. It\'s set against the typical post when it reaches the next of 1, 3, 6, 12, 24 or 48 hours old after the desk first counted it.' :
+       (x.basis === 48 ? 'got <strong>' + nf(x.m48 != null ? x.m48 : x.views) + '</strong>' : 'is ' + basisWord(x.basis) + ' old') + ': <strong>' + xf(x.idx) + '</strong>.') + '</p>');
+    if (x.idxs != null && cf) { p.push('<p>Allowing for its section too (' + esc(secName(x.channel)) + ' posts draw ' + xf(cf) + ' the typical): <strong>' + xf(x.idxs) + '</strong>.</p>'); }
+    if (x.day_rank) { p.push('<p><strong>#' + x.day_rank + ' of ' + x.day_n + '</strong> ZH posts that day (top ' + topPct(x.day_rank, x.day_n) + '%), ' + basisWord(x.basis) + '. ' + (x.day_median ? 'The day\'s middle post: ' + nf(x.day_median) + ' views.' : '') + '</p>'); }
+    if (x.chan_rank) { p.push('<p><strong>#' + x.chan_rank + ' of ' + x.chan_n + '</strong> in ' + esc(secName(x.channel)) + ' over the week around it.</p>'); }
+    p.push('<p>' + (x.top_best ? 'On ZH\'s Today\'s top list: <strong>#' + x.top_best + '</strong> at best' + (x.top_min ? ', for about ' + (x.top_min < 90 ? x.top_min + ' minutes' : (Math.round(x.top_min / 6) / 10) + ' hours') : '') + '.' : 'Not seen on ZH\'s Today\'s top list' + (x.pub_ts && x.pub_ts * 1000 < Date.parse('2026-10-20T17:00:00Z') ? ' (tracked from Oct. 20)' : '') + '.') + '</p>');
+    var cpk = x.views ? (x.comments || 0) * 1000 / x.views : null;
+    p.push('<p>' + nf(x.comments) + ' comments' + (cpk != null ? ', ' + cpk.toFixed(1) + ' per 1,000 views' + (b.comments_per_1k ? ' (ZH typical: ' + b.comments_per_1k + ')' : '') : '') + '.' +
+      (x.peak ? ' Fastest hour: ' + nf(x.peak) + ' views.' : '') + (x.t50 ? ' Half of its 2-day views came in the first ' + (x.t50 < 1 ? Math.round(x.t50 * 60) + ' minutes' : x.t50.toFixed(1) + ' hours') + '.' : '') + '</p>');
+    var top = (x.day_top || []).map(function (q) { return '<li' + (q.mine ? ' class="mine"' : '') + '>' + (q.mine ? 'This piece' : '<a href="https://www.zerohedge.com' + esc(q.path) + '" target="_blank" rel="noopener">' + esc(q.title) + '</a>') + ' &middot; ' + kf(q.views) + '</li>'; }).join('');
+    return '<div class="dgrid"><div class="curve"><h4>Views over time</h4>' + curveSvg(x, b) + '</div><div><h4>How it did</h4>' + p.join('') +
+      (top ? '<h4 style="margin-top:10px">That day\'s most read on ZH</h4><ol class="top5">' + top + '</ol>' : '') + '</div></div>';
+  }
+  // The piece's views by hour since it ran, against the typical curve for its slot (the median, and the middle half).
+  // Drawn only from what's solid (Oct. 20, Dan: "how do I interpret this?" when it showed a wobbling band and no line):
+  // the piece needs two or more counts from its first two days, and the typical curve and band need at least CURVE_MIN
+  // ZH posts tracked to that age. Tracking began Oct. 20, 2026: hour-by-hour views exist for pieces that ran after that,
+  // and the typical 2-day curve fills in from Oct. 22.
+  var CURVE_MIN = 20;
+  function curveSvg(x, b) {
+    var W = 560, Hh = 220, L = 46, R = 10, T = 10, B = 26, curve = (x.curve || []).filter(function (c) { return c[0] >= 0 && c[0] <= 48.5; });
+    var ms = [1, 3, 6, 12, 24, 48], cv = (b && b.curve) || {}, scale = b && b.med48 ? (x.exp48 || 0) / b.med48 : 1;
+    var pts = curve.length ? curve.map(function (c) { return [c[0], c[1]]; }) : ms.filter(function (m) { return x['m' + m] != null; }).map(function (m) { return [m, x['m' + m]]; });
+    if (pts.length < 2) {
+      var first = (x.curve || [])[0];
+      return '<p class="small">' + (first ? 'First counted ' + (first[0] < 48 ? Math.round(first[0]) + ' hours' : Math.round(first[0] / 24) + ' days') + ' after it ran: <strong>' + nf(first[1]) + '</strong> views. ' : '') +
+        'Now: <strong>' + nf(x.views) + '</strong>.</p><p class="muted small">No hour-by-hour line for this piece: the desk started following ZeroHedge\'s view counter hour by hour on Oct. 20, 2026, and this piece ran before that. Pieces that run from now on get the full curve. "How it did" still sets it against posts at the same hour and weekday.</p>';
+    }
+    var age = pts[pts.length - 1][0], xmax = Math.max(6, Math.min(48, x.basis === 48 ? 48 : Math.max(age, 6)));
+    var solid = function (m) { return cv[m] && cv[m].n >= CURVE_MIN && m <= xmax; };
+    var exp = [[0, 0]].concat(ms.filter(function (m) { return solid(m) && cv[m].share48; }).map(function (m) { return [m, x.exp48 * cv[m].share48]; }));
+    var lo = 0, hi = 0;   // views only grow: the band never steps down
+    var band = ms.filter(function (m) { return solid(m) && cv[m].p25 != null; }).map(function (m) { lo = Math.max(lo, cv[m].p25 * scale); hi = Math.max(hi, cv[m].p75 * scale, lo); return [m, lo, hi]; });
+    var all = pts.map(function (q) { return q[1]; }).concat(exp.map(function (q) { return q[1]; }), band.map(function (q) { return q[2]; }));
+    var ymax = Math.max.apply(null, all.concat([10])) * 1.08;
+    var X = function (hh) { return L + (W - L - R) * hh / xmax; }, Y = function (v) { return T + (Hh - T - B) * (1 - v / ymax); };
+    var line = function (arr) { return arr.map(function (q, i) { return (i ? 'L' : 'M') + X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' '); };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="Views over time against the typical post for its slot">';
+    [0, 0.5, 1].forEach(function (f) { var v = ymax / 1.08 * f; s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="var(--rule)"/><text x="' + (L - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + kf(v) + '</text>'; });
+    [0, 6, 12, 24, 36, 48].filter(function (t) { return t <= xmax; }).forEach(function (t) { s += '<text x="' + X(t) + '" y="' + (Hh - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + t + 'h</text>'; });
+    if (band.length > 1) { s += '<path d="' + 'M' + X(0) + ' ' + Y(0) + ' ' + band.map(function (q) { return 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[2]).toFixed(1); }).join(' ') + ' ' + band.slice().reverse().map(function (q) { return 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' ') + ' Z" fill="var(--accent)" opacity=".12"/>'; }
+    if (exp.length > 1) { s += '<path d="' + line(exp) + '" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/>'; }
+    s += '<path d="' + line([[0, 0]].concat(pts)) + '" fill="none" stroke="var(--accent)" stroke-width="2.5"/>';
+    if (pts.length < 4) { pts.forEach(function (q) { s += '<circle cx="' + X(q[0]) + '" cy="' + Y(q[1]) + '" r="3.5" fill="var(--accent)"/>'; }); }
+    s += '</svg><div class="legend"><span><i style="background:var(--accent)"></i>This piece</span>' + (exp.length > 1 ? '<span><i style="background:var(--muted)"></i>Typical for its slot</span>' : '') +
+      (band.length > 1 ? '<span><i style="background:var(--accent);opacity:.25;height:8px"></i>Middle half of ZH posts</span>' : '') + '</div>' +
+      (exp.length > 1 && band.length > 1 ? '' : '<p class="muted small">The typical curve for its slot shows once enough ZH posts have been followed hour by hour from the minute they ran (from about Oct. 22, 2026).</p>');
+    return s;
+  }
+  function sectionsHtml(st) {
+    var by = {};
+    st.forEach(function (x) { if (x.idx != null) { (by[x.channel] = by[x.channel] || []).push(x.idx); } });
+    var keys = Object.keys(by);
+    if (!keys.length) { return ''; }
+    var mx = Math.max(2, Math.max.apply(null, keys.map(function (k) { return med(by[k]); })) * 1.1);
+    return '<div class="secs"><h4 class="muted small" style="margin:0 0 6px;text-transform:uppercase;letter-spacing:.05em">By section (median against the slot)</h4>' + keys.sort(function (a, b) { return med(by[b]) - med(by[a]); }).map(function (k) {
+      var m = med(by[k]);
+      return '<div class="b"><span>' + esc(secName(k)) + ' <span class="muted">(' + by[k].length + ')</span></span><span class="bar"><i style="width:' + Math.min(100, 100 * m / mx).toFixed(1) + '%"></i><b style="left:' + (100 / mx).toFixed(1) + '%" title="1×, typical"></b></span><span>' + idxHtml(m) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  $('dash-body').addEventListener('click', function (ev) {
+    var th = ev.target.closest('th[data-dsort]');
+    if (th) { var k = th.dataset.dsort; if (D.sort === k) { D.dir = -D.dir; } else { D.sort = k; D.dir = k === 'title' ? 1 : -1; } renderDash(); return; }
+    if (ev.target.closest('a')) { return; }
+    var tr = ev.target.closest('tr.prow');
+    if (tr) { D.open = D.open === tr.dataset.piece ? null : tr.dataset.piece; renderDash(); }
+  });
+
+  // ---------- Time off (Oct. 26): the days a contributor will be off the desk. The picker (/rangecal.js) works in whole
+  // days; the helper keeps them in the desk's config/off-desk.json, joins a stretch that overlaps one already marked,
+  // and the editors' desk flags each stretch three days ahead. The editors can mark it for them too, on the dashboard.
+  var AWAY = { cal: null };
+  function awayRange(e) { return window.RangeCal ? RangeCal.range(e.from, e.to) : e.from + ' to ' + e.to; }
+  function awayWhen(e) {
+    if (!window.RangeCal) { return ''; }
+    var t = RangeCal.today(), n = RangeCal.span(t, e.from) - 1;
+    if (e.from <= t) { return '<span class="now">Off now</span> &middot; back ' + esc(RangeCal.fmt(RangeCal.add(e.to, 1))); }
+    return n === 1 ? 'Starts tomorrow' : 'Starts in ' + n + ' days';
+  }
+  function renderAway() {
+    var list = (S.me && S.me.away) || [];
+    if (!AWAY.cal && window.RangeCal && $('away-cal')) {
+      AWAY.cal = RangeCal.field($('away-cal'), { marked: function () { return ((S.me && S.me.away) || []).map(function (e) { return { from: e.from, to: e.to, label: 'Already marked: ' + awayRange(e) }; }); },
+        onChange: function (a) { $('away-save').disabled = !a; } });
+    }
+    $('vt-a').textContent = list.length ? String(list.length) : '';
+    $('away-empty').hidden = list.length > 0;
+    $('away-head').hidden = !list.length;
+    $('away-list').innerHTML = list.map(function (e) {
+      return '<li><div class="when"><div class="t">' + esc(awayRange(e)) + '</div><div class="sub">' + (window.RangeCal ? esc(RangeCal.days(e.from, e.to)) + ' &middot; ' : '') + awayWhen(e) +
+        (e.note ? ' &middot; ' + esc(e.note) : '') + (e.by_name && S.me && e.by !== S.me.login ? ' &middot; marked by ' + esc(e.by_name) : '') + '</div></div>' +
+        '<button type="button" class="small" data-away-del="' + esc(e.id) + '">Remove</button></li>';
+    }).join('');
+    if (AWAY.cal) { AWAY.cal.refresh(); }
+  }
+  $('away-save').addEventListener('click', function () {
+    var v = AWAY.cal && AWAY.cal.get(); if (!v || !v.from) { return; }
+    var b = this; b.disabled = true;
+    call('away', { from: v.from, to: v.to, note: $('away-note').value.trim() }).then(function (j) {
+      S.me.away = j.away || []; AWAY.cal.clear(); $('away-note').value = ''; renderAway();
+      toast('Marked: ' + awayRange({ from: v.from, to: v.to }) + '. The editors will see it on their desk.');
+    }).catch(function (e) { b.disabled = false; toast('Couldn\'t save it: ' + e.message, true); });
+  });
+  $('away-list').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-away-del]'); if (!b) { return; }
+    var e = ((S.me && S.me.away) || []).filter(function (x) { return x.id === b.dataset.awayDel; })[0];
+    if (!e || !window.confirm('Take ' + awayRange(e) + ' off your time off?')) { return; }
+    b.disabled = true;
+    call('away', { op: 'remove', eid: e.id }).then(function (j) { S.me.away = j.away || []; renderAway(); toast('Removed.'); })
+      .catch(function (er) { b.disabled = false; toast('Couldn\'t remove it: ' + er.message, true); });
+  });
+
+  // ---------- Stats / Compose / My articles (Oct. 20). The choice is remembered on this device; an assignment waiting
+  // always opens in Compose.
+  var VIEWS = ['stats', 'compose', 'articles', 'pitches', 'away'];
+  S.view = 'compose';
+  function setView(v, quiet) {
+    if (VIEWS.indexOf(v) < 0) { v = 'compose'; }
+    S.view = v;
+    document.querySelectorAll('.vtabs [data-view]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.view === v)); });
+    $('v-stats').hidden = v !== 'stats'; $('v-compose').hidden = v !== 'compose'; $('v-articles').hidden = v !== 'articles'; $('v-pitches').hidden = v !== 'pitches'; $('v-away').hidden = v !== 'away';
+    if (v === 'articles') { renderTracker(); }
+    if (v === 'compose') { try { window.dispatchEvent(new Event('resize')); } catch (e) { /* the editor redraws on its own */ } }
+    if (!quiet) { S.viewChosen = true; if (!S.viewing) { store('wtab', v); } }
+  }
+  $('vtabs').addEventListener('click', function (ev) { var b = ev.target.closest('[data-view]'); if (b) { setView(b.dataset.view); } });
+
+  // My articles: every piece with where it stands, when it moved and how it did, newest first. A row opens its timeline
+  // and numbers; "Open it" takes it to Compose.
+  var T = {};   // open: the row whose timeline shows; the newest live piece's at first
+  var GROUPS = [['assigned', 'assigned to you'], ['draft', 'draft', 'drafts'], ['returned', 'sent back'], ['prep', 'with the editors'], ['ready', 'ready to run'],
+                ['accepted', 'accepted, not live yet'], ['live', 'live on ZeroHedge'], ['declined', 'not taken']];
+  function lastMove(a) { return (a.status === 'live' && a.zh && a.zh.published) || a.submitted || a.updated || a.created || ''; }
+  function renderTracker() {
+    var arts = S.list.slice().sort(function (a, b) { return String(lastMove(b)).localeCompare(String(lastMove(a))); });
+    if (T.open === undefined) { var nl = arts.filter(function (a) { return a.status === 'live' && a.stats; })[0]; T.open = nl ? nl.id : null; }
+    var n = {}; arts.forEach(function (a) { n[a.status] = (n[a.status] || 0) + 1; });
+    var h = '<div class="trk-sum">' + GROUPS.filter(function (g) { return n[g[0]]; }).map(function (g) { return '<span><b>' + n[g[0]] + '</b> ' + (n[g[0]] > 1 && g[2] ? g[2] : g[1]) + '</span>'; }).join('') +
+      (arts.length ? '' : '<span class="muted">No articles yet.</span>') + '</div>';
+    if (!arts.length) { $('tracker').innerHTML = h + '<p class="muted">Start one in Compose, or drop a Word file onto the page there.</p>'; return; }
+    h += '<div class="ptab-wrap"><table class="ptab trk"><thead><tr><th>Article</th><th>Where it stands</th><th class="opt">Started</th><th class="opt">Last saved</th><th>Sent to the editors</th><th>Ran on ZH</th>' +
+      '<th class="n">Views</th><th class="n">Vs. its slot</th><th class="n opt">That day</th><th class="n opt">Comments</th></tr></thead><tbody>';
+    arts.forEach(function (a) {
+      var x = a.stats || {}, open = T.open === a.id, isLive = a.status === 'live' && a.zh && /^https:\/\/(www\.)?zerohedge\.com\//.test(a.zh.url);
+      var chip = isLive ? '<a class="chip live" href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(a.word || 'Live on ZeroHedge') + ' &#8599;</a>' : '<span class="chip ' + esc(a.status) + '">' + esc(a.word || a.status) + '</span>';
+      h += '<tr class="trow' + (open ? ' open' : '') + '" data-trow="' + esc(a.id) + '" title="Click for its timeline and numbers"><td class="hl"><span class="chev">' + (open ? '&#9662;' : '&#9656;') + '</span><span class="t">' + esc(a.title || 'Untitled') + '</span>' +
+        '<span class="sub">' + (a.assigned ? 'Assigned by the editors' : 'Your own') + (x.channel ? ' &middot; ' + esc(secName(x.channel)) : '') + '</span></td>' +
+        '<td>' + chip + '</td><td class="opt">' + esc(when(a.created)) + '</td><td class="opt">' + esc(when(a.updated)) + '</td><td>' + esc(when(a.submitted)) + '</td>' +
+        '<td>' + (isLive ? esc(when(a.zh.published)) : '') + '</td><td class="n">' + (isLive ? nf(x.views) : '') + '</td><td class="n">' + (isLive ? idxHtml(x.idx) : '') + '</td>' +
+        '<td class="n opt">' + (x.day_rank ? '#' + x.day_rank + ' of ' + x.day_n : '') + '</td><td class="n opt">' + (isLive && x.comments != null ? nf(x.comments) : '') + '</td></tr>';
+      if (open) { h += '<tr class="pdetail"><td colspan="10">' + trackDetail(a, isLive) + '</td></tr>'; }
+    });
+    $('tracker').innerHTML = h + '</tbody></table></div>';
+  }
+  function trackDetail(a, isLive) {
+    var st = a.status, past = function (k) { return ['prep', 'ready', 'accepted', 'live'].indexOf(st) >= 0 && k; };
+    var step = function (cls, text, at) { return '<li class="' + cls + '">' + text + (at ? ' <span class="when">' + esc(when(at)) + '</span>' : '') + '</li>'; };
+    var tl = '<ul class="tl">' +
+      step('done', a.assigned ? 'Assigned to you by the editors' : 'Started', a.created) +
+      step('done', 'Last saved', a.updated) +
+      step(a.submitted ? 'done' : '', a.submitted ? 'Sent to the editors' : 'Not sent to the editors yet', a.submitted) +
+      (st === 'returned' ? step('done', 'Sent back to you with notes: open it to see them') : '') +
+      (past(1) ? step('done', 'With the editors') : '') +
+      (['accepted', 'live'].indexOf(st) >= 0 ? step('done', 'Accepted for ZeroHedge') : '') +
+      (isLive ? step('live', 'Live on ZeroHedge: <a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(a.zh.title || a.zh.url) + '</a>', a.zh.published) : '') +
+      (st === 'declined' ? step('', 'Not taken this time') : '') + '</ul>';
+    var stats = isLive && a.stats ? detailHtml(a, (S.me || {}).stats_base) : isLive ? '<p class="muted small">Its numbers show here within the hour.</p>' : '';
+    return tl + stats + '<div class="trk-acts" style="margin-top:8px"><button type="button" class="primary" data-topen="' + esc(a.id) + '">Open it</button></div>';
+  }
+  $('tracker').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-topen]');
+    if (b) { setView('compose'); if (!S.cur || S.cur.id !== b.dataset.topen) { open(b.dataset.topen); } return; }
+    if (ev.target.closest('a')) { return; }
+    var tr = ev.target.closest('tr[data-trow]');
+    if (tr) { T.open = T.open === tr.dataset.trow ? null : tr.dataset.trow; renderTracker(); }
+  });
+
+  // ---------- pitches (Oct. 20): ideas for the editors, approved or turned down with a comment; an approved one may
+  // come back as an assignment. They're kept on the record in the desk.
+  var PSTATE = { open: ['p-open', 'Waiting'], approved: ['p-approved', 'Approved'], denied: ['p-denied', 'Not this time'], withdrawn: ['', 'Withdrawn'] };
+  // Pitches have their own tab (Oct. 20, Dan: "all contributors need a prominent area to submit pitches"), with the form
+  // on top and every pitch below, with the editors' latest answer; + Pitch an idea at the top of the list goes there.
+  function renderPitches() {
+    var ps = (S.me && S.me.pitches) || [];
+    $('pitch-head').textContent = S.viewing ? shown() + '\'s pitches' : 'Your pitches';
+    $('vt-p').textContent = ps.length ? String(ps.length) : '';
+    $('pitches').innerHTML = ps.map(function (p) {
+      var st = PSTATE[p.status] || ['', p.status];
+      var ans = (p.thread || []).filter(function (t) { return t.from === 'editors'; }).slice(-1)[0];
+      var opts = (p.options || []).map(function (o) { var os = PSTATE[o.status] || ['', o.status]; return '<li>' + esc(o.title) + ' <span class="chip ' + os[0] + '">' + esc(os[1]) + '</span>' + (o.note ? ' <span class="muted">' + esc(o.note) + '</span>' : '') + (o.assignment ? ' <span class="muted small">&middot; on your list to write</span>' : '') + '</li>'; }).join('');
+      return '<li data-pitch="' + esc(p.id) + '"><span class="t">' + esc(p.options ? p.options.length + ' options' : p.title) + '</span> <span class="chip ' + st[0] + '">' + esc(st[1]) + '</span> <span class="muted small">' + esc(when(p.created)) + (p.assignment ? ' &middot; on your list to write' : '') + '</span>' +
+        (opts ? '<ol class="opts">' + opts + '</ol>' : '') +
+        (p.pitch ? '<div class="pp">' + esc(p.pitch) + '</div>' : '') +
+        (ans ? '<div class="ans"><strong>' + esc(ans.name || 'The editors') + ':</strong> ' + esc(ans.text) + '</div>' : '') + '</li>';
+    }).join('');
+    $('pitches-empty').hidden = ps.length > 0;
+  }
+  function dialog(html) {
+    var back = document.createElement('div'); back.className = 'dlg-back'; back.innerHTML = '<div class="dlg" role="dialog">' + html + '</div>';
+    document.body.appendChild(back);
+    back.addEventListener('click', function (ev) { if (ev.target === back || ev.target.closest('[data-close]')) { back.remove(); } });
+    return back;
+  }
+  $('pitch-new').addEventListener('click', function () { setView('pitches'); $('pf-title').focus(); });
+  // Two or three options in one pitch (Oct. 20): each gets its own headline, pitch and links; the editors decide each.
+  function pfNumber() {
+    var more = $('pf-more').querySelectorAll('.pf-opt');
+    document.querySelector('#pitch-form .pf-on').hidden = !more.length;
+    more.forEach(function (el, i) { el.querySelector('.pf-n').textContent = 'Option ' + (i + 2); });
+    $('pf-add').hidden = more.length >= 4;
+  }
+  $('pf-add').addEventListener('click', function () {
+    var d = document.createElement('div'); d.className = 'pf-opt';
+    d.innerHTML = '<div class="pf-on"><span class="pf-n"></span><button type="button" class="small" data-pf-del>Remove</button></div><label>Headline or working title</label><input type="text" data-pf="title" maxlength="300" required>' +
+      '<label>The pitch</label><textarea data-pf="text"></textarea><label>Links (one per line)</label><textarea data-pf="links" style="min-height:60px" placeholder="https://..."></textarea>';
+    $('pf-more').appendChild(d); pfNumber(); d.querySelector('input').focus();
+  });
+  $('pf-more').addEventListener('click', function (ev) { var x = ev.target.closest('[data-pf-del]'); if (x) { x.closest('.pf-opt').remove(); pfNumber(); } });
+  $('pitch-form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var b = $('pitch-form').querySelector('button[type="submit"]'); b.disabled = true;
+    var first = { title: $('pf-title').value, text: $('pf-text').value, links: $('pf-links').value.split(/\s+/).filter(Boolean) };
+    var more = Array.prototype.map.call($('pf-more').querySelectorAll('.pf-opt'), function (el) {
+      return { title: el.querySelector('[data-pf="title"]').value, text: el.querySelector('[data-pf="text"]').value, links: el.querySelector('[data-pf="links"]').value.split(/\s+/).filter(Boolean) };
+    }).filter(function (o) { return o.title.trim(); });
+    var body = more.length ? { title: first.title, options: [first].concat(more) } : first;
+    call('pitch', body)
+      .then(function () { b.disabled = false; $('pitch-form').reset(); $('pf-more').innerHTML = ''; pfNumber(); toast('Pitch sent to the editors.'); return loadList(); })
+      .catch(function (e) { b.disabled = false; toast('Couldn\'t send it: ' + e.message, true); });
+  });
+  $('pitches').addEventListener('click', function (ev) {
+    var li = ev.target.closest('li[data-pitch]');
+    if (!li) { return; }
+    var p = ((S.me && S.me.pitches) || []).filter(function (x) { return x.id === li.dataset.pitch; })[0];
+    if (!p) { return; }
+    var st = PSTATE[p.status] || ['', p.status];
+    var DW = { approved: 'approved', denied: 'passed on', reopen: 'reopened' };
+    var th = (p.thread || []).map(function (t) { return '<li class="' + (t.from === 'editors' ? 'editors' : '') + '"><strong>' + esc(t.from === 'editors' ? (t.name || 'The editors') : 'You') + '</strong> <span class="muted small">' + esc(when(t.at)) + '</span>' +
+      (t.option_title ? ' <span class="small">' + esc(DW[t.decision] || t.decision) + ' "' + esc(t.option_title) + '"</span>' : '') + (t.text ? '\n' + esc(t.text) : '') + '</li>'; }).join('');
+    var ops = (p.options || []).map(function (o, i) { var os = PSTATE[o.status] || ['', o.status]; return '<li><strong>' + esc(o.title) + '</strong> <span class="chip ' + os[0] + '">' + esc(os[1]) + '</span>' + (o.text ? '<div class="brief small">' + esc(o.text) + '</div>' : '') + (o.note ? '<div class="small"><em>' + esc(o.note) + '</em></div>' : '') + '</li>'; }).join('');
+    var d = dialog('<h2>' + esc(p.options ? 'Your pitch: ' + p.options.length + ' options' : p.title) + '</h2><p><span class="chip ' + st[0] + '">' + esc(st[1]) + '</span> <span class="muted small">pitched ' + esc(when(p.created)) + '</span>' +
+      (p.assignment ? ' <span class="small">&middot; it\'s on your list to write</span>' : '') + '</p>' +
+      (ops ? '<ol class="opts" style="padding-left:18px">' + ops + '</ol>' : '') +
+      (p.pitch ? '<p class="brief">' + esc(p.pitch) + '</p>' : '') + ((p.links || []).length ? '<p class="small">' + p.links.map(function (l) { return '<a href="' + esc(l) + '" target="_blank" rel="noopener">' + esc(l) + '</a>'; }).join('<br>') + '</p>' : '') +
+      (th ? '<ul class="thread">' + th + '</ul>' : '<p class="muted small">No answer from the editors yet.</p>') +
+      (S.viewing ? '' : '<label for="pr-text">Reply to the editors</label><textarea id="pr-text"></textarea>') +
+      '<div class="row" style="margin-top:10px">' + (S.viewing ? '' : '<button type="button" class="primary" id="pr-send">Send</button>' + (p.status === 'open' ? '<button type="button" id="pr-withdraw">Withdraw it</button>' : '')) + '<button type="button" data-close>Close</button></div>');
+    var send = d.querySelector('#pr-send'), wd = d.querySelector('#pr-withdraw');
+    if (send) { send.addEventListener('click', function () { var t = d.querySelector('#pr-text').value.trim(); if (!t) { return; } send.disabled = true; call('pitch-reply', { pid: p.id, text: t }).then(function () { d.remove(); toast('Sent.'); return loadList(); }).catch(function (e) { send.disabled = false; toast(e.message, true); }); }); }
+    if (wd) { wd.addEventListener('click', function () { if (!confirm('Withdraw this pitch?')) { return; } call('pitch-withdraw', { pid: p.id }).then(function () { d.remove(); toast('Withdrawn.'); return loadList(); }).catch(function (e) { toast(e.message, true); }); }); }
+  });
+  $('settings-open').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    var st = (S.me && S.me.settings) || {};
+    var d = dialog('<h2>Email settings</h2><p class="muted small">Get an email when the editors give you an article, decide one of your pitches or send you a note. Optional: everything also shows here.</p>' +
+      '<form id="set-form"><label for="sf-email">Your email address</label><input type="email" id="sf-email" value="' + esc(st.email || '') + '" placeholder="you@example.com">' +
+      '<label style="font-weight:400"><input type="checkbox" id="sf-on"' + (st.notify ? ' checked' : '') + '> Email me</label>' +
+      '<div class="row" style="margin-top:12px"><button type="submit" class="primary">Save</button><button type="button" data-close>Cancel</button></div></form>');
+    d.querySelector('#set-form').addEventListener('submit', function (e2) {
+      e2.preventDefault();
+      call('settings', { email: d.querySelector('#sf-email').value.trim(), notify: d.querySelector('#sf-on').checked }).then(function (j) { S.me.settings = j.settings; d.remove(); toast('Saved.'); })
+        .catch(function (e) { toast(e.message, true); });
+    });
+  });
+
+  // ---------- one article
+  function blank() {
+    S.cur = { id: null, status: 'draft', word: 'Draft', editable: true, images: [] };
+    S.pics = []; $('title').value = ''; $('deck').value = ''; fitDeck(); $('note').value = ''; setBody(''); S.dirty = false; S.stopAuto = false; hideRestore(); $('saved').textContent = '';
+    renderState(); renderPics(); renderList(); $('title').focus();
+  }
+  function open(id) {
+    if (S.dirty && !confirm('You have unsaved changes. Leave them?')) { return; }
+    if (S.dirty && S.cur) { dropCopy(S.cur.id); }   // left on purpose
+    $('saved').textContent = 'Opening...';
+    call('get', { id: id }).then(function (j) {
+      var a = j.article;
+      S.cur = Object.assign({}, a, { status: j.status, word: j.word, editable: j.editable, notes: j.notes || [], zh: j.zh || null });
+      if (S.coedit && S.cur.id !== S.coeditId) { S.coedit = false; }
+      S.coeditId = S.cur.id;
+      S.pics = (a.images || []).map(function (im) { return Object.assign({}, im); });
+      $('title').value = a.title || ''; $('deck').value = a.deck || ''; fitDeck(); $('note').value = a.note_to_editors || '';
+      if (S.tab === 'html') { setTab('write'); }
+      setBody(a.html || ''); S.dirty = false; S.stopAuto = false; if ($('restore').dataset.for !== 'new') { hideRestore(); } $('saved').textContent = 'Saved ' + when(a.updated);
+      var cp = readCopy(a.id);
+      if (cp && (cp.html !== S.clean || cp.title !== (a.title || '') || cp.deck !== (a.deck || '') || cp.note !== (a.note_to_editors || ''))) { if (editable()) { offerRestore(cp, a.id); } } else if (cp) { dropCopy(a.id); }
+      renderState(); renderPics(); renderList(); renderViewAs();
+      // &coedit=1: the dashboard just gave this article out and opens it ready to work on.
+      if (COEDIT && S.viewing && !S.coeditAsked) { S.coeditAsked = true; if (canCoedit()) { S.coedit = true; renderViewAs(); renderState(); } }
+      if (SOLO && !editable() && S.tab !== 'preview') { setTab('preview'); }
+      S.pics.forEach(function (p) { fetchPic(p.name); });
+    }).catch(function (e) { $('saved').textContent = ''; toast('Couldn\'t open it: ' + e.message, true); });
+  }
+  function fetchPic(name) {
+    if (!S.cur || !S.cur.id || S.blobs[name]) { return; }
+    call('img', { id: S.cur.id, name: name }).then(function (j) {
+      var bin = atob(j.data), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }
+      S.files[name] = new Blob([bytes], { type: j.type }); S.blobs[name] = URL.createObjectURL(S.files[name]); S.names[S.blobs[name]] = name;
+      if (ED) { ED.getBody().querySelectorAll('img[data-name="' + name + '"]').forEach(function (im) { im.src = S.blobs[name]; im.setAttribute('data-mce-src', S.blobs[name]); }); }
+      renderPics();
+    }).catch(function () { /* the picture shows once it loads */ });
+  }
+  function renderState() {
+    var c = S.cur, b = $('banner'), lock = !editable();
+    if (ED) { ED.mode.set(lock ? 'readonly' : 'design'); }
+    $('html').readOnly = lock; $('title').readOnly = lock; $('deck').readOnly = lock; $('note').readOnly = lock;
+    $('deck').hidden = lock && !$('deck').value.trim();   // no empty "Subheadline (optional)" box on a locked piece
+    ['save', 'submit', 'open-file', 'lib-open'].forEach(function (id) { $(id).disabled = lock; });
+    $('drop').hidden = lock;
+    var text = '';
+    if (c.status === 'returned') { text = '<strong>Sent back to you.</strong> Read the editors\' note below, make the changes and submit again.'; }
+    else if (c.status === 'prep') { text = '<strong>With the editors.</strong> It\'s locked while they work on it. You\'ll see their notes below.'; }
+    else if (c.status === 'ready') { text = '<strong>Ready to run.</strong> The editors have prepared it for publishing.'; }
+    else if (c.status === 'posted') { text = '<strong>Published.</strong>'; }
+    else if (c.status === 'assigned') {
+      var asg = c.assigned || {};
+      text = '<strong>Assigned to you' + (asg.by_name ? ' by ' + esc(asg.by_name) : '') + '.</strong> Write it here and submit it when it\'s ready.' +
+        (asg.brief ? '<div class="brief" style="margin-top:6px">' + esc(asg.brief) + '</div>' : '') +
+        ((asg.links || []).length ? '<div class="small" style="margin-top:4px">Sources: ' + asg.links.map(function (l) { return '<a href="' + esc(l) + '" target="_blank" rel="noopener">' + esc(l.replace(/^https?:\/\/(www\.)?/, '').slice(0, 70)) + '</a>'; }).join(' &middot; ') + '</div>' : '');
+    }
+    else if (c.status === 'accepted') { text = '<strong>Accepted, not live yet.</strong> The editors have it lined up for ZeroHedge. Once it runs, this page says so, with the link.'; }
+    else if (c.status === 'live' && c.zh && /^https:\/\/(www\.)?zerohedge\.com\//.test(c.zh.url)) {
+      text = '<strong>Live on ZeroHedge' + (c.zh.published ? ', ' + esc(when(c.zh.published)) : '') + ':</strong> <a href="' + esc(c.zh.url) + '" target="_blank" rel="noopener">' + esc(c.zh.title || c.zh.url) + '</a>';
+    }
+    else if (c.status === 'declined') { text = '<strong>Not taken this time.</strong> See the editors\' note, if any.'; }
+    b.className = 'banner ' + c.status; b.innerHTML = text; b.hidden = !text;
+    $('submit').textContent = c.status === 'returned' ? 'Submit again' : 'Submit to the editors';
+    var notes = c.notes || [];
+    $('notes').hidden = !c.issue;
+    $('notes-list').innerHTML = notes.length ? notes.map(function (n) {
+      return '<div class="n ' + n.from + '"><span class="muted small">' + (n.from === 'desk' ? 'Editors' : 'You') + ', ' + esc(when(n.at)) + '</span>\n' + esc(n.text) + '</div>';
+    }).join('') : '<p class="muted small">No notes yet.</p>';
+  }
+  function save(submit, quiet) {
+    if (S.busy) { return Promise.resolve(); }
+    if (submit && !$('title').value.trim()) { toast('Add a headline first.', true); $('title').focus(); return Promise.resolve(); }
+    if (submit && !confirm('Submit "' + ($('title').value.trim() || 'Untitled') + '" to the editors? It locks until they send it back.')) { return Promise.resolve(); }
+    S.busy = true; $('saved').textContent = submit ? 'Submitting...' : 'Saving...'; clearTimeout(idleT);
+    var body = { title: $('title').value, deck: $('deck').value, html: bodyHtml(), note: $('note').value,
+                 images: S.pics.map(function (p) { return { name: p.name, caption: p.caption || '', credit: p.credit || '', hero: !!p.hero }; }) };
+    if (S.cur && S.cur.id) { body.id = S.cur.id; if (S.cur.updated) { body.base = S.cur.updated; } }
+    var first = submit && !(S.cur && S.cur.id) ? call('save', body).then(function (j) { body.id = j.id; S.cur.id = j.id; }) : Promise.resolve();
+    var wasNew = !(S.cur && S.cur.id);
+    return first.then(function () { return call(submit ? 'submit' : 'save', body); }).then(function (j) {
+      S.busy = false; lastDeskSave = Date.now();
+      S.cur.id = j.id; S.cur.issue = j.issue; S.cur.status = j.status; S.cur.word = j.word; S.cur.editable = j.editable; S.cur.updated = j.updated;
+      if (wasNew) { dropCopy(null); }
+      // Anything typed while it was saving is still unsaved.
+      var now = snapshot(), changed = now.html !== body.html || now.title !== body.title || now.deck !== body.deck || now.note !== body.note || JSON.stringify(now.images) !== JSON.stringify(body.images);
+      S.dirty = false; S.clean = body.html;
+      $('saved').textContent = (submit ? 'Submitted ' : 'Saved ') + when(j.updated);
+      if (changed && editable()) { markDirty(); } else { dropCopy(j.id); }
+      if (submit) { toast('Sent to the editors. You\'ll see their notes here.'); }
+      renderState();
+      if (quiet) {   // a save on its own: the list's line is updated here rather than read again
+        var e = S.list.filter(function (a) { return a.id === j.id; })[0];
+        if (e) { e.title = body.title; e.updated = j.updated; } else { S.list.unshift({ id: j.id, title: body.title, updated: j.updated, issue: j.issue, status: j.status, word: j.word, editable: j.editable }); }
+        renderList(); return;
+      }
+      return loadList();
+    }).catch(function (e) {
+      S.busy = false; $('saved').textContent = '';
+      if (e.code === 'newer') {   // two people on one draft: never overwrite the other's save
+        keepCopyNow(); S.stopAuto = true;
+        $('saved').textContent = 'Not saved: someone saved a newer version. Your changes are kept in this browser.';
+        if (quiet) {
+          var b = $('restore');
+          b.innerHTML = '<span class="grow"><strong>Not saved:</strong> ' + esc(e.message) + ' Your changes are kept in this browser; open the newer version and you can put them back.</span><button type="button" class="primary" data-newer="open">Open the newer version</button>';
+          b.hidden = false; b.onclick = function (ev) { if (ev.target.closest('[data-newer]')) { S.dirty = false; S.stopAuto = false; hideRestore(); open(S.cur.id); } };
+          throw e;
+        }
+        toast('Not saved: ' + e.message, true, 15000);
+        if (confirm(e.message + '\n\nOpen the newer version now? Your changes stay in this browser, and you can put them back.')) { S.dirty = false; S.stopAuto = false; open(S.cur.id); }
+        throw e;
+      }
+      if (quiet) { keepCopyNow(); $('saved').textContent = 'Couldn\'t save just now; your changes are kept in this browser. Trying again shortly.'; clearTimeout(idleT); idleT = setTimeout(function () { autoSave(true); }, 30000); throw e; }
+      toast((submit ? 'Couldn\'t submit: ' : 'Couldn\'t save: ') + e.message, true); throw e;
+    });
+  }
+  function ensureSaved() { return S.cur && S.cur.id ? Promise.resolve() : save(false); }
+
+  // ---------- pictures
+  function cleanName(name, type) {
+    var ext = (/\.(jpe?g|png|gif|webp)$/i.exec(name || '') || [])[1] || ({ 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' }[type] || 'jpg');
+    var base = String(name || 'picture').replace(/\.[^.]*$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'picture';
+    var n = base + '.' + ext.toLowerCase(), k = 2;
+    while (S.pics.some(function (p) { return p.name === n; })) { n = base + '-' + (k++) + '.' + ext.toLowerCase(); }
+    return n;
+  }
+  function readB64(blob) {
+    return new Promise(function (ok, bad) { var r = new FileReader(); r.onload = function () { ok(String(r.result).split(',')[1] || ''); }; r.onerror = bad; r.readAsDataURL(blob); });
+  }
+  function uploadPic(blob, name) {
+    if (!/^image\/(jpeg|png|gif|webp)$/.test(blob.type)) { return Promise.reject(new Error('pictures must be JPEG, PNG, GIF or WebP')); }
+    if (blob.size > 8 * 1024 * 1024) { return Promise.reject(new Error('pictures can be up to 8 MB')); }
+    var nm = cleanName(name, blob.type);
+    return ensureSaved().then(function () { return readB64(blob); }).then(function (data) {
+      return call('image', { id: S.cur.id, name: nm, data: data });
+    }).then(function () {
+      S.files[nm] = blob; S.blobs[nm] = URL.createObjectURL(blob); S.names[S.blobs[nm]] = nm;
+      S.pics.push({ name: nm, caption: '', credit: '', hero: !S.pics.length });
+      renderPics(); markDirty();
+      return nm;
+    });
+  }
+  function addPictures(files) {
+    var list = Array.prototype.slice.call(files || []);
+    if (!list.length || !ED) { return; }
+    $('saved').textContent = 'Uploading ' + list.length + ' picture' + (list.length === 1 ? '' : 's') + '...';
+    list.reduce(function (p, f) {
+      return p.then(function () { return uploadPic(f, f.name).then(function (nm) { ED.insertContent('<p><img src="' + S.blobs[nm] + '" data-name="' + nm + '" alt=""></p>'); markDirty(); }); });
+    }, Promise.resolve()).then(function () { $('saved').textContent = 'Picture added. Remember to save.'; })
+      .catch(function (e) { $('saved').textContent = ''; toast('Couldn\'t add the picture: ' + e.message, true); });
+  }
+  function renderPics() {
+    setTimeout(showCaps, 0);
+    $('pics').innerHTML = S.pics.length ? S.pics.map(function (p, i) {
+      var lock = !editable() ? ' disabled' : '';
+      return '<div class="pic" data-i="' + i + '"><img alt="" src="' + esc(blobFor(p.name) || 'data:image/gif;base64,R0lGODlhAQABAAAAACw=') + '">' +
+        '<div class="muted small">' + esc(p.name) + '</div>' +
+        '<input type="text" data-f="caption" placeholder="Caption" value="' + esc(p.caption) + '"' + lock + '>' +
+        '<input type="text" data-f="credit" placeholder="Credit" value="' + esc(p.credit) + '"' + lock + '>' +
+        '<label class="small"><input type="radio" name="hero" data-f="hero"' + (p.hero ? ' checked' : '') + lock + '> Lead picture</label> ' +
+        '<button type="button" class="small" data-act="pic-remove"' + lock + '>Remove</button></div>';
+    }).join('') : '<p class="muted small">No pictures yet. Use the picture button in the toolbar, paste or drop an image into the article, or load a Word file with pictures in it.</p>';
+  }
+
+  // ---------- the picture library: every picture this contributor uploaded before, ready to reuse
+  S.lib = null; S.libBlobs = {};
+  function libKey(p) { return p.id + '/' + p.name; }
+  function openLibrary() {
+    if (!ED || !editable()) { toast('This article is locked while the editors have it.', true); return; }
+    var back = document.createElement('div'); back.className = 'lib-back'; back.id = 'lib';
+    back.innerHTML = '<div class="lib" role="dialog" aria-label="Picture library"><div class="lib-head"><h2>Picture library</h2><input id="lib-find" placeholder="Find by caption, credit or article" aria-label="Find"><button type="button" id="lib-close">Close</button></div><div class="lib-grid" id="lib-grid"><p class="muted">Loading your pictures...</p></div></div>';
+    document.body.appendChild(back);
+    back.addEventListener('click', function (ev) { if (ev.target === back || ev.target.id === 'lib-close') { back.remove(); } });
+    $('lib-find').addEventListener('input', renderLibrary);
+    back.addEventListener('click', function (ev) { var b = ev.target.closest('[data-lib]'); if (b) { useFromLibrary(S.lib[+b.dataset.lib], b); } });
+    call('media').then(function (j) { S.lib = j.pictures || []; renderLibrary(); })
+      .catch(function (e) { $('lib-grid').innerHTML = '<p class="muted">Couldn\'t load the library: ' + esc(e.message) + '</p>'; });
+  }
+  function libThumb(p) {
+    var k = libKey(p);
+    if (S.libBlobs[k]) { return Promise.resolve(S.libBlobs[k]); }
+    return call('img', { id: p.id, name: p.name }).then(function (j) {
+      var bin = atob(j.data), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }
+      S.libBlobs[k] = new Blob([bytes], { type: j.type }); return S.libBlobs[k];
+    });
+  }
+  function renderLibrary() {
+    var g = $('lib-grid'); if (!g || !S.lib) { return; }
+    var q = ($('lib-find').value || '').toLowerCase().trim();
+    var rows = S.lib.map(function (p, i) { return [p, i]; }).filter(function (r) { var p = r[0]; return !q || (p.caption + ' ' + p.credit + ' ' + p.title + ' ' + p.name).toLowerCase().indexOf(q) >= 0; });
+    g.innerHTML = rows.length ? rows.map(function (r) {
+      var p = r[0];
+      return '<div class="lib-item"><img alt="" data-k="' + esc(libKey(p)) + '" src="data:image/gif;base64,R0lGODlhAQABAAAAACw="><div class="from" title="' + esc(p.title) + '">' + esc(p.title || 'Untitled') + '</div>' +
+        '<div class="cap">' + (p.caption ? esc(p.caption) : '<span class="muted">No caption</span>') + '</div><div class="muted">' + esc(p.credit || 'No credit') + '</div>' +
+        '<button type="button" data-lib="' + r[1] + '">Use in this article</button></div>';
+    }).join('') : '<p class="muted">' + (S.lib.length ? 'Nothing matches.' : 'No pictures yet. Pictures you add to any article show up here for reuse.') + '</p>';
+    rows.forEach(function (r) {
+      libThumb(r[0]).then(function (b) { var im = g.querySelector('img[data-k="' + libKey(r[0]).replace(/"/g, '') + '"]'); if (im) { im.src = URL.createObjectURL(b); } }).catch(function () {});
+    });
+  }
+  function useFromLibrary(p, btn) {
+    if (!p) { return; }
+    btn.disabled = true; btn.textContent = 'Adding...';
+    ensureSaved().then(function () { return call('reuse', { id: S.cur.id, from: p.id, name: p.name }); }).then(function (j) {
+      return libThumb(p).then(function (b) {
+        var nm = j.name;
+        if (!S.blobs[nm]) { S.blobs[nm] = URL.createObjectURL(b); S.names[S.blobs[nm]] = nm; }
+        if (!S.pics.some(function (x) { return x.name === nm; })) { S.pics.push({ name: nm, caption: p.caption || '', credit: p.credit || '', hero: !S.pics.length }); }
+        ED.insertContent('<p><img src="' + S.blobs[nm] + '" data-name="' + esc(nm) + '" alt=""></p>');
+        renderPics(); markDirty();
+        var l = $('lib'); if (l) { l.remove(); }
+        toast('Picture added with its caption and credit. Remember to save.');
+      });
+    }).catch(function (e) { btn.disabled = false; btn.textContent = 'Use in this article'; toast('Couldn\'t add it: ' + e.message, true); });
+  }
+  $('lib-open').addEventListener('click', openLibrary);
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && $('lib')) { $('lib').remove(); } });
+
+  // ---------- files: Word, HTML, text
+  function loadFile(file) {
+    if (!file) { return; }
+    if (!editable()) { toast('This article is locked while the editors have it.', true); return; }
+    var name = file.name || '', lower = name.toLowerCase();
+    if (/^image\//.test(file.type)) { addPictures([file]); return; }
+    if (editorText() && !confirm('Replace what\'s in the editor with ' + name + '?')) { return; }
+    $('saved').textContent = 'Reading ' + name + '...';
+    var done = function (res) {
+      if (res.title && !$('title').value.trim()) { $('title').value = res.title; }
+      var dm = /^\s*<p>\s*<strong>([^<]{10,600})<\/strong>\s*<\/p>\s*/.exec(res.html || '');
+      if (dm && res.title && !$('deck').value.trim()) { $('deck').value = new DOMParser().parseFromString(dm[1], 'text/html').documentElement.textContent; fitDeck(); res.html = res.html.slice(dm[0].length); }
+      return (res.images || []).reduce(function (p, im) {
+        return p.then(function () { return uploadPic(new Blob([im.bytes], { type: im.type }), im.name).then(function (nm) { im.stored = nm; }); });
+      }, Promise.resolve()).then(function () {
+        var html = res.html;
+        (res.images || []).forEach(function (im) { html = html.split('data-docx="' + im.name + '"').join('src="img/' + im.stored + '"'); });
+        if (S.tab === 'html') { setTab('write'); }
+        setBody(html); markDirty();
+        $('saved').textContent = 'Loaded ' + name + '. Check it over, then save.';
+      });
+    };
+    var job;
+    if (/\.docx$/.test(lower)) { job = file.arrayBuffer().then(docxToHtml); }
+    else if (/\.html?$/.test(lower)) { job = file.text().then(htmlFromFile); }
+    else { job = file.text().then(function (t) { return { html: t.split(/\n\s*\n/).map(function (para) { var e = embedFrom(para.trim()); return e ? e : para.trim() ? '<p>' + esc(para.trim()).replace(/\n/g, '<br>') + '</p>' : ''; }).join('\n') }; }); }
+    job.then(done).catch(function (e) { $('saved').textContent = ''; toast('Couldn\'t read ' + name + ': ' + e.message, true); });
+  }
+  function htmlFromFile(text) {
+    var doc = new DOMParser().parseFromString(text, 'text/html');
+    var root = doc.querySelector('article') || doc.body, title = '';
+    var h1 = root.querySelector('h1');
+    if (h1) { title = h1.textContent.trim(); h1.remove(); }
+    return { html: root.innerHTML.trim(), title: title || ((doc.querySelector('title') || {}).textContent || '').trim() };
+  }
+
+  // A Word file is a zip of XML. Read it in the browser (no outside code): paragraphs, headings, bold and italic, links,
+  // lists, quotes, line breaks and pictures.
+  function unzip(buf) {
+    var dv = new DataView(buf), u8 = new Uint8Array(buf), end = -1;
+    for (var i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) { if (dv.getUint32(i, true) === 0x06054b50) { end = i; break; } }
+    if (end < 0) { return Promise.reject(new Error('it isn\'t a Word (.docx) file')); }
+    var count = dv.getUint16(end + 10, true), off = dv.getUint32(end + 16, true), entries = {};
+    for (var k = 0; k < count; k++) {
+      if (dv.getUint32(off, true) !== 0x02014b50) { break; }
+      var method = dv.getUint16(off + 10, true), csize = dv.getUint32(off + 20, true), nlen = dv.getUint16(off + 28, true),
+          elen = dv.getUint16(off + 30, true), clen = dv.getUint16(off + 32, true), local = dv.getUint32(off + 42, true);
+      var name = new TextDecoder().decode(u8.subarray(off + 46, off + 46 + nlen));
+      entries[name] = { method: method, csize: csize, local: local };
+      off += 46 + nlen + elen + clen;
+    }
+    function read(name) {
+      var e = entries[name];
+      if (!e) { return Promise.resolve(null); }
+      var l = e.local, start = l + 30 + dv.getUint16(l + 26, true) + dv.getUint16(l + 28, true), data = u8.slice(start, start + e.csize);
+      if (e.method === 0) { return Promise.resolve(data); }
+      var ds = new DecompressionStream('deflate-raw');
+      return new Response(new Blob([data]).stream().pipeThrough(ds)).arrayBuffer().then(function (b) { return new Uint8Array(b); });
+    }
+    return Promise.resolve({ names: Object.keys(entries), read: read });
+  }
+  function docxToHtml(buf) {
+    var zip, rels = {}, styles = {}, numFmt = {}, images = [], imgSeen = {};
+    var W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    var R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    function xml(bytes) { return bytes ? new DOMParser().parseFromString(new TextDecoder().decode(bytes), 'application/xml') : null; }
+    function wattr(el, name) { return el ? (el.getAttributeNS(W, name) || el.getAttribute('w:' + name)) : null; }
+    function kids(el, name) { return Array.prototype.filter.call(el.childNodes, function (c) { return c.nodeType === 1 && c.localName === name; }); }
+    function kid(el, name) { return kids(el, name)[0] || null; }
+    return unzip(buf).then(function (z) {
+      zip = z;
+      return Promise.all(['word/document.xml', 'word/_rels/document.xml.rels', 'word/styles.xml', 'word/numbering.xml'].map(zip.read));
+    }).then(function (parts) {
+      var doc = xml(parts[0]);
+      if (!doc) { throw new Error('it has no document in it'); }
+      var rd = xml(parts[1]);
+      if (rd) { Array.prototype.forEach.call(rd.getElementsByTagName('Relationship'), function (r) { rels[r.getAttribute('Id')] = { target: r.getAttribute('Target'), external: r.getAttribute('TargetMode') === 'External' }; }); }
+      var sd = xml(parts[2]);
+      if (sd) { Array.prototype.forEach.call(sd.getElementsByTagNameNS(W, 'style'), function (s) { var nm = s.getElementsByTagNameNS(W, 'name')[0]; styles[wattr(s, 'styleId')] = String(nm ? wattr(nm, 'val') : '').toLowerCase(); }); }
+      var nd = xml(parts[3]), abs = {};
+      if (nd) {
+        Array.prototype.forEach.call(nd.getElementsByTagNameNS(W, 'abstractNum'), function (a) {
+          var lvl = a.getElementsByTagNameNS(W, 'lvl')[0], f = lvl && lvl.getElementsByTagNameNS(W, 'numFmt')[0];
+          abs[wattr(a, 'abstractNumId')] = f ? wattr(f, 'val') : 'bullet';
+        });
+        Array.prototype.forEach.call(nd.getElementsByTagNameNS(W, 'num'), function (n) { var a = n.getElementsByTagNameNS(W, 'abstractNumId')[0]; numFmt[wattr(n, 'numId')] = abs[a ? wattr(a, 'val') : ''] || 'bullet'; });
+      }
+      var body = doc.getElementsByTagNameNS(W, 'body')[0], out = [], list = null, title = '';
+      function closeList() { if (list) { out.push('</' + list.tag + '>'); list = null; } }
+      function on(rPr, name) { var e = rPr && kid(rPr, name); if (!e) { return false; } var v = wattr(e, 'val'); return v !== '0' && v !== 'false' && v !== 'none'; }
+      function runs(p) {
+        var html = '', field = null;
+        function run(r, href) {
+          var rPr = kid(r, 'rPr'), t = '';
+          Array.prototype.forEach.call(r.childNodes, function (c) {
+            if (c.nodeType !== 1) { return; }
+            if (c.localName === 't') { t += esc(c.textContent); }
+            else if (c.localName === 'tab') { t += ' '; }
+            else if (c.localName === 'br' || c.localName === 'cr') { t += '<br>'; }
+            else if (c.localName === 'fldChar') { var ty = wattr(c, 'fldCharType'); if (ty === 'begin') { field = { instr: '', open: false }; } else if (ty === 'separate' && field) { field.open = true; var m = /HYPERLINK\s+"([^"]+)"/.exec(field.instr); field.href = m ? m[1] : ''; } else if (ty === 'end') { field = null; } }
+            else if (c.localName === 'instrText' && field) { field.instr += c.textContent; }
+            else if (c.localName === 'drawing' || c.localName === 'pict') {
+              var blip = c.getElementsByTagNameNS('http://schemas.openxmlformats.org/drawingml/2006/main', 'blip')[0];
+              var rid = blip ? (blip.getAttributeNS(R, 'embed') || blip.getAttribute('r:embed')) : null;
+              if (!rid) { var im = c.getElementsByTagName('v:imagedata')[0]; rid = im ? (im.getAttributeNS(R, 'id') || im.getAttribute('r:id')) : null; }
+              var rel = rid && rels[rid];
+              if (rel && !rel.external) {
+                var path = 'word/' + rel.target.replace(/^\.?\//, '').replace(/^word\//, ''), nm = path.split('/').pop();
+                if (!imgSeen[nm]) { imgSeen[nm] = true; images.push({ name: nm, path: path }); }
+                t += '<img data-docx="' + esc(nm) + '" alt="">';
+              }
+            }
+          });
+          if (!t) { return ''; }
+          if (field && field.open && field.instr && !/HYPERLINK/.test(field.instr)) { /* a page number or similar: plain text */ }
+          if (on(rPr, 'b')) { t = '<strong>' + t + '</strong>'; }
+          if (on(rPr, 'i')) { t = '<em>' + t + '</em>'; }
+          var link = href || (field && field.open && field.href);
+          return link ? '<a href="' + esc(link) + '">' + t + '</a>' : t;
+        }
+        Array.prototype.forEach.call(p.childNodes, function (c) {
+          if (c.nodeType !== 1) { return; }
+          if (c.localName === 'r') { html += run(c); }
+          else if (c.localName === 'hyperlink') {
+            var rid = c.getAttributeNS(R, 'id') || c.getAttribute('r:id'), rel = rid && rels[rid], href = rel ? rel.target : (wattr(c, 'anchor') ? '' : '');
+            kids(c, 'r').forEach(function (r) { html += run(r, href); });
+          } else if (c.localName === 'fldSimple') {
+            var m = /HYPERLINK\s+"([^"]+)"/.exec(wattr(c, 'instr') || '');
+            kids(c, 'r').forEach(function (r) { html += run(r, m ? m[1] : ''); });
+          } else if (c.localName === 'ins' || c.localName === 'smartTag' || c.localName === 'sdt' || c.localName === 'sdtContent') {
+            html += runs(c);
+          }
+        });
+        return html.replace(/<\/strong><strong>/g, '').replace(/<\/em><em>/g, '');
+      }
+      function para(p) {
+        var pPr = kid(p, 'pPr'), sid = pPr && kid(pPr, 'pStyle') ? wattr(kid(pPr, 'pStyle'), 'val') : '', sname = styles[sid] || String(sid || '').toLowerCase();
+        var num = pPr && kid(pPr, 'numPr'), html = runs(p).trim();
+        if (!html) { closeList(); return; }
+        if (sname === 'title' || (!title && !out.length && /^heading ?1$/.test(sname))) { if (!title) { title = html.replace(/<[^>]+>/g, '').trim(); return; } }
+        var styleList = /^list (bullet|number)/.exec(sname);
+        if (styleList || (num && kid(num, 'numId') && wattr(kid(num, 'numId'), 'val') !== '0')) {
+          var tag = styleList ? (styleList[1] === 'bullet' ? 'ul' : 'ol') : /bullet|none/.test(numFmt[wattr(kid(num, 'numId'), 'val')] || 'bullet') ? 'ul' : 'ol';
+          if (!list || list.tag !== tag) { closeList(); list = { tag: tag }; out.push('<' + tag + '>'); }
+          out.push('<li>' + html + '</li>'); return;
+        }
+        closeList();
+        var h = /^heading ?([1-6])$/.exec(sname);
+        if (h) { var lv = Math.min(4, +h[1] + 1); out.push('<h' + lv + '>' + html.replace(/<\/?strong>/g, '') + '</h' + lv + '>'); return; }
+        if (/quote/.test(sname)) { out.push('<blockquote><p>' + html + '</p></blockquote>'); return; }
+        out.push('<p>' + html + '</p>');
+      }
+      Array.prototype.forEach.call(body.childNodes, function (c) {
+        if (c.nodeType !== 1) { return; }
+        if (c.localName === 'p') { para(c); }
+        else if (c.localName === 'tbl') { closeList(); Array.prototype.forEach.call(c.getElementsByTagNameNS(W, 'p'), para); closeList(); }
+        else if (c.localName === 'sdt') { Array.prototype.forEach.call(c.getElementsByTagNameNS(W, 'p'), para); }
+      });
+      closeList();
+      return Promise.all(images.map(function (im) {
+        return zip.read(im.path).then(function (bytes) {
+          var ext = im.name.split('.').pop().toLowerCase();
+          im.bytes = bytes; im.type = 'image/' + (ext === 'jpg' ? 'jpeg' : ext);
+        });
+      })).then(function () {
+        var ok = images.filter(function (im) { return im.bytes && /^image\/(jpeg|png|gif|webp)$/.test(im.type); });
+        var html = out.join('\n');
+        images.filter(function (im) { return ok.indexOf(im) < 0; }).forEach(function (im) { html = html.split('<img data-docx="' + esc(im.name) + '" alt="">').join(''); });
+        return { html: html, title: title, images: ok };
+      });
+    });
+  }
+
+  // ---------- tabs
+  function setTab(t) {
+    if (t === S.tab) { return; }
+    if (S.tab === 'html' && ED) { var wasDirty = S.dirty; S.loading = true; ED.setContent(toEditor($('html').value)); S.loading = false; S.dirty = wasDirty; }
+    if (t === 'html') { $('html').value = toStored(ED ? ED.getContent() : ''); }
+    S.tab = t;
+    document.querySelectorAll('.tabs [data-tab]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === t)); });
+    ['write', 'html', 'preview'].forEach(function (x) { $('pane-' + x).hidden = x !== t; });
+    if (t === 'preview') { renderPreview(); autoSave(true); }
+  }
+  document.querySelectorAll('.tabs [data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.dataset.tab); }); });
+  $('pic-file').addEventListener('change', function () { addPictures(this.files); this.value = ''; });
+  $('html').addEventListener('input', markDirty);
+  $('title').addEventListener('input', markDirty);
+  // The subheadline: one line that grows as it's typed, no line breaks (it runs as the deck under the headline).
+  function fitDeck() { var d = $('deck'); d.style.height = 'auto'; d.style.height = d.scrollHeight + 'px'; }
+  $('deck').addEventListener('input', function () { if (/\n/.test(this.value)) { this.value = this.value.replace(/\s*\n\s*/g, ' '); } fitDeck(); markDirty(); });
+  $('deck').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); } });
+  $('note').addEventListener('input', markDirty);
+  // Pasting from Word, Google Docs or a web page: keep the words, links, bold, italic, headings, lists, quotes and tables; drop the rest.
+  var KEEP = { P: 1, H2: 1, H3: 1, H4: 1, STRONG: 1, EM: 1, B: 1, I: 1, U: 1, S: 1, SUP: 1, SUB: 1, A: 1, UL: 1, OL: 1, LI: 1, BLOCKQUOTE: 1, BR: 1, TABLE: 1, THEAD: 1, TBODY: 1, TR: 1, TH: 1, TD: 1, HR: 1 };
+  function cleanPaste(html) {
+    var d = document.createElement('div'); d.innerHTML = html;
+    d.querySelectorAll('style, script, meta, link, title, xml, o\\:p').forEach(function (x) { x.remove(); });
+    // Google Docs wraps a whole paste in a <b style="font-weight:normal">: not bold at all.
+    d.querySelectorAll('b, strong').forEach(function (b) {
+      if (/^docs-internal-guid/.test(b.id || '') || /font-weight:\s*(normal|[1-4]00)\b/i.test(b.getAttribute('style') || '')) { var f = document.createDocumentFragment(); while (b.firstChild) { f.appendChild(b.firstChild); } b.replaceWith(f); }
+    });
+    // Links copied through Google (Docs, Gmail, search) point at google.com/url?q=THE-LINK: keep the link itself.
+    d.querySelectorAll('a[href]').forEach(function (a) {
+      var m = /^https?:\/\/(?:www\.)?google\.[a-z.]+\/url\?(?:\S*&)?q=([^&]+)/i.exec(a.getAttribute('href'));
+      if (m) { try { a.setAttribute('href', decodeURIComponent(m[1])); } catch (e) { /* leave it */ } }
+    });
+    // Word's lists arrive as paragraphs with a hidden bullet or number (mso-list): make them real lists again.
+    var wl = null;
+    Array.prototype.slice.call(d.querySelectorAll('p')).forEach(function (p) {
+      if (!/mso-list:\s*l\d/i.test(p.getAttribute('style') || '') && !/MsoListParagraph/i.test(p.getAttribute('class') || '')) { return; }
+      var ign = Array.prototype.filter.call(p.querySelectorAll('span'), function (x) { return /mso-list:\s*ignore/i.test(x.getAttribute('style') || ''); })[0];
+      var mark = ign ? ign.textContent.replace(/[\s\u00a0]/g, '') : '';
+      if (ign) { ign.remove(); }
+      var tag = /^\(?([0-9]{1,3}|[a-z]|[ivxlcdm]{1,5})[.)]$/i.test(mark) ? 'OL' : 'UL';
+      if (!wl || p.previousElementSibling !== wl || wl.tagName !== tag) { wl = document.createElement(tag); p.parentNode.insertBefore(wl, p); }
+      var li = document.createElement('li'); while (p.firstChild) { li.appendChild(p.firstChild); } wl.appendChild(li); p.remove();
+    });
+    (function walk(el) {
+      Array.prototype.slice.call(el.childNodes).forEach(function (c) {
+        if (c.nodeType === 8) { c.remove(); return; }
+        if (c.nodeType !== 1) { return; }
+        if (c.classList && c.classList.contains('zh-embed')) { return; }                // copied from this editor: keep as is
+        if (c.tagName === 'IMG' && /^(blob:|data:image\/)/.test(c.getAttribute('src') || '')) { return; }   // TinyMCE uploads these
+        walk(c);
+        var tag = c.tagName, bold = /font-weight:\s*(bold|[6-9]00)/i.test(c.getAttribute('style') || ''), ital = /font-style:\s*italic/i.test(c.getAttribute('style') || '');
+        if (bold && ital && !KEEP[tag]) { var bi = document.createElement('strong'), em2 = document.createElement('em'); while (c.firstChild) { em2.appendChild(c.firstChild); } bi.appendChild(em2); c.replaceWith(bi); return; }
+        if (tag === 'P' && c.parentNode && c.parentNode.tagName === 'LI') { var lf = document.createDocumentFragment(); while (c.firstChild) { lf.appendChild(c.firstChild); } c.replaceWith(lf); return; }   // Docs puts each list item in a <p>
+        if (tag === 'H1') { var p = document.createElement('h2'); p.innerHTML = c.innerHTML; c.replaceWith(p); return; }
+        if (tag === 'DIV') { var q = document.createElement('p'); q.innerHTML = c.innerHTML; c.replaceWith(q); return; }
+        if (!KEEP[tag]) {
+          var frag = document.createDocumentFragment();
+          var wrap = bold ? document.createElement('strong') : ital ? document.createElement('em') : null;
+          while (c.firstChild) { (wrap || frag).appendChild(c.firstChild); }
+          if (wrap) { frag.appendChild(wrap); }
+          c.replaceWith(frag); return;
+        }
+        var href = tag === 'A' ? c.getAttribute('href') : null;
+        Array.prototype.slice.call(c.attributes).forEach(function (a) { c.removeAttribute(a.name); });
+        if (href && /^(https?:|mailto:)/i.test(href)) { c.setAttribute('href', href); }
+        if (tag === 'B' || tag === 'I') { var s = document.createElement(tag === 'B' ? 'strong' : 'em'); s.innerHTML = c.innerHTML; c.replaceWith(s); }
+      });
+    })(d);
+    return d.innerHTML;
+  }
+  // Dropping files: Word, HTML or text on the page loads it; pictures go into the article.
+  function dropHandler(ev) {
+    var fs = ev.dataTransfer && ev.dataTransfer.files;
+    if (!fs || !fs.length) { return; }
+    ev.preventDefault(); $('drop').classList.remove('over');
+    var pics = Array.prototype.filter.call(fs, function (f) { return /^image\//.test(f.type); });
+    if (pics.length) { addPictures(pics); return; }
+    loadFile(fs[0]);
+  }
+  ['dragenter', 'dragover'].forEach(function (t) { document.addEventListener(t, function (ev) { if (ev.dataTransfer && Array.prototype.indexOf.call(ev.dataTransfer.types || [], 'Files') >= 0) { ev.preventDefault(); $('drop').classList.add('over'); } }); });
+  document.addEventListener('dragleave', function (ev) { if (!ev.relatedTarget) { $('drop').classList.remove('over'); } });
+  document.addEventListener('drop', dropHandler);
+  $('open-file').addEventListener('click', function () { $('file').click(); });
+  $('file').addEventListener('change', function () { loadFile(this.files[0]); this.value = ''; });
+  $('pics').addEventListener('input', function (ev) {
+    var box = ev.target.closest('.pic'); if (!box) { return; }
+    var p = S.pics[+box.dataset.i], f = ev.target.dataset.f;
+    if (f === 'hero') { S.pics.forEach(function (x) { x.hero = false; }); p.hero = true; } else if (f) { p[f] = ev.target.value; }
+    markDirty(); showCaps();
+  });
+  $('pics').addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-act="pic-remove"]'); if (!b) { return; }
+    var p = S.pics[+b.closest('.pic').dataset.i];
+    if (!confirm('Remove ' + p.name + ' from the article?')) { return; }
+    S.pics.splice(S.pics.indexOf(p), 1);
+    if (ED) {
+      ED.getBody().querySelectorAll('img').forEach(function (im) {
+        if ((im.getAttribute('data-name') || S.names[im.getAttribute('src')]) !== p.name) { return; }
+        var par = im.parentNode; ED.dom.remove(im); if (par && par.tagName === 'P' && !par.textContent.trim() && !par.querySelector('img')) { ED.dom.remove(par); }
+      });
+    }
+    renderPics(); markDirty();
+  });
+  $('save').addEventListener('click', function () { save(false).catch(function () {}); });
+  // Versions (Oct. 29 preview): every save is kept; look at an earlier one, or put it back in the editor.
+  $('versions').addEventListener('click', function () {
+    if (!S.cur || !S.cur.id) { toast('Save the article once first; its versions start there.'); return; }
+    var id = S.cur.id, back = dialog('<h2>Versions</h2><p class="muted small" style="margin:0">Every save of this article, newest first. Putting one back puts it in the editor; it saves as the newest version, and nothing is lost.</p><ul class="vers" id="vers-list"><li class="muted small">Loading...</li></ul><div class="vers-look" id="vers-look" hidden></div><div class="row" style="margin-top:12px"><button type="button" data-close>Close</button></div>');
+    call('versions', { id: id }).then(function (j) {
+      var vs = j.versions || [], me = ((S.me && S.me.login) || '').toLowerCase();
+      back.querySelector('#vers-list').innerHTML = vs.length ? vs.map(function (v, i) {
+        var who = !v.by ? '' : v.by.toLowerCase() === me ? 'you' : v.by.toLowerCase() === (AS || '').toLowerCase() ? (shown() || v.by) : 'an editor';
+        return '<li><span class="w">' + esc(when(v.at)) + (i === 0 ? ' <span class="muted small">(the one saved now)</span>' : '') +
+          '<span class="sub">' + (v.what === 'submitted' ? 'Submitted' : 'Saved') + (who ? ' by ' + esc(who) : '') + '</span></span>' +
+          '<button type="button" class="small" data-v="look" data-sha="' + esc(v.sha) + '">Look</button>' +
+          (i > 0 && editable() ? '<button type="button" class="small" data-v="put" data-sha="' + esc(v.sha) + '">Put it back</button>' : '') + '</li>';
+      }).join('') : '<li class="muted small">No saves found yet.</li>';
+    }).catch(function (e) { back.querySelector('#vers-list').innerHTML = '<li class="muted small">Couldn\'t load them: ' + esc(e.message) + '</li>'; });
+    back.addEventListener('click', function (ev) {
+      var b = ev.target.closest('[data-v]'); if (!b) { return; }
+      b.disabled = true;
+      call('version', { id: id, sha: b.dataset.sha }).then(function (j) {
+        b.disabled = false;
+        var v = j.version || {};
+        if (b.dataset.v === 'look') {
+          var d = document.createElement('div'); d.innerHTML = v.html || '';
+          d.querySelectorAll('script').forEach(function (x) { x.remove(); });
+          d.querySelectorAll('img').forEach(function (im) { zhImg(im); var m = /^img\/([\w.-]+)$/.exec(im.getAttribute('src') || ''); if (m) { im.setAttribute('src', blobFor(m[1]) || 'data:image/gif;base64,R0lGODlhAQABAAAAACw='); } });
+          var look = back.querySelector('#vers-look'); look.hidden = false;
+          look.innerHTML = '<h3 style="margin:0 0 4px">' + esc(v.title || 'Untitled') + '</h3>' + (v.deck ? '<p><strong>' + esc(v.deck) + '</strong></p>' : '') + d.innerHTML;
+          return;
+        }
+        if (S.cur.id !== id || !confirm('Put this version back in the editor? What\'s there now is replaced; it stays under Versions once saved.')) { return; }
+        putBack({ title: v.title, deck: v.deck, html: v.html, note: v.note, images: v.images }, 'Put back the version from ' + when(v.updated) + '. It saves as the newest version in a moment.');
+        back.remove();
+      }).catch(function (e) { b.disabled = false; toast('Couldn\'t load that version: ' + e.message, true); });
+    });
+  });
+  $('submit').addEventListener('click', function () { save(true).catch(function () {}); });
+  $('new').addEventListener('click', function () { if (S.dirty && !confirm('You have unsaved changes. Leave them?')) { return; } if (S.dirty && S.cur) { dropCopy(S.cur.id); } blank(); setView('compose'); });
+  $('list').addEventListener('click', function (ev) { if (ev.target.closest('a')) { return; } var li = ev.target.closest('li[data-id]'); if (li) { setView('compose'); if (!S.cur || S.cur.id !== li.dataset.id) { open(li.dataset.id); } } });
+  $('reply-send').addEventListener('click', function () {
+    var t = $('reply').value.trim(); if (!t || !S.cur || !S.cur.id) { return; }
+    this.disabled = true; var btn = this;
+    call('reply', { id: S.cur.id, text: t }).then(function () {
+      btn.disabled = false; $('reply').value = ''; toast('Sent to the editors.');
+      S.cur.notes = (S.cur.notes || []).concat([{ from: 'author', at: new Date().toISOString(), text: S.me.name + ': ' + t }]); renderState();
+    }).catch(function (e) { btn.disabled = false; toast('Couldn\'t send it: ' + e.message, true); });
+  });
+  // Dark mode, by choice (light is the standard). The editor takes its colors when it starts, so the page reloads to
+  // switch, unless there are unsaved changes; then the page switches now and the editor at the next visit.
+  function renderTheme() { var dk = document.documentElement.getAttribute('data-theme') === 'dark'; $('theme').textContent = dk ? 'Light mode' : 'Dark mode'; $('theme').setAttribute('aria-pressed', String(dk)); }
+  $('theme').addEventListener('click', function () {
+    var dk = document.documentElement.getAttribute('data-theme') !== 'dark';
+    store('cd-theme', dk ? 'dark' : null);
+    if (dk) { document.documentElement.setAttribute('data-theme', 'dark'); } else { document.documentElement.removeAttribute('data-theme'); }
+    renderTheme();
+    if (S.dirty) { toast('Switched. The editor follows the next time the page opens; save first.'); } else { location.reload(); }
+  });
+  renderTheme();
+  $('signout').addEventListener('click', function () {
+    if (S.dirty && !confirm('You have unsaved changes. Sign out anyway?')) { return; }
+    ['token', 'refresh', 'expires', 'auth'].forEach(function (k) { store(k, null); });
+    location.reload();
+  });
+  window.addEventListener('beforeunload', function (ev) { if (S.dirty) { keepCopyNow(); ev.preventDefault(); ev.returnValue = ''; } });
+  // Save drafts every two minutes while there are changes, a new article too once it has a headline or some text (Oct. 20:
+  // before, a new one waited for its first Save draft).
+  setInterval(function () { autoSave(true); }, 120000);
+
+  // ---------- start
+  $('gh-go').addEventListener('click', startGitHub);
+  function failed(e) {
+    if (e.code === 'not_an_author') { gate('Your GitHub account (' + (e.login || 'this one') + ') isn\'t on the author list yet. Ask Dan for an invite link.', true); }
+    else if (e.status === 401 || /signed out/.test(e.message)) { gate('Your GitHub sign-in ran out. Sign in again.'); }
+    else if (e.code === 'not_set_up') { gate('The author desk isn\'t switched on yet. Ask Dan.', true); }
+    else if (/^invite_|^bad_invite$/.test(e.code || '')) { store('invite', null); gate(e.message, true); }
+    else { gate('Couldn\'t load your articles: ' + e.message); }
+  }
+  function enterApp(me) {
+    $('gate').hidden = true; $('loading').hidden = true; $('app').hidden = false;
+    showMe(me);
+    $('title').disabled = true; $('deck').disabled = true;
+    return initEditor().then(function () {
+      $('title').disabled = false; $('deck').disabled = false;
+      var assigned = S.list.filter(function (a) { return a.status === 'assigned'; })[0];
+      var first = (OPEN && S.list.filter(function (a) { return a.id === OPEN; })[0]) || assigned || S.list.filter(function (a) { return a.status === 'returned' || a.status === 'draft'; })[0];
+      S.dirty = false;   // the editor can flag its own empty start as a change; nothing has been typed yet
+      if (first) { open(first.id); } else { blank(); }
+      // A new article this browser kept that never reached the desk.
+      var nw = !S.viewing && readCopy(null);
+      if (nw && (nw.title.trim() || nw.html.replace(/<[^>]+>/g, '').trim())) { setTimeout(function () { if ($('restore').hidden) { offerRestore(nw, null); } }, 0); }
+      var saved = S.viewing ? null : store('wtab'), live = S.list.some(function (a) { return a.status === 'live'; });
+      if (!S.viewChosen) { setView(SOLO || OPEN || assigned ? 'compose' : VIEWS.indexOf(saved) >= 0 ? saved : live ? 'stats' : 'compose', true); }   // not over a tab picked while it loaded
+    }).catch(function (e) { toast('The editor didn\'t load: ' + e.message + '. Reload the page.', true, 20000); });
+  }
+  function showJoin() {
+    gate('You\'re signed in with GitHub. Choose the name the editors will see, then join.', true);
+    $('gate-invite').hidden = true; $('join').hidden = false; $('gate-foot').hidden = true; $('join-name').focus();
+  }
+  $('join').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var name = $('join-name').value.trim();
+    if (!name) { $('join-name').focus(); return; }
+    $('join-go').disabled = true;
+    call('join', { invite: store('invite') || '', name: name }).then(function (j) { store('invite', null); enterApp(j); })
+      .catch(function (e) { $('join-go').disabled = false; failed(e); });
+  });
+  function startApp() {
+    call('me').then(function (j) { store('invite', null); enterApp(j); }).catch(function (e) {
+      if (e.code === 'not_an_author' && store('invite')) { showJoin(); return; }
+      failed(e);
+    });
+  }
+  window.__portal = { cleanPaste: cleanPaste, linkEmbed: linkEmbed, docxToHtml: docxToHtml, curveSvg: curveSvg, state: S, toStored: toStored, toEditor: toEditor, embedFrom: embedFrom, editor: function () { return ED; } };
+  if (store('token')) { startApp(); } else { gate(); }
+})();
+</script>
+</body>
+</html>
