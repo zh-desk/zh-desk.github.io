@@ -410,7 +410,7 @@ html.embed .pv-bar, html.solo .pv-bar { display: none; }
   function random() { var a = new Uint8Array(32); crypto.getRandomValues(a); return b64url(a); }
   function startGitHub() {
     var state = random(), verifier = random();
-    sess('state', state); sess('verifier', verifier); sess('v', null); sess('after', location.pathname);
+    sess('state', state); sess('verifier', verifier); sess('v', null); sess('after', '/write/');
     $('gh-go').disabled = true;
     crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)).then(function (h) {
       var p = new URLSearchParams({ client_id: CFG.clientId, redirect_uri: REDIRECT, state: state, code_challenge: b64url(new Uint8Array(h)), code_challenge_method: 'S256' });
@@ -608,6 +608,7 @@ html.embed .pv-bar, html.solo .pv-bar { display: none; }
     d.querySelectorAll('script').forEach(function (s) { if (LOADERS.test(s.getAttribute('src') || '')) { s.remove(); } });
     var out = d.innerHTML.replace(/ /g, ' ').replace(/&nbsp;/g, ' ').replace(/<p>\s*(<br>)?\s*<\/p>/g, '').replace(/\n{3,}/g, '\n\n').replace(/ allowfullscreen="(allowfullscreen)?"/g, ' allowfullscreen').trim();
     out = out.replace(/ data-zh-drawn="1"/g, '');
+    out = out.replace(/<blockquote class="twitter-(?:tweet|video)"[\s\S]*?<\/blockquote>/g, function (b) { return b.replace(/<\/p>(\s*)\u2014/g, '</p>$1&mdash;'); });
     if (/class="twitter-(tweet|video)"/.test(out)) { out += '\n' + X_SCRIPT; }
     if (/class="instagram-media"/.test(out)) { out += '\n' + IG_SCRIPT; }   // their posts need their scripts in the CMS too
     if (/class="tiktok-embed"/.test(out)) { out += '\n' + TT_SCRIPT; }
@@ -796,7 +797,7 @@ html.embed .pv-bar, html.solo .pv-bar { display: none; }
       markDirty(); renderEmbeds(ED.getDoc(), ED.getWin());
     };
     if ((m = /^<blockquote class="twitter-tweet"><a href="(https:\/\/x\.com\/\w+\/status\/\d+)/.exec(code))) {
-      call('oembed', { url: m[1] }).then(function (j) { done(j && j.html ? embedFrom(j.html) : null); }).catch(function () {});
+      call('oembed', { url: m[1] }).then(function (j) { done(j && j.html && embedFrom(j.html) ? String(j.html).trim() : null); }).catch(function () {});
     } else if ((m = /youtube\.com\/embed\/([\w-]{11})[^"]*" title="YouTube video player"/.exec(code))) {
       call('oembed', { url: 'https://www.youtube.com/watch?v=' + m[1] }).then(function (j) { done(j && j.title ? code.replace('title="YouTube video player"', 'title="' + esc(j.title) + '"') : null); }).catch(function () {});
     }
