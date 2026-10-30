@@ -108,6 +108,26 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
 .stage.assigned, .stage.returned { color: var(--accent); border-color: var(--accent); }
 .stage.declined { color: var(--bad); border-color: var(--bad); }
 .idx { display: inline-block; padding: 0 7px; border-radius: 10px; font-weight: 700; }
+/* Compare and rank (Oct. 30): every contributor side by side, admins only */
+.cmp-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 8px; font-size: .8rem; }
+.cseg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.cseg button { border: 0; border-radius: 0; margin: 0; padding: 3px 9px; font: inherit; font-size: .78rem; background: var(--panel); color: var(--muted); cursor: pointer; width: auto; }
+.cseg button + button { border-left: 1px solid var(--rule); }
+.cseg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.cmp-head label { display: inline-flex; gap: 5px; align-items: center; margin: 0; font-weight: 400; color: var(--muted); }
+.cmp-head label input { width: auto; margin: 0; }
+.tbl th[data-cmp-sort] { cursor: pointer; user-select: none; }
+.tbl th[data-cmp-sort]:hover, .tbl th[aria-sort] { color: var(--ink); }
+.tbl tr[data-person] { cursor: pointer; }
+.tbl tr[data-person]:hover td { background: var(--code); }
+.tbl tr.unranked td { color: var(--muted); }
+.tbl td.rk { font-weight: 700; width: 1%; }
+#compare .tbl td.cn { min-width: 110px; }
+#compare .tbl td.cn .sub { display: block; font-size: .74rem; color: var(--muted); }
+#compare .crit-n { color: var(--bad); font-weight: 600; font-size: .76rem; }
+.cbar { display: inline-block; position: relative; width: 56px; height: 8px; background: var(--code); border-radius: 4px; vertical-align: middle; margin-right: 6px; }
+.cbar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 4px; opacity: .7; }
+.cbar b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink); }
 .idx.hi { background: rgba(31,122,69,.14); color: var(--good); }
 .idx.mid { background: var(--code); }
 .idx.lo { background: rgba(154,91,0,.14); color: var(--warn); }
@@ -257,6 +277,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     <div>
       <section class="panel"><h2><span class="grow">All contributors</span><span class="small" style="text-transform:none;letter-spacing:0" id="upd"></span></h2><div class="tiles" id="totals"></div></section>
       <section class="panel"><h2><span class="grow">Contributors</span></h2><div class="people" id="people"></div><p class="muted small" id="people-empty" hidden>No contributors yet. Make an invite link below and send it to them.</p></section>
+      <section class="panel" id="compare" hidden></section>
       <section class="panel" id="profile" hidden></section>
       <section class="panel" id="invites-panel"></section>
     </div>
@@ -386,7 +407,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       render();
     });
   }
-  function render() { renderFunnel(); renderTotals(); renderPeople(); renderProfile(); renderBoard(); renderInvites(); }
+  function render() { renderFunnel(); renderTotals(); renderPeople(); renderCompare(); renderProfile(); renderBoard(); renderInvites(); }
 
   function allPieces() {
     var out = [];
@@ -447,6 +468,83 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     }).join('');
   }
   function sel() { return ((S.data && S.data.contributors) || []).filter(function (c) { return c.login === S.sel; })[0] || null; }
+
+  // ---------- Compare and rank (Oct. 30, Dan: "admin needs to be able to compare and rank contributors please"; and on
+  // the chart, "adjust a contributor's chart for beat as well"). Every contributor side by side over a span, ranked on
+  // any column (click its heading). This page alone: the author desk never shows a contributor anyone else's numbers
+  // (Dan, Oct. 23: "But not vs. other contributors"). Adjust for beat ranks on each piece against its own section's
+  // posts as well as its time slot (the stats worker's idxs: Political posts draw more than Markets posts), so a
+  // contributor who writes markets isn't ranked under one who writes politics for the beat alone. Only contributors with
+  // CMP_MIN pieces or more in the span are ranked; the rest show below, unranked, so one lucky piece doesn't top it.
+  var CMP_SPANS = [['7d', '7d', 7, 'the past 7 days'], ['1mo', '1mo', 30, 'the past month'], ['3mo', '3mo', 91, 'the past 3 months'], ['12mo', '12mo', 365, 'the past 12 months'], ['all', 'All', 0, 'all time']];
+  var CMP_MIN = 3;
+  // key: [heading, better ('hi' or 'lo'), what it is]
+  var CMP_COLS = [['live', 'Live', 'hi', 'Pieces live on ZH in the span'],
+    ['idx', 'Vs. slot', 'hi', 'Median piece against a typical ZH post for its hour and weekday (1x is typical)'],
+    ['beatpct', 'Beat typical', 'hi', 'Share of their pieces above 1x, a typical ZH post'],
+    ['medViews', 'Typical', 'hi', 'Typical piece: median views per piece'],
+    ['views', 'Views', 'hi', 'All views on their pieces in the span'],
+    ['cpk', 'Cmts/1K', 'hi', 'Comments per 1,000 views'],
+    ['best', 'Best day', 'lo', 'Their best rank among the day\'s ZH posts'],
+    ['tops', 'Top list', 'hi', 'Pieces that made ZH\'s own Today\'s top list'],
+    ['err', 'Errors', 'lo', 'Error rate: fixes the prep required per piece as submitted (lower is better)']];
+  S.cmp = { span: store('cd-cmp-span') || '3mo', beat: store('cd-cmp-beat') === '1', sort: store('cd-cmp-sort') || 'idx', dir: store('cd-cmp-dir') || '' };
+  if (!CMP_SPANS.some(function (x) { return x[0] === S.cmp.span; })) { S.cmp.span = '3mo'; }
+  if (!CMP_COLS.some(function (x) { return x[0] === S.cmp.sort; })) { S.cmp.sort = 'idx'; }
+  function secFactor(ch) { var c = ((S.data && S.data.stats_base && S.data.stats_base.chan) || {})[ch]; return c && c.n >= 5 && c.factor ? c.factor : 1; }
+  function cmpIdx(x, beat) { return !beat ? x.idx : x.idxs != null ? x.idxs : x.idx == null ? null : x.idx / secFactor(x.channel); }
+  function cmpRow(c) {
+    var days = CMP_SPANS.filter(function (x) { return x[0] === S.cmp.span; })[0][2], from = days ? Date.now() / 1000 - days * 86400 : 0;
+    var st = withHistory(c).filter(function (a) { return a.status === 'live' && a.stats && (!from || (a.stats.pub_ts || 0) >= from); }).map(function (a) { return a.stats; });
+    var ix = st.map(function (x) { return cmpIdx(x, S.cmp.beat); }).filter(function (x) { return x != null; });
+    var views = st.reduce(function (t, x) { return t + (x.views || 0); }, 0), comments = st.reduce(function (t, x) { return t + (x.comments || 0); }, 0);
+    var best = st.filter(function (x) { return x.day_rank && x.day_n; }).sort(function (a, b) { return a.day_rank / a.day_n - b.day_rank / b.day_n; })[0] || null;
+    var fx = c.articles.filter(function (a) { return a.fixes != null && (!from || Date.parse(a.submitted || '') / 1000 >= from); });
+    return { c: c, live: st.length, ni: ix.length, idx: med(ix), beatpct: ix.length ? ix.filter(function (x) { return x > 1; }).length / ix.length : null, nbeat: ix.filter(function (x) { return x > 1; }).length,
+             medViews: med(st.map(function (x) { return x.views; })), views: st.length ? views : null, cpk: views ? comments * 1000 / views : null,
+             best: best ? best.day_rank / best.day_n : null, bestX: best, tops: st.length ? st.filter(function (x) { return x.top_best; }).length : null,
+             err: fx.length ? fx.reduce(function (t, a) { return t + a.fixes; }, 0) / fx.length : null, nerr: fx.length, crit: fx.filter(function (a) { return a.critical > 0; }).length };
+  }
+  function renderCompare() {
+    var el = $('compare'), d = S.data, list = (d && d.contributors) || [];
+    el.hidden = list.length < 2;
+    if (el.hidden) { el.innerHTML = ''; return; }
+    var col = CMP_COLS.filter(function (x) { return x[0] === S.cmp.sort; })[0], dir = S.cmp.dir || col[2];
+    var rows = list.map(cmpRow);
+    var ord = function (a, b) {
+      var x = a[col[0]], y = b[col[0]];
+      if (x == null || y == null) { return x == null && y == null ? nameOf(a.c).localeCompare(nameOf(b.c)) : x == null ? 1 : -1; }   // no number: last, either way
+      return (dir === 'hi' ? y - x : x - y) || b.live - a.live || nameOf(a.c).localeCompare(nameOf(b.c));
+    };
+    var ranked = rows.filter(function (r) { return r.ni >= CMP_MIN; }).sort(ord), rest = rows.filter(function (r) { return r.ni < CMP_MIN; }).sort(ord);
+    var top = Math.max(1.5, Math.max.apply(null, (ranked.length ? ranked : rows).map(function (r) { return r.idx || 0; })));   // the bars scale to the ranked; an unranked outlier runs to the end
+    var span = CMP_SPANS.filter(function (x) { return x[0] === S.cmp.span; })[0];
+    var th = function (x) {
+      var on = x[0] === S.cmp.sort, head = x[0] === 'idx' && S.cmp.beat ? 'Vs. slot + beat' : x[1];
+      return '<th class="n" data-cmp-sort="' + x[0] + '" title="' + esc(x[3]) + '. Click to rank by it.' + '"' + (on ? ' aria-sort="' + (dir === 'hi' ? 'descending' : 'ascending') + '"' : '') + '>' + esc(head) + (on ? (dir === col[2] ? ' &#9660;' : ' &#9650;') : '') + '</th>';
+    };
+    var tr = function (r, k) {
+      var c = r.c, bar = r.idx == null ? '' : '<span class="cbar" aria-hidden="true"><i style="width:' + Math.min(100, 100 * r.idx / top).toFixed(1) + '%"></i><b style="left:' + (100 / top).toFixed(1) + '%"></b></span>';
+      return '<tr data-person="' + esc(c.login) + '"' + (k == null ? ' class="unranked"' : '') + ' title="Open ' + esc(nameOf(c)) + '\'s profile"><td class="rk">' + (k == null ? '' : k + 1) + '</td>' +
+        '<td class="cn"><span class="ttl">' + esc(nameOf(c)) + '</span><span class="sub">' + esc(ghOf(c)) + ' on GitHub' + (k == null ? ' &middot; ' + (r.ni ? r.ni + ' piece' + (r.ni === 1 ? '' : 's') : 'no pieces') + ' with numbers, not ranked' : '') + '</span></td>' +
+        '<td class="n">' + r.live + '</td><td class="n">' + bar + idxHtml(r.idx) + '</td>' +
+        '<td class="n"' + (r.beatpct == null ? '' : ' title="' + r.nbeat + ' of ' + r.ni + ' pieces above 1x"') + '>' + (r.beatpct == null ? '-' : Math.round(100 * r.beatpct) + '%') + '</td>' +
+        '<td class="n">' + kf(r.medViews) + '</td><td class="n">' + nf(r.views) + '</td><td class="n">' + (r.cpk == null ? '-' : r.cpk.toFixed(1)) + '</td>' +
+        '<td class="n"' + (r.bestX ? ' title="' + esc(dayName(r.bestX.day)) + ': top ' + Math.max(1, Math.round(100 * r.best)) + '% of ZH posts that day"' : '') + '>' + (r.bestX ? '#' + r.bestX.day_rank + ' of ' + r.bestX.day_n : '-') + '</td>' +
+        '<td class="n">' + (r.tops == null ? '-' : r.tops) + '</td>' +
+        '<td class="n"' + (r.err == null ? '' : ' title="' + r.err.toFixed(1) + ' fixes per piece over ' + r.nerr + ' prepped piece' + (r.nerr === 1 ? '' : 's') + (r.crit ? ', ' + r.crit + ' with critical problems' : '') + '"') + '>' + (r.err == null ? '-' : r.err.toFixed(1) + (r.crit ? ' <span class="crit-n">' + r.crit + ' crit.</span>' : '')) + '</td></tr>';
+    };
+    var cpk = (d.stats_base || {}).comments_per_1k;
+    el.innerHTML = '<h2><span class="grow">Compare and rank</span></h2>' +
+      '<div class="cmp-head"><span class="cseg" role="group" aria-label="How far back">' + CMP_SPANS.map(function (x) { return '<button type="button" data-cmp-span="' + x[0] + '" aria-pressed="' + (x[0] === S.cmp.span) + '" title="Pieces from ' + x[3] + '">' + x[1] + '</button>'; }).join('') + '</span>' +
+      '<label title="Rank each piece against ZH posts in its own section as well as its time slot (Political posts draw more than Markets posts), so no one ranks higher for the beat alone"><input type="checkbox" data-cmp-beat' + (S.cmp.beat ? ' checked' : '') + '> Adjust for beat</label>' +
+      '<span class="muted">Ranked on ' + esc(col[0] === 'idx' && S.cmp.beat ? 'Vs. slot + beat' : col[1]) + ', ' + (dir === col[2] ? 'best first' : 'worst first') + '. Click a heading to rank on it, again to flip.</span></div>' +
+      '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>Contributor</th>' + CMP_COLS.map(th).join('') + '</tr></thead><tbody>' +
+      ranked.map(function (r, k) { return tr(r, k); }).join('') + rest.map(function (r) { return tr(r, null); }).join('') + '</tbody></table></div>' +
+      '<p class="muted small" style="margin:6px 0 0">Hover a number for more. Pieces live on ZH from ' + esc(span[3]) + ', their pieces from before the author desk included. Ranked once a contributor has ' + CMP_MIN + ' pieces with numbers in the span; the rest are listed under them. ' +
+      (S.cmp.beat ? 'Adjusted for beat: each piece set against a typical ZH post for its hour, weekday and section. ' : 'Against its slot: each piece against a typical ZH post for its hour and weekday; tick Adjust for beat to allow for its section too. ') +
+      'The bar\'s line is 1&times;, a typical ZH post.' + (cpk ? ' ZH\'s typical comments per 1,000 views: ' + cpk + '.' : '') + ' Click a contributor for their profile. Only admins see this page.</p>';
+  }
 
   // ---------- Time off (Oct. 26, Dan: "Josh told me this on X"): each contributor's days off the desk, from config/off-desk.json
   // through the helper. They mark their own on the author desk; anyone here can mark it for them (/admin/away) or take a
@@ -986,6 +1084,14 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   // ---------- clicks and forms
   document.addEventListener('click', function (ev) {
     var t = ev.target;
+    var cs = t.closest('[data-cmp-span]');
+    if (cs) { S.cmp.span = cs.dataset.cmpSpan; store('cd-cmp-span', S.cmp.span); renderCompare(); return; }
+    var ch = t.closest('[data-cmp-sort]');
+    if (ch) {
+      var key = ch.dataset.cmpSort, best = CMP_COLS.filter(function (x) { return x[0] === key; })[0][2];
+      S.cmp.dir = key === S.cmp.sort ? ((S.cmp.dir || best) === 'hi' ? 'lo' : 'hi') : best; S.cmp.sort = key;
+      store('cd-cmp-sort', key); store('cd-cmp-dir', S.cmp.dir); renderCompare(); return;
+    }
     var p = t.closest('[data-person]');
     if (p) { S.sel = p.dataset.person; S.seeAs = false; renderPeople(); renderProfile(); $('profile').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     var act = t.closest('[data-act]');
@@ -1090,6 +1196,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     }
   });
   document.addEventListener('change', function (ev) {
+    if (ev.target.matches('[data-cmp-beat]')) { S.cmp.beat = ev.target.checked; store('cd-cmp-beat', S.cmp.beat ? '1' : '0'); renderCompare(); return; }
     var nk = ev.target.closest('[data-nick]'), c = sel();
     if (nk && c) { call('nickname', { login: c.login, nickname: nk.value.trim() }).then(function () { toast('Desk name saved. They never see it.'); return load(); }).catch(function (e) { toast(e.message, true); }); }
   });
