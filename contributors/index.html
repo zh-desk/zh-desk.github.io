@@ -343,7 +343,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     return m < 60 ? Math.max(m, 1) + ' min ago' : m < 48 * 60 ? Math.round(m / 60) + ' hr ago' : Math.round(m / 1440) + ' days ago';
   }
   function dayName(d) { if (!d) { return ''; } var p = d.split('-'); return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2], 12)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }); }
-  function secName(c) { return String(c || '').split('-').map(function (w) { return w === 'ai' ? 'AI' : w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); }
+  function secName(c) { return String(c || '').replace(/-\d+$/, '').split('-').map(function (w) { return w === 'ai' ? 'AI' : w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); }
   // Where a piece stands, in the words of the desk (not the contributor's).
   function stage(a) {
     if (a.status === 'live') { return { k: 'live', w: a.zh && a.zh.update ? 'Live on ZH, in an update' : 'Live on ZH' }; }

@@ -204,6 +204,10 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 .tcard h5 { margin: 8px 0 0; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
 .tcard .top5 { font-size: .8rem; }
 .ptab-wrap { overflow-x: auto; }
+.ptab-wrap.folded { position: relative; }
+.ptab-wrap.folded::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 64px; background: linear-gradient(to bottom, transparent, var(--panel)); pointer-events: none; }
+.ptab-more { text-align: center; margin: 4px 0 2px; }
+.ptab-more button { width: auto; }
 .ptab { width: 100%; border-collapse: collapse; font-size: .84rem; font-variant-numeric: tabular-nums; }
 .ptab th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid var(--rule); padding: 6px; cursor: pointer; white-space: nowrap; user-select: none; }
 .ptab th.n, .ptab td.n { text-align: right; white-space: nowrap; }
@@ -743,7 +747,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   function dayName(d) { if (!d) { return ''; } var p = d.split('-'); return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2], 12)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }); }
   function hourName(h) { return h == null ? '' : ((h % 12) || 12) + (h < 12 ? ' a.m.' : ' p.m.'); }
   var DOWS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  function secName(c) { return String(c || '').split('-').map(function (w) { return w === 'ai' ? 'AI' : w === 'us' ? 'US' : w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); }
+  function secName(c) { return String(c || '').replace(/-\d+$/, '').split('-').map(function (w) { return w === 'ai' ? 'AI' : w === 'us' ? 'US' : w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); }
   function topPct(r, n) { return r && n ? Math.max(1, Math.round((100 * r) / n)) : null; }
   function med(a) { a = a.filter(function (x) { return x != null; }).sort(function (x, y) { return x - y; }); return a.length ? (a[Math.floor((a.length - 1) / 2)] + a[Math.ceil((a.length - 1) / 2)]) / 2 : null; }
   function basisWord(b) { return b === 48 ? 'at 2 days' : b ? 'at ' + b + (b === 1 ? ' hour' : ' hours') : ''; }
@@ -795,7 +799,10 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       // how their pieces ran over the first two days against ZH's typical post (/perf.js; Dan, Oct. 23: "let Josh see this
       // too on his own contributor page. But not vs. other contributors when we roll that out": their own pieces only)
       if (window.ZHPerf) { h += '<div class="perf">' + ZHPerf.html(perfOpts()) + '</div>'; }
-      h += '<div class="ptab-wrap"><table class="ptab"><thead><tr>' + [['title', 'Piece'], ['pub', 'Ran (ET)'], ['views', 'Views', 1], ['comments', 'Comments', 1, 'opt'], ['idx', 'Vs. its slot', 1],
+      // a long list folds to its first five rows, fading out, with a button for the rest (Oct. 30, Dan: "Collapse the giant
+      // list of pieces to that fade / expand accordion (default closed with maybe the last 5 showing)")
+      var FOLDN = 5, folded = live.length > FOLDN && !D.allRows;
+      h += '<div class="ptab-wrap' + (folded ? ' folded' : '') + '"><table class="ptab"><thead><tr>' + [['title', 'Piece'], ['pub', 'Ran (ET)'], ['views', 'Views', 1], ['comments', 'Comments', 1, 'opt'], ['idx', 'Vs. its slot', 1],
         ['day', 'That day', 1], ['chan', 'Section, 7 days', 1, 'opt'], ['m1', '1 hr', 1, 'opt'], ['m24', '24 hr', 1, 'opt'], ['m48', '2 days', 1, 'opt'], ['top', 'ZH top', 1, 'opt']].map(function (c) {
         return '<th data-dsort="' + c[0] + '" class="' + (c[2] ? 'n ' : '') + (c[3] || '') + '">' + c[1] + (D.sort === c[0] ? (D.dir < 0 ? ' ▾' : ' ▴') : '') + '</th>';
       }).join('') + '</tr></thead><tbody>';
@@ -807,7 +814,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       };
       if (D.open === undefined) { var newest = rows.slice().sort(function (a, b) { return String((b.zh || {}).published).localeCompare(String((a.zh || {}).published)); })[0]; D.open = newest ? newest.id : null; }
       live.slice().sort(function (a, b) { var ka = key(a), kb = key(b); if (ka == null && kb == null) { return 0; } if (ka == null) { return 1; } if (kb == null) { return -1; } return (ka < kb ? -1 : ka > kb ? 1 : 0) * D.dir; })
-        .forEach(function (a) {
+        .slice(0, folded ? FOLDN : undefined).forEach(function (a) {
           var x = a.stats, open = D.open === a.id;
           h += '<tr class="prow' + (open ? ' open' : '') + '" data-piece="' + esc(a.id) + '" title="Click for its chart and how it did"><td class="hl"><span class="chev">' + (open ? '&#9662;' : '&#9656;') + '</span><a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc((x && x.title) || a.zh.title || a.title) + '</a>' +
             '<span class="sub">' + esc(x ? secName(x.channel) : '') + (x && x.views == null ? ' &middot; not counted yet' : '') + '</span></td>';
@@ -821,6 +828,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
           if (open) { h += '<tr class="pdetail"><td colspan="11">' + detailHtml(a, base) + '</td></tr>'; }
         });
       h += '</tbody></table></div>';
+      if (live.length > FOLDN) { h += '<div class="ptab-more"><button type="button" data-allrows aria-expanded="' + !folded + '">' + (folded ? 'Show all ' + live.length + ' pieces &#9662;' : 'Show ' + FOLDN + ' only &#9652;') + '</button></div>'; }
       h += sectionsHtml(st);
     }
     h += '<p class="how">How to read it: <strong>Vs. its slot</strong> is a piece\'s views against the median ZeroHedge post published at the same hour and on the same kind of day (ZH\'s traffic ebbs and flows through the day and week), at 2 days old, or at its age for younger pieces: 1× is typical, 2× is twice the typical. <strong>That day</strong> ranks it among every ZH post that Eastern day; <strong>Section</strong>, among its section\'s posts over the week around it. Hour-by-hour numbers start from Oct. 20, 2026; earlier pieces have their totals.</p>';
@@ -934,6 +942,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     });
   });
   $('dash-body').addEventListener('click', function (ev) {
+    if (ev.target.closest('[data-allrows]')) { D.allRows = !D.allRows; renderDash(); return; }
     var th = ev.target.closest('th[data-dsort]');
     if (th) { var k = th.dataset.dsort; if (D.sort === k) { D.dir = -D.dir; } else { D.sort = k; D.dir = k === 'title' ? 1 : -1; } renderDash(); return; }
     if (ev.target.closest('a')) { return; }
