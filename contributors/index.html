@@ -184,6 +184,11 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
 .cmsbtn { margin-left: auto; padding: 1px 8px; font-size: .74rem; font-weight: 600; border-color: var(--good); color: var(--good); }
 .cmsbtn:hover { background: var(--good); color: #fff; }
 .cmsbtn + .cmsbtn { margin-left: 6px; }
+/* Ran as an update is rare (Oct. 30, Dan): on an In CMS card it shows only while the pointer is over the card, beside a
+   right-aligned undo that never moves; on a phone, or any time, it's in the opened piece's header. */
+.fitem .facts { margin-left: auto; display: inline-flex; gap: 8px; align-items: center; }
+.fitem .updbtn { display: none; margin-left: 0; }
+@media (hover: hover) { .fitem:hover .updbtn { display: inline-block; } }
 .upd-list { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 2px; }
 .form .upd-opt { display: flex; gap: 8px; align-items: flex-start; font-size: .86rem; font-weight: 400; padding: 7px 9px; border: 1px solid var(--rule); border-radius: 6px; cursor: pointer; }
 .form .upd-opt:has(input:checked) { border-color: var(--good); }
@@ -593,8 +598,11 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
         var t = Date.parse(x.a.closed || x.a.stage_at || x.a.updated || ''), hrs = t ? Math.round((Date.now() - t) / 36e5) : 0;
         var late = hrs >= 24 ? '<span class="crit" title="The ZH watcher hasn\'t found it on ZeroHedge. Check whether it ran (ZH may have retitled it) or is still waiting in the CMS.">not seen on ZH in ' + (hrs >= 48 ? Math.round(hrs / 24) + ' days' : hrs + ' hr') + '</span>' : '';
         // Oct. 30 (Dan: Josh's update went into his earlier post, so it never ran as a post of its own): Ran as an update.
-        var upd = ed && x.a.issue ? '<button type="button" class="cmsbtn" data-upd="' + esc(x.c.login) + '|' + esc(x.a.id) + '" title="It went into another ZeroHedge post as an update: mark it live there">Ran as an update</button>' : '';
-        return item(x, '', esc(ago(x.a.closed || x.a.stage_at || x.a.updated)), late + upd + (x.a.cms ? cmsBtn(x.a, false) : ''));
+        // It's rare (Dan, same day: "should not always display"), so the card shows it only under the pointer; the opened
+        // piece's header always has it.
+        var upd = ed && x.a.issue ? '<button type="button" class="cmsbtn updbtn" data-upd="' + esc(x.c.login) + '|' + esc(x.a.id) + '" title="It went into another ZeroHedge post as an update: mark it live there">Ran as an update</button>' : '';
+        var acts = upd + (x.a.cms ? cmsBtn(x.a, false) : '');
+        return item(x, '', esc(ago(x.a.closed || x.a.stage_at || x.a.updated)), late + (acts ? '<span class="facts">' + acts + '</span>' : ''));
       }, 'Nothing in the CMS.');
   }
   function pitchHtml(c, p, full) {
@@ -880,6 +888,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       (a.zh ? '<a class="small" href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">On ZeroHedge &#8599;</a>' : '') +
       (S.data.me.role === 'editor' && a.issue && a.status === 'ready' ? '<button type="button" class="cmsbtn" style="margin-left:0" data-cms="' + a.issue + '" data-on="1">Prepped in CMS</button>' : '') +
       (S.data.me.role === 'editor' && a.issue && a.status === 'accepted' && a.cms ? '<span class="small">In the CMS <button type="button" class="linkish" data-cms="' + a.issue + '" data-on="0">undo</button></span>' : '') +
+      (S.data.me.role === 'editor' && a.issue && a.status === 'accepted' ? '<button type="button" class="linkish" data-upd="' + esc(c.login) + '|' + esc(a.id) + '" title="It went into another ZeroHedge post as an update: mark it live there">Ran as an update?</button>' : '') +
       '<a class="small" href="/write/' + q + '" target="_blank" rel="noopener">Open as submitted in a new tab</a><button type="button" data-close>Close</button></div>' +
       (prepped ? '<div class="ptabs" role="tablist"><button type="button" role="tab" data-ptab="pkg" aria-selected="true">Prepped for ZH</button><button type="button" role="tab" data-ptab="orig" aria-selected="false">As submitted</button></div><div class="pkg" id="pkg-pane">Opening the package...</div>' : '') +
       '<iframe class="orig" title="' + esc(a.title || 'The article') + '"' + (prepped ? ' hidden data-src="/write/' + q + '&embed=1"' : ' src="/write/' + q + '&embed=1"') + '></iframe></div>';
@@ -1042,6 +1051,8 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     if (up) {
       var uk = up.dataset.upd.split('|'), uc = (S.data.contributors || []).filter(function (x) { return x.login === uk[0]; })[0];
       var ua = uc && uc.articles.filter(function (x) { return x.id === uk.slice(1).join('|'); })[0];
+      // From an opened piece's header: close the piece first, so the question isn't stacked on top of it.
+      var upc = up.closest('.dlg-back.piece'); if (upc) { var upx = upc.querySelector('[data-close]'); if (upx) { upx.click(); } }
       if (ua) { updateDialog(uc, ua); }
       return;
     }
