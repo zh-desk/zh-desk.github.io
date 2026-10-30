@@ -194,6 +194,15 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 .tile .k { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .tile .v { font-weight: 700; font-size: 1.35rem; line-height: 1.25; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .tile .s { font-size: .76rem; color: var(--muted); overflow-wrap: anywhere; }
+.tile.has-card { position: relative; cursor: help; outline-offset: 2px; }
+.tile.has-card .k { text-decoration: underline dotted; text-underline-offset: 3px; }
+.tcard { display: none; position: absolute; left: 0; top: calc(100% - 2px); z-index: 20; width: 330px; max-width: calc(100vw - 32px); background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.18); font-size: .8rem; line-height: 1.4; cursor: auto; }
+.tcard.flip { left: auto; right: 0; }
+.tile.has-card:hover .tcard, .tile.has-card:focus-within .tcard { display: block; }
+.tcard .ct { font-weight: 700; display: block; margin-bottom: 2px; }
+.tcard p { margin: 4px 0 0; }
+.tcard h5 { margin: 8px 0 0; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.tcard .top5 { font-size: .8rem; }
 .ptab-wrap { overflow-x: auto; }
 .ptab { width: 100%; border-collapse: collapse; font-size: .84rem; font-variant-numeric: tabular-nums; }
 .ptab th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); border-bottom: 1px solid var(--rule); padding: 6px; cursor: pointer; white-space: nowrap; user-select: none; }
@@ -768,16 +777,17 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       : nAge >= 48 ? ['Newest piece, 2 days', kf(newest.m48 != null ? newest.m48 : newest.views), 'views in its first 2 days']
       : newest.proj ? ['On track for', kf(newest.proj), '2-day views for the newest piece at its pace so far']
       : ['On track for', '-', 'shows 15 minutes after a piece runs'];
-    var tile = function (k, v, s) { return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + (s || '&nbsp;') + '</div></div>'; };
+    var tile = function (k, v, s, card) { return '<div class="tile' + (card ? ' has-card" tabindex="0' : '') + '"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + (s || '&nbsp;') + '</div>' + (card ? '<div class="tcard" role="tooltip">' + card + '</div>' : '') + '</div>'; };
+    var bestA = best ? rows.filter(function (a) { return a.stats === best; })[0] : null;
     var h = '<div class="tiles">' +
       tile('Live on ZeroHedge', live.length, 'of ' + sent.length + ' submitted' + (onWay ? ' &middot; ' + onWay + ' on the way' : '')) +
       tile('Total views', nf(views), nf(comments) + ' comments') +
       tile(track[0], track[1], track[2]) +
       tile('Against its time slot', idxs.length ? xf(med(idxs)) : '-', 'median; 1× is a typical ZH post for the hour and weekday it ran') +
       tile('Beat the typical', idxs.length ? beat + ' of ' + idxs.length : '-', idxs.length ? big + ' at 1.5× or more' : '') +
-      tile('Best day', best ? '#' + best.day_rank + ' of ' + best.day_n : '-', best ? 'top ' + topPct(best.day_rank, best.day_n) + '% on ' + dayName(best.day) : '') +
+      tile('Best day', best ? '#' + best.day_rank + ' of ' + best.day_n : '-', best ? 'top ' + topPct(best.day_rank, best.day_n) + '% on ' + dayName(best.day) : '', bestA ? bestCard(bestA) : '') +
       tile('Comments per 1,000 views', views ? (comments * 1000 / views).toFixed(1) : '-', base && base.comments_per_1k ? 'ZH typical: ' + base.comments_per_1k : '') +
-      tile('ZH\'s Today\'s top', tops.length ? tops.length + (tops.length === 1 ? ' piece' : ' pieces') : '-', topBest ? '#' + topBest + ' at best' : 'tracked from Oct. 20') +
+      tile('ZH\'s Today\'s top', tops.length ? tops.length + (tops.length === 1 ? ' piece' : ' pieces') : '-', topBest ? '#' + topBest + ' at best' : 'tracked from Oct. 20', topCard(rows)) +
       '</div>';
     if (!live.length) {
       h += '<p class="muted">Nothing is live on ZeroHedge yet. Pieces show up here, with their numbers, once they run.</p>';
@@ -817,6 +827,33 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     $('dash-body').innerHTML = h;
     var pb = $('dash-body').querySelector('.perf');
     if (pb) { ZHPerf.bind(pb, perfOpts(), $('dash-body').querySelectorAll('tr.prow'), function (tr) { return tr.dataset.piece; }); }
+  }
+  // Hover cards on Best day and ZH's Today's top (Oct. 30, Dan: "a very limited one where the author cannot see all of the
+  // pills etc or the card # or much else. Just a link to the post and maybe some basic expanded stats on how it did";
+  // "hover box with the competing pieces for the day"; "Contributors should never see realtime velocity like we have
+  // it"): the post's link and its totals from the hourly file, the day's most-read ZH posts, nothing from the desk and no
+  // views an hour.
+  function postLink(a) { var x = a.stats || {}; return '<a class="ct" href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(x.title || a.zh.title || a.title) + ' &#8599;</a>'; }
+  function dayList(x) {
+    return '<ol class="top5">' + (x.day_top || []).map(function (q) { return '<li' + (q.mine ? ' class="mine"' : '') + '>' + (q.mine ? 'This piece' : '<a href="https://www.zerohedge.com' + esc(q.path) + '" target="_blank" rel="noopener">' + esc(q.title) + '</a>') + ' &middot; ' + kf(q.views) + '</li>'; }).join('') + '</ol>';
+  }
+  function bestCard(a) {
+    var x = a.stats;
+    return postLink(a) + '<p><strong>#' + x.day_rank + ' of ' + x.day_n + '</strong> ZH posts on ' + esc(dayName(x.day)) + (x.hour != null ? '; it ran at ' + esc(hourName(x.hour)) + ' Eastern' : '') + '.</p>' +
+      '<p>' + nf(x.views) + ' views &middot; ' + nf(x.comments) + ' comments' + (x.idx != null ? ' &middot; ' + xf(x.idx) + ' its time slot' : '') + '</p>' +
+      (x.chan_rank ? '<p>#' + x.chan_rank + ' of ' + x.chan_n + ' in ' + esc(secName(x.channel)) + ' over the week around it.</p>' : '') +
+      (x.top_best ? '<p>On ZH\'s Today\'s top list: #' + x.top_best + ' at best.</p>' : '') +
+      ((x.day_top || []).length ? '<h5>That day\'s most read on ZH</h5>' + dayList(x) : '');
+  }
+  function topCard(rows) {
+    var on = rows.filter(function (a) { return a.stats.top_best; }).sort(function (a, b) { return a.stats.top_best - b.stats.top_best; });
+    var newest = rows.filter(function (a) { return a.stats.pub_ts; }).sort(function (a, b) { return b.stats.pub_ts - a.stats.pub_ts; })[0];
+    var h = on.length ? on.slice(0, 5).map(function (a) { var x = a.stats; return postLink(a) + '<p>#' + x.top_best + ' at best' + (x.top_min ? ', about ' + (x.top_min < 90 ? x.top_min + ' minutes' : (Math.round(x.top_min / 6) / 10) + ' hours') + ' on the list' : '') + '.</p>'; }).join('')
+      : '<p>None of these pieces has made ZH\'s Today\'s top list yet (it\'s tracked from Oct. 20).</p>';
+    var day = on.length && (on[0].stats.day_top || []).length ? on[0].stats : newest && (newest.stats.day_top || []).length ? newest.stats : null;
+    var mineIn = day && (day.day_top || []).some(function (q) { return q.mine; });
+    return h + (day ? '<h5>Most read on ZH, ' + esc(dayName(day.day)) + '</h5>' + dayList(day) +
+      (!mineIn && day.day_rank ? '<p>' + (on.length ? 'That piece' : 'The newest piece') + ': #' + day.day_rank + ' of ' + day.day_n + ' that day.</p>' : '') : '');
   }
   function perfOpts() {
     var j = S.me || {};
@@ -888,6 +925,14 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       return '<div class="b"><span>' + esc(secName(k)) + ' <span class="muted">(' + by[k].length + ')</span></span><span class="bar"><i style="width:' + Math.min(100, 100 * m / mx).toFixed(1) + '%"></i><b style="left:' + (100 / mx).toFixed(1) + '%" title="1×, typical"></b></span><span>' + idxHtml(m) + '</span></div>';
     }).join('') + '</div>';
   }
+  // a hover card near the right edge opens leftward
+  ['mouseover', 'focusin'].forEach(function (t) {
+    $('dash-body').addEventListener(t, function (ev) {
+      var tl = ev.target.closest && ev.target.closest('.tile.has-card'); if (!tl) { return; }
+      var c = tl.querySelector('.tcard'); c.classList.remove('flip');
+      if (tl.getBoundingClientRect().left + Math.min(330, window.innerWidth - 32) > window.innerWidth - 8) { c.classList.add('flip'); }
+    });
+  });
   $('dash-body').addEventListener('click', function (ev) {
     var th = ev.target.closest('th[data-dsort]');
     if (th) { var k = th.dataset.dsort; if (D.sort === k) { D.dir = -D.dir; } else { D.sort = k; D.dir = k === 'title' ? 1 : -1; } renderDash(); return; }
