@@ -972,7 +972,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       (st === 'returned' ? step('done', 'Sent back to you with notes: open it to see them') : '') +
       (past(1) ? step('done', 'With the editors') : '') +
       (['accepted', 'live'].indexOf(st) >= 0 ? step('done', 'Accepted for ZeroHedge') : '') +
-      (isLive ? step('live', 'Live on ZeroHedge: <a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(a.zh.title || a.zh.url) + '</a>', a.zh.published) : '') +
+      (isLive ? step('live', 'Live on ZeroHedge' + (a.zh.update ? ', in an update to' : '') + ': <a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(a.zh.title || a.zh.url) + '</a>', a.zh.update ? a.zh.updated : a.zh.published) : '') +
       (st === 'declined' ? step('', 'Not taken this time') : '') + '</ul>';
     var stats = isLive && a.stats ? detailHtml(a, (S.me || {}).stats_base) : isLive ? '<p class="muted small">Its numbers show here within the hour.</p>' : '';
     return tl + stats + '<div class="trk-acts" style="margin-top:8px"><button type="button" class="primary" data-topen="' + esc(a.id) + '">Open it</button></div>';
@@ -1128,7 +1128,9 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     }
     else if (c.status === 'accepted') { text = '<strong>Accepted, not live yet.</strong> The editors have it lined up for ZeroHedge. Once it runs, this page says so, with the link.'; }
     else if (c.status === 'live' && c.zh && /^https:\/\/(www\.)?zerohedge\.com\//.test(c.zh.url)) {
-      text = '<strong>Live on ZeroHedge' + (c.zh.published ? ', ' + esc(when(c.zh.published)) : '') + ':</strong> <a href="' + esc(c.zh.url) + '" target="_blank" rel="noopener">' + esc(c.zh.title || c.zh.url) + '</a>';
+      // Oct. 30: a piece that ran as an update to another post says so, from when it was marked.
+      var zt = c.zh.update ? c.zh.updated : c.zh.published;
+      text = '<strong>Live on ZeroHedge' + (c.zh.update ? ', in an update' : '') + (zt ? ', ' + esc(when(zt)) : '') + ':</strong> <a href="' + esc(c.zh.url) + '" target="_blank" rel="noopener">' + esc(c.zh.title || c.zh.url) + '</a>';
     }
     else if (c.status === 'declined') { text = '<strong>Not taken this time.</strong> See the editors\' note, if any.'; }
     b.className = 'banner ' + c.status; b.innerHTML = text; b.hidden = !text;

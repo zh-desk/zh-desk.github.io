@@ -72,6 +72,8 @@ header .who { color: var(--muted); font-size: .9rem; }
 .tile { border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px; background: var(--paper); min-width: 0; }
 .tile .k { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .tile .v { font-weight: 700; font-size: 1.35rem; line-height: 1.25; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tile .v .unit { font-size: .78rem; font-weight: 600; color: var(--muted); }
+.tile .crit-n { color: var(--bad); font-weight: 600; }
 .tile .s { font-size: .76rem; color: var(--muted); overflow-wrap: anywhere; }
 .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
 .person { border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; background: var(--paper); cursor: pointer; text-align: left; width: 100%; }
@@ -181,6 +183,12 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
 .odone .chip.approved { background: rgba(31,122,69,.15); color: var(--good); } .odone .chip.denied { background: rgba(173,42,32,.12); color: var(--bad); }
 .cmsbtn { margin-left: auto; padding: 1px 8px; font-size: .74rem; font-weight: 600; border-color: var(--good); color: var(--good); }
 .cmsbtn:hover { background: var(--good); color: #fff; }
+.cmsbtn + .cmsbtn { margin-left: 6px; }
+.upd-list { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 2px; }
+.form .upd-opt { display: flex; gap: 8px; align-items: flex-start; font-size: .86rem; font-weight: 400; padding: 7px 9px; border: 1px solid var(--rule); border-radius: 6px; cursor: pointer; }
+.form .upd-opt:has(input:checked) { border-color: var(--good); }
+.form .upd-opt input { margin-top: 3px; }
+.form .upd-opt .ttl { font-weight: 600; }
 .linkish { border: 0; background: none; padding: 0; color: var(--accent); text-decoration: underline; font-size: .76rem; cursor: pointer; }
 .pc-foot { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--rule); margin-top: 4px; padding-top: 6px; font-size: .76rem; color: var(--muted); }
 .pc-foot label { display: inline-flex; gap: 4px; align-items: center; }
@@ -338,7 +346,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   function secName(c) { return String(c || '').split('-').map(function (w) { return w === 'ai' ? 'AI' : w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); }
   // Where a piece stands, in the words of the desk (not the contributor's).
   function stage(a) {
-    if (a.status === 'live') { return { k: 'live', w: 'Live on ZH' }; }
+    if (a.status === 'live') { return { k: 'live', w: a.zh && a.zh.update ? 'Live on ZH, in an update' : 'Live on ZH' }; }
     if (a.status === 'assigned') { return { k: 'assigned', w: 'Assigned, being written' }; }
     if (a.status === 'returned') { return { k: 'returned', w: 'Sent back to them' }; }
     if (a.status === 'draft') { return { k: 'draft', w: 'Draft' }; }
@@ -384,6 +392,20 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   // Josh's performance"; data/contributors/backfill.json, matched from the headlines they filed). They aren't desk pieces,
   // so the funnel and the board leave them out, and they open on ZH, not here.
   function withHistory(c) { return c.articles.concat(c.history || []); }
+  // Error rate (Oct. 30, Dan: "an 'error rate' card into the admin-only panel for each contributor"): the fixes the prep
+  // required in each piece as submitted (its first package's drop-ins, optional ones left out), per piece, and how many
+  // pieces had a critical problem; the last 10 beside the whole record once there are more. The dashboard only: the
+  // helper never sends it to a contributor.
+  function errTile(c) {
+    var ps = c.articles.filter(function (a) { return a.fixes != null; }).sort(function (a, b) { return String(b.submitted || '').localeCompare(String(a.submitted || '')); });
+    var how = 'title="The fixes the prep required in each piece as submitted (its drop-ins, not counting optional ones), and the pieces whose prep opened with Critical problems"';
+    if (!ps.length) { return '<div class="tile" ' + how + '><div class="k">Error rate</div><div class="v">-</div><div class="s">no prepped pieces yet</div></div>'; }
+    var rate = function (l) { return (l.reduce(function (t, a) { return t + a.fixes; }, 0) / l.length).toFixed(1); };
+    var crit = function (l) { return l.filter(function (a) { return a.critical > 0; }).length; };
+    var last = ps.slice(0, 10), cr = crit(ps);
+    return '<div class="tile" ' + how + '><div class="k">Error rate</div><div class="v">' + rate(ps) + ' <span class="unit">per piece</span></div><div class="s">fixes the prep required &middot; ' +
+      (cr ? '<span class="crit-n">' + cr + ' of ' + ps.length + ' critical</span>' : 'none critical') + (ps.length > 10 ? ' &middot; last 10: ' + rate(last) + ', ' + crit(last) + ' critical' : '') + '</div></div>';
+  }
   function tile(k, v, s) { return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + (s || '&nbsp;') + '</div></div>'; }
   function summary(arts) {
     var live = arts.filter(function (a) { return a.status === 'live'; }), st = live.map(function (a) { return a.stats; }).filter(Boolean);
@@ -479,7 +501,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       '<div class="tiles" style="margin-bottom:14px">' + tile('Live on ZeroHedge', s.live, 'of ' + s.sent + ' submitted' + (hist.length ? ' &middot; ' + hist.length + ' from before the author desk' : '')) + tile('Total views', nf(s.views), nf(s.comments) + ' comments') +
       tile('Typical piece', kf(s.medViews), 'median views') + tile('Against its time slot', xf(s.idx), 'median, 1× typical') + tile('Beat the typical', s.n ? s.beat + ' of ' + s.n : '-', '') +
       tile('Best day', s.best ? '#' + s.best.day_rank + ' of ' + s.best.day_n : '-', s.best ? 'top ' + Math.max(1, Math.round(100 * s.best.day_rank / s.best.day_n)) + '% on ' + dayName(s.best.day) : '') +
-      tile('Comments per 1,000 views', s.views ? (s.comments * 1000 / s.views).toFixed(1) : '-', base.comments_per_1k ? 'ZH typical: ' + base.comments_per_1k : '') + tile('ZH\'s Today\'s top', s.tops, 'pieces') + '</div>' +
+      tile('Comments per 1,000 views', s.views ? (s.comments * 1000 / s.views).toFixed(1) : '-', base.comments_per_1k ? 'ZH typical: ' + base.comments_per_1k : '') + tile('ZH\'s Today\'s top', s.tops, 'pieces') + errTile(c) + '</div>' +
       '<div class="perf">' + (window.ZHPerf ? ZHPerf.html(perfOpts(c)) : '') + '</div>';
     var when2 = function (a) { return String(a.updated || (a.zh && a.zh.published) || ''); };
     var arts = withHistory(c).sort(function (a, b) { return when2(b).localeCompare(when2(a)); });
@@ -569,7 +591,9 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
         // either it hasn't run, or ZH retitled it past what the watcher matches. Say so, so someone looks.
         var t = Date.parse(x.a.closed || x.a.stage_at || x.a.updated || ''), hrs = t ? Math.round((Date.now() - t) / 36e5) : 0;
         var late = hrs >= 24 ? '<span class="crit" title="The ZH watcher hasn\'t found it on ZeroHedge. Check whether it ran (ZH may have retitled it) or is still waiting in the CMS.">not seen on ZH in ' + (hrs >= 48 ? Math.round(hrs / 24) + ' days' : hrs + ' hr') + '</span>' : '';
-        return item(x, '', esc(ago(x.a.closed || x.a.stage_at || x.a.updated)), late + (x.a.cms ? cmsBtn(x.a, false) : ''));
+        // Oct. 30 (Dan: Josh's update went into his earlier post, so it never ran as a post of its own): Ran as an update.
+        var upd = ed && x.a.issue ? '<button type="button" class="cmsbtn" data-upd="' + esc(x.c.login) + '|' + esc(x.a.id) + '" title="It went into another ZeroHedge post as an update: mark it live there">Ran as an update</button>' : '';
+        return item(x, '', esc(ago(x.a.closed || x.a.stage_at || x.a.updated)), late + upd + (x.a.cms ? cmsBtn(x.a, false) : ''));
       }, 'Nothing in the CMS.');
   }
   function pitchHtml(c, p, full) {
@@ -601,9 +625,15 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
           '<div class="when"><span class="stage ' + stage(a).k + '">' + esc(stage(a).w) + '</span> ' + (extra ? extra(x) : esc(ago(a.updated))) + '</div></div>';
       };
     };
-    group('Done: live on ZH, last 14 days', items.filter(function (x) { return x.a.status === 'live' && Date.now() - Date.parse((x.a.zh || {}).published || 0) < 14 * 864e5; })
-      .sort(function (a, b) { return String((b.a.zh || {}).published).localeCompare(String((a.a.zh || {}).published)); }),
-      line('live', function (x) { var s = x.a.stats; return s ? nf(s.views) + ' views &middot; ' + idxHtml(s.idx) + (s.day_rank ? ' &middot; #' + s.day_rank + ' of ' + s.day_n + ' that day' : '') : 'ran ' + esc(when(x.a.zh.published)); }));
+    // An update counts from when it was marked, and its numbers are its post's (Oct. 30): it names the post instead.
+    var ranAt = function (x) { var z = x.a.zh || {}; return String((z.update && z.updated) || z.published || ''); };
+    group('Done: live on ZH, last 14 days', items.filter(function (x) { return x.a.status === 'live' && Date.now() - Date.parse(ranAt(x) || 0) < 14 * 864e5; })
+      .sort(function (a, b) { return ranAt(b).localeCompare(ranAt(a)); }),
+      line('live', function (x) {
+        var s = x.a.stats, z = x.a.zh;
+        if (z.update) { return 'in <a href="' + esc(z.url) + '" target="_blank" rel="noopener">' + esc(z.title || 'its post') + '</a>; views stay with that post' + (d.me.role === 'editor' && x.a.issue ? ' <button type="button" class="linkish" data-updoff="' + esc(x.a.issue) + '" title="Not an update after all: back to In CMS, unpublished">undo</button>' : ''); }
+        return s ? nf(s.views) + ' views &middot; ' + idxHtml(s.idx) + (s.day_rank ? ' &middot; #' + s.day_rank + ' of ' + s.day_n + ' that day' : '') : 'ran ' + esc(when(z.published));
+      }));
     group('Drafting, not sent yet', items.filter(function (x) { return x.a.status === 'draft'; }).sort(function (a, b) { return String(b.a.updated).localeCompare(String(a.a.updated)); }),
       line('', function (x) { return 'last saved ' + esc(ago(x.a.updated)); }));
     group('Pitches decided', pitches.filter(function (x) { return x.p.status !== 'open'; }).sort(function (a, b) { return String((b.p.decided || {}).at || b.p.created).localeCompare(String((a.p.decided || {}).at || a.p.created)); }).slice(0, 12),
@@ -622,6 +652,39 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       (ed && d.admins ? '<h2 style="margin-top:14px"><span class="grow">Admins</span><a class="small" style="text-transform:none;letter-spacing:0;font-weight:400" href="/contributors/?view=owner">See the dashboard as the owner sees it</a></h2>' + (d.admins.length ? '<ul class="small" style="padding-left:18px">' + d.admins.map(function (a) { return '<li>' + esc(a.name) + ' (@' + esc(a.login) + ', ' + esc(a.role) + ')' + (a.joined ? ', joined ' + esc(when(a.joined)) : '') + ' <button type="button" class="small" data-act="admin-remove" data-login="' + esc(a.login) + '">Remove</button></li>'; }).join('') + '</ul>' : '<p class="muted small">No admins yet besides you and Tim.</p>') : '') +
       '<h2 style="margin-top:14px">My email</h2><form class="row small" id="self"><input type="email" style="width:240px" id="self-email" value="' + esc(d.me.email) + '" placeholder="you@example.com"><label class="row" style="gap:4px"><input type="checkbox" id="self-notify"' + (d.me.notify ? ' checked' : '') + '> email me new pitches and submissions</label><button type="submit">Save</button></form>';
     $('invites-panel').innerHTML = h;
+  }
+
+  // ---------- a piece that went into another ZH post as an update (Oct. 30, Dan): which post, then live there
+  function updateDialog(c, a) {
+    var mine = withHistory(c).filter(function (x) { return x.status === 'live' && x.zh && !x.zh.update; })
+      .sort(function (x, y) { return String(y.zh.published || '').localeCompare(String(x.zh.published || '')); }).slice(0, 8);
+    var back = document.createElement('div');
+    back.className = 'dlg-back';
+    back.innerHTML = '<div class="dlg" role="dialog" aria-label="It ran as an update"><h2>It ran as an update</h2>' +
+      '<p class="hint">Which ZeroHedge post did <strong>' + esc(a.title || 'Untitled') + '</strong> go into? ' + esc(short(c)) + ' sees it live on ZeroHedge, in an update, with that post\'s link. Its views stay with that post, so nothing is counted twice.</p>' +
+      '<form class="form" id="upd">' +
+      (mine.length ? '<div class="upd-list">' + mine.map(function (x, i) {
+        return '<label class="upd-opt"><input type="radio" name="upd-post" value="' + esc(x.zh.url) + '"' + (i ? '' : ' checked') + '><span><span class="ttl">' + esc(x.zh.title || x.title || x.zh.url) + '</span>' +
+          '<span class="hint"> &middot; ' + esc(short(c)) + '\'s, ran ' + esc(when(x.zh.published)) + '</span></span></label>';
+      }).join('') + '</div>' : '') +
+      '<label>' + (mine.length ? 'Or another post: paste its ZeroHedge link' : 'Paste the ZeroHedge link of the post it went into') + '<input type="text" inputmode="url" id="upd-url" style="display:block;margin-top:4px;font-weight:400" placeholder="https://www.zerohedge.com/..."></label>' +
+      '<div class="row"><button type="submit" class="primary">Mark it live, in that post</button><button type="button" data-close>Cancel</button></div></form></div>';
+    document.body.appendChild(back);
+    var close = function () { back.remove(); }, f = back.querySelector('#upd'), box = back.querySelector('#upd-url');
+    back.addEventListener('click', function (ev) { if (ev.target === back || ev.target.closest('[data-close]')) { close(); } });
+    box.addEventListener('input', function () { if (box.value.trim()) { f.querySelectorAll('[name="upd-post"]').forEach(function (r) { r.checked = false; }); } });
+    f.querySelectorAll('[name="upd-post"]').forEach(function (r) { r.addEventListener('change', function () { box.value = ''; }); });
+    (mine.length ? f.querySelector('[name="upd-post"]') : box).focus();
+    f.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var pick = f.querySelector('[name="upd-post"]:checked'), url = box.value.trim() || (pick ? pick.value : '');
+      if (!url) { toast('Pick the post, or paste its link.', true); return; }
+      var go = f.querySelector('button[type="submit"]'); go.disabled = true;
+      call('update', { n: a.issue, url: url }).then(function (j) {
+        close(); toast('Live on ZH, in ' + ((j.zh && j.zh.title) || 'that post') + '. Its views stay with that post.');
+        return load();
+      }).catch(function (e) { go.disabled = false; toast('Couldn\'t save that: ' + e.message, true); });
+    });
   }
 
   // ---------- giving someone an article
@@ -931,6 +994,21 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
         if (dh) { var sgEl = dh.querySelector('.stage'); if (sgEl) { sgEl.className = 'stage ' + (on ? 'cms' : 'ready'); sgEl.textContent = on ? 'In the CMS, not live yet' : 'Ready, not in the CMS'; } cm.remove(); }
         return load();
       }).catch(function (e) { cm.disabled = false; toast('Couldn\'t save that: ' + e.message, true); });
+      return;
+    }
+    var up = t.closest('[data-upd]');
+    if (up) {
+      var uk = up.dataset.upd.split('|'), uc = (S.data.contributors || []).filter(function (x) { return x.login === uk[0]; })[0];
+      var ua = uc && uc.articles.filter(function (x) { return x.id === uk.slice(1).join('|'); })[0];
+      if (ua) { updateDialog(uc, ua); }
+      return;
+    }
+    var uo = t.closest('[data-updoff]');
+    if (uo) {
+      if (!window.confirm('Not an update after all? It goes back to In CMS, unpublished.')) { return; }
+      uo.disabled = true;
+      call('update', { n: +uo.dataset.updoff, on: false }).then(function () { toast('Back in In CMS, unpublished.'); return load(); })
+        .catch(function (e) { uo.disabled = false; toast('Couldn\'t save that: ' + e.message, true); });
       return;
     }
     var opp = t.closest('[data-openp]');
