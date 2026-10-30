@@ -762,11 +762,12 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     var onWay = sent.length - live.length;
     // the newest piece: the 2-day views it's on track for at its pace so far, or its first 2 days once it's past them
     var newest = st.filter(function (x) { return x.pub_ts; }).sort(function (a, b) { return b.pub_ts - a.pub_ts; })[0];
-    var nAge = newest ? (Date.now() / 1000 - newest.pub_ts) / 3600 : null, typ = 'ZH\'s typical post: ' + kf(base && base.med48);
-    var track = !newest ? ['On track for', '-', typ + ' in 2 days']
-      : nAge >= 48 ? ['Newest piece, 2 days', kf(newest.m48 != null ? newest.m48 : newest.views), 'views in its first 2 days; ' + typ]
-      : newest.proj ? ['On track for', kf(newest.proj), '2-day views for the newest piece at its pace so far; ' + typ]
-      : ['On track for', '-', 'shows 15 minutes after a piece runs; ' + typ + ' in 2 days'];
+    // (Dan, Oct. 30: no ZH typical-post figure here; the contributor doesn't see ZH's own numbers)
+    var nAge = newest ? (Date.now() / 1000 - newest.pub_ts) / 3600 : null;
+    var track = !newest ? ['On track for', '-', '2-day views for the newest piece']
+      : nAge >= 48 ? ['Newest piece, 2 days', kf(newest.m48 != null ? newest.m48 : newest.views), 'views in its first 2 days']
+      : newest.proj ? ['On track for', kf(newest.proj), '2-day views for the newest piece at its pace so far']
+      : ['On track for', '-', 'shows 15 minutes after a piece runs'];
     var tile = function (k, v, s) { return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + (s || '&nbsp;') + '</div></div>'; };
     var h = '<div class="tiles">' +
       tile('Live on ZeroHedge', live.length, 'of ' + sent.length + ' submitted' + (onWay ? ' &middot; ' + onWay + ' on the way' : '')) +
