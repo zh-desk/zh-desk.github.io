@@ -10,7 +10,11 @@
    Each piece is a thin line (its hour-by-hour counts, with the 1 to 48-hour counts after the last of them), their typical
    piece is the median at each hour once three pieces or more are drawn, and ZH's typical post (dashed) sits in the
    middle half of ZH posts. Adjust for time slot scales each piece to a typical hour and weekday (its views times ZH's
-   typical two-day views over what its slot expects), the measure behind Against its time slot. The desk counts views
+   typical two-day views over what its slot expects), the measure behind Against its time slot. Adjust for beat (Oct. 30,
+   Dan: "Obviously politics will beat market every time and that lowers the typical ZH post band. Perhaps the middle half
+   of ZH posts shadow and the typical post can move along with that") draws ZH's typical post and its middle half from
+   posts in the sections these pieces ran in (base.chan_curve, from the sign-in helper), weighted by how many pieces ran
+   in each; a section with too few posts counted uses ZH's curve times its section factor (base.chan). The desk counts views
    hour by hour from Oct. 20, 2026: earlier pieces aren't drawn, and the chart says how many. */
 (function () {
   'use strict';
@@ -64,6 +68,7 @@
   function nf(n) { return n == null ? '-' : Math.round(n).toLocaleString('en-US'); }
   function kf(n) { if (n == null) { return '-'; } n = Math.round(n); return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'K' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n); }
   function xf(x) { return x == null ? '-' : (x >= 10 ? Math.round(x) : x.toFixed(1)) + '×'; }
+  function secName(c) { return String(c || '').split('-').map(function (w) { return w === 'ai' ? 'AI' : w === 'us' ? 'US' : w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); }
   function med(a) { a = a.filter(function (x) { return x != null; }).sort(function (x, y) { return x - y; }); return a.length ? (a[Math.floor((a.length - 1) / 2)] + a[Math.ceil((a.length - 1) / 2)]) / 2 : null; }
   function keep(k, v) { try { if (v === undefined) { return localStorage.getItem('desk.' + k); } localStorage.setItem('desk.' + k, v); } catch (e) { /* this device only */ } return null; }
 
@@ -89,12 +94,24 @@
   function curve(list) {
     return [[0, 0]].concat(MS.map(function (m) { var v = list.map(function (p) { return at(p.pts, m); }).filter(function (x) { return x != null; }); return v.length >= 2 ? [m, med(v)] : null; }).filter(Boolean));
   }
-  // ZH's typical post and its middle half, at the milestones counted from enough posts
-  function typical(base) {
-    var cv = (base && base.curve) || {}, lo = 0, hi = 0, typ = [[0, 0]], band = [[0, 0, 0]];
+  // ZH's typical post and its middle half, at the milestones counted from enough posts; with mix ({section: pieces}),
+  // those of the sections the pieces ran in, weighted by how many ran in each (Adjust for beat)
+  function typical(base, mix) {
+    var cv = (base && base.curve) || {}, cc = (base && base.chan_curve) || {}, cf = (base && base.chan) || {}, lo = 0, hi = 0, mid = 0, typ = [[0, 0]], band = [[0, 0, 0]];
+    var secs = mix ? Object.keys(mix) : [], tot = secs.reduce(function (t, k) { return t + mix[k]; }, 0);
+    // a section uses its own curve when it has every age ZH's has, else ZH's curve times its section factor
+    var own = {}; secs.forEach(function (k) { own[k] = MS.every(function (m) { var q = cv[m]; return !q || q.n < CURVE_MIN || ((cc[k] || {})[m] && cc[k][m].n >= CURVE_MIN); }); });
     MS.forEach(function (m) {
       var q = cv[m]; if (!q || q.n < CURVE_MIN || q.p50 == null) { return; }
-      typ.push([m, q.p50]); lo = Math.max(lo, q.p25); hi = Math.max(hi, q.p75, lo); band.push([m, lo, hi]);   // views only grow
+      if (tot) {
+        var r = { p25: 0, p50: 0, p75: 0 };
+        secs.forEach(function (k) {
+          var w = mix[k] / tot, f = cf[k] && cf[k].n >= 5 && cf[k].factor ? cf[k].factor : 1, src = own[k] ? cc[k][m] : null;
+          r.p25 += w * (src ? src.p25 : q.p25 * f); r.p50 += w * (src ? src.p50 : q.p50 * f); r.p75 += w * (src ? src.p75 : q.p75 * f);
+        });
+        q = r;
+      }
+      mid = Math.max(mid, q.p50); lo = Math.max(lo, q.p25); hi = Math.max(hi, q.p75, lo); typ.push([m, mid]); band.push([m, lo, hi]);   // views only grow
     });
     return { typ: typ.length > 2 ? typ : [], band: band.length > 2 ? band : [] };
   }
@@ -137,7 +154,12 @@
       var f = o.slot && o.base && o.base.med48 && x.exp48 ? o.base.med48 / x.exp48 : 1;
       return v == null ? null : { a: p.a, title: p.title, v: v * f };
     }).filter(Boolean);
-    return { range: r, live: live, drawn: drawn, dots: dots, med: drawn.length >= 3 ? curve(drawn) : [], zh: typical(o.base) };
+    // Adjust for beat: the sections these pieces ran in, and how many in each
+    var mix = null;
+    if (o.beat) { live.forEach(function (a) { var c = a.stats.channel; if (c) { mix = mix || {}; mix[c] = (mix[c] || 0) + 1; } }); }
+    var secs = mix ? Object.keys(mix).sort(function (a, b) { return mix[b] - mix[a]; }) : [];
+    return { range: r, live: live, drawn: drawn, dots: dots, med: drawn.length >= 3 ? curve(drawn) : [], zh: typical(o.base, mix), secs: secs,
+             beatWord: secs.length === 1 ? secName(secs[0]) + ' ' : '' };
   }
   function X(h) { return L + (W - L - R) * h / 48; }
   function dotX(k, n) { return X(48) + (n > 12 ? ((k * 0.618034) % 1) * 24 - 12 : 0); }   // many earlier pieces spread a little sideways
@@ -153,7 +175,8 @@
     var head = '<div class="phead"><h3>How ' + esc(o.whose || 'their') + ' pieces ran: views, first two days</h3>' +
       '<span class="pseg" role="group" aria-label="How far back">' + SPANS.map(function (x) { return '<button type="button" data-pspan="' + x[0] + '" aria-pressed="' + (x[0] === d.range.span) + '" title="Pieces from ' + x[3] + '">' + x[1] + '</button>'; }).join('') + '</span>' +
       '<select data-pcount aria-label="How many posts">' + COUNTS.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === d.range.count ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>' +
-      '<label class="pslot" title="Each piece scaled to a typical slot: its views times ZH\'s typical two-day views over what its publish hour and weekday expect"><input type="checkbox" data-pslot' + (o.slot ? ' checked' : '') + '> Adjust for time slot</label></div>';
+      '<label class="pslot" title="Each piece scaled to a typical slot: its views times ZH\'s typical two-day views over what its publish hour and weekday expect"><input type="checkbox" data-pslot' + (o.slot ? ' checked' : '') + '> Adjust for time slot</label>' +
+      '<label class="pslot" title="ZH\'s typical post and its middle half drawn from posts in the same ZH sections as these pieces (Political, Markets ...), weighted by how many pieces ran in each"><input type="checkbox" data-pbeat' + (o.beat ? ' checked' : '') + '> Adjust for beat</label></div>';
     if (!d.drawn.length && !d.dots.length) {
       var spanWord = SPANS.filter(function (x) { return x[0] === d.range.span; })[0][3];
       return head + '<p class="pnote">' + (n ? 'None of the ' + n + ' live piece' + (n === 1 ? '' : 's') + ' from ' + spanWord + ' can be drawn yet: ' + (n === 1 ? 'it' : 'they') + ' ran only minutes ago.' :
@@ -184,10 +207,12 @@
       (d.med.length > 2 ? '<span><i style="background:var(--accent);height:4px"></i>' + (their === 'your' ? 'Your' : 'Their') + ' typical piece</span>' : '') +
       (dl ? '<span><i style="width:9px;height:9px;border-radius:50%;background:var(--accent);opacity:.55;box-shadow:0 0 0 2px var(--paper)"></i>Earlier piece' + (dl === 1 ? '' : 's') + ': views by two days' + (dl >= 5 ? ' (the bar: their median, ' + kf(med(d.dots.map(function (p) { return p.v; }))) + ')' : '') + '</span>' : '') +
       (pins ? '<span><i style="width:10px;height:10px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 2px var(--paper)"></i>Pinned to ZH\'s front page <i style="width:7px;height:7px;border-radius:50%;background:var(--paper);box-shadow:inset 0 0 0 1.5px var(--ink);margin-left:6px"></i>unpinned</span>' : '') +
-      (d.zh.typ.length ? '<span><i style="background:repeating-linear-gradient(90deg,var(--muted) 0 5px,transparent 5px 9px)"></i>ZH\'s typical post</span>' : '') +
-      (d.zh.band.length ? '<span><i style="background:var(--muted);opacity:.25;height:8px"></i>Middle half of ZH posts</span>' : '') + '</div>' +
+      (d.zh.typ.length ? '<span><i style="background:repeating-linear-gradient(90deg,var(--muted) 0 5px,transparent 5px 9px)"></i>ZH\'s typical ' + esc(d.beatWord) + 'post' + (d.secs.length > 1 ? ' in these sections' : '') + '</span>' : '') +
+      (d.zh.band.length ? '<span><i style="background:var(--muted);opacity:.25;height:8px"></i>Middle half of ZH ' + esc(d.beatWord) + 'posts' + (d.secs.length > 1 ? ' in these sections' : '') + '</span>' : '') + '</div>' +
       '<p class="pnote">' + rangeName(d.range) + ': ' + n + ' live piece' + (n === 1 ? '' : 's') + (dl ? ', ' + lines + ' as lines and ' + dl + ' as dots' : '') + '. ' +
-      (o.slot ? 'Adjusted for time slot: each piece scaled as if it ran at a typical hour and weekday. ' : '') + 'Hover a line or dot, or a row in the table, for the piece.' +
+      (o.slot ? 'Adjusted for time slot: each piece scaled as if it ran at a typical hour and weekday. ' : '') +
+      (d.secs.length ? 'Adjusted for beat: ZH\'s typical post and middle half are drawn from ' + esc(d.secs.map(secName).join(', ').replace(/, ([^,]*)$/, ' and $1')) + ' posts' + (d.secs.length > 1 ? ', weighted by how many of these pieces ran in each' : '') + '. ' : '') +
+      'Hover a line or dot, or a row in the table, for the piece.' +
       (dl ? ' The desk counts views hour by hour from Oct. 20, 2026, so earlier pieces are a dot at two days (ZH posts add well under 1% after that).' : '') +
       (left > 0 ? ' ' + left + ' too new to show.' : '') +
       (pins ? ' A dark dot is where a piece was pinned to the top of ZH\'s front page (hover it for its views an hour before and after); pins are tracked from Oct. 22, 2026.' : '') +
@@ -232,7 +257,7 @@
         var typ = at(d.zh.typ, h), when = best.dot ? 'about two days (counted later)' : h < 1 ? Math.round(h * 60) + ' min' : (h < 10 ? h.toFixed(1).replace(/\.0$/, '') : Math.round(h)) + ' hr';
         if (!tip) { tip = document.createElement('div'); tip.className = 'ptip'; box.appendChild(tip); }
         tip.innerHTML = '<b>' + esc(best.p.title) + '</b>' + nf(best.v) + ' views at ' + when + (o.slot ? ' (slot-adjusted)' : '') +
-          (typ ? '<br><span class="muted">ZH\'s typical post then: ' + nf(typ) + ' (this piece ' + xf(best.v / typ) + ')</span>' : '') +
+          (typ ? '<br><span class="muted">ZH\'s typical ' + esc(d.beatWord) + 'post' + (d.secs.length > 1 ? ' in these sections' : '') + ' then: ' + nf(typ) + ' (this piece ' + xf(best.v / typ) + ')</span>' : '') +
           (best.p.a.stats.views != null ? '<br><span class="muted">' + nf(best.p.a.stats.views) + ' views now</span>' : '');
         var br = box.getBoundingClientRect(), x = ev.clientX - br.left + 14, y = ev.clientY - br.top + 14;
         if (x + 300 > br.width) { x = Math.max(4, ev.clientX - br.left - 314); }
@@ -253,6 +278,7 @@
     box.addEventListener('change', function (ev) {
       if (ev.target.matches('[data-pcount]')) { o.count = ev.target.value; keep('cd-perf-n', o.count); draw(true); }
       else if (ev.target.matches('[data-pslot]')) { o.slot = ev.target.checked; draw(true); }
+      else if (ev.target.matches('[data-pbeat]')) { o.beat = ev.target.checked; draw(true); }
     });
   }
   css();
