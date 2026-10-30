@@ -825,7 +825,42 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
           return '<div class="drop' + (d.on ? ' on' : '') + '"><label class="dl"><input type="checkbox" data-drop="' + i + '"' + (d.on ? ' checked' : '') + (d.mode ? '' : ' disabled') + '> <strong>' + esc(d.label) + '</strong> (' + esc(d.desc) + ')' +
             (d.mode ? '' : ' <span class="crit" style="background:var(--warn)">can\'t place it automatically: copy it by hand</span>') + '</label> <button type="button" class="small" data-copy="drop" data-i="' + i + '">Copy</button><pre>' + esc(d.code) + '</pre></div>';
         }).join('') : '') +
-      (pk.images ? '<h3>Pictures</h3><pre>' + esc(pk.images) + '</pre>' : '');
+      (pk.images ? '<h3>Pictures' + (pkgPics(pk).length ? ' <button type="button" class="small" data-pics>Download ' + (pkgPics(pk).length === 1 ? 'the picture' : pkgPics(pk).length + ' pictures') + '</button>' : '') + '</h3><pre>' + esc(pk.images) + '</pre>' : '');
+  }
+  // Contributor pictures (Oct. 30, Dan: "when I click 'copy html' it should drop me those pics to upload on ZH
+  // servers"): Image Assets names each one by its place in the desk repo (authors/LOGIN/ID/img/NAME). Copy HTML saves
+  // them too, read through the helper's View as (author/img), so it works for everyone on the dashboard.
+  var PIC_RE = /https:\/\/github\.com\/zh-desk\/desk\/blob\/main\/authors\/([\w.-]+)\/([\w.-]+)\/img\/([^?\s)]+)\?raw=true/g;
+  function pkgPics(pk) {
+    var out = [], seen = {}, m; PIC_RE.lastIndex = 0;
+    while ((m = PIC_RE.exec(pk.images || ''))) {
+      var nm = m[3]; try { nm = decodeURIComponent(nm); } catch (e) { /* as written */ }
+      if (!seen[m[1] + '/' + m[2] + '/' + nm]) { seen[m[1] + '/' + m[2] + '/' + nm] = 1; out.push({ login: m[1], id: m[2], name: nm }); }
+    }
+    return out;
+  }
+  function authorCall(route, body, retried) {
+    var payload = Object.assign({ github_token: store('token') || '' }, body || {});
+    return fetch(WORKER + 'author/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), cache: 'no-store' })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (r.status === 401 && !retried) { return renew().then(function () { return authorCall(route, body, true); }); }
+          if (!r.ok) { throw new Error(j.error_description || j.error || ('the helper said ' + r.status)); }
+          return j;
+        });
+      });
+  }
+  function savePics(pics) {
+    pics.forEach(function (pc, k) {
+      setTimeout(function () {
+        authorCall('img', { as: pc.login, id: pc.id, name: pc.name }).then(function (j) {
+          var bin = atob(j.data || ''), u = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) { u[i] = bin.charCodeAt(i); }
+          var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([u], { type: j.type || 'image/jpeg' })); a.download = pc.name;
+          document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 60000);
+        }).catch(function (e) { toast('Couldn\'t download ' + pc.name + ': ' + e.message, true); });
+      }, k * 400);
+    });
   }
   function pkgSays(pk) {
     var n = pk.dropins.filter(function (d) { return d.on && d.mode; }).length;
@@ -874,8 +909,14 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
         if (cp && pk) {
           var n = pk.dropins.filter(function (d) { return d.on && d.mode; }).length;
           var txt = cp.dataset.copy === 'html' ? composePkg(pk, false) : (pk.dropins[+cp.dataset.i] || {}).code || '';
-          navigator.clipboard.writeText(txt).then(function () { toast(cp.dataset.copy === 'html' ? 'The article\'s HTML is copied' + (n ? ', with ' + n + ' drop-in' + (n === 1 ? '' : 's') + ' in.' : ', as prepped.') : 'Drop-in copied.'); }).catch(function () { toast('Couldn\'t copy: select it by hand.', true); });
+          var pics = cp.dataset.copy === 'html' ? pkgPics(pk) : [];
+          navigator.clipboard.writeText(txt).then(function () {
+            toast(cp.dataset.copy === 'html' ? 'The article\'s HTML is copied' + (n ? ', with ' + n + ' drop-in' + (n === 1 ? '' : 's') + ' in.' : ', as prepped.') +
+              (pics.length ? ' Saving ' + (pics.length === 1 ? 'the contributor\'s picture' : 'the contributor\'s ' + pics.length + ' pictures') + ' for uploading to ZH.' : '') : 'Drop-in copied.', false, pics.length ? 8000 : 0);
+          }).catch(function () { toast('Couldn\'t copy: select it by hand.', true); });
+          if (pics.length) { savePics(pics); }
         }
+        if (ev.target.closest('[data-pics]') && pk) { savePics(pkgPics(pk)); toast('Saving ' + pkgPics(pk).length + ' picture' + (pkgPics(pk).length === 1 ? '' : 's') + '.'); }
       });
       call('package', { n: a.issue }).then(function (j) {
         pk = parsePkg(j.text);
