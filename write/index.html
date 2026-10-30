@@ -700,7 +700,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     document.documentElement.classList.toggle('coediting', !!S.coedit);
     $('viewas').innerHTML = S.coedit ? 'You\'re editing ' + esc(nm) + '\'s draft. Save to keep your changes; ' + esc(first) + ' sees them the next time they open it. <button type="button" id="coedit-off">Stop editing</button>'
       : (SOLO ? 'This is ' + esc(nm) + '\'s article as ' + esc(first) + ' sees it. Read-only: nothing changes unless you choose to work on it.'
-              : 'You\'re seeing ' + esc(nm) + '\'s author desk exactly as ' + esc(first) + ' sees it. Read-only: nothing can be changed from here.') +
+              : 'You\'re seeing ' + esc(nm) + '\'s author desk exactly as ' + esc(first) + ' sees it, except for the name: they see their own, and never yours for them. Read-only: nothing can be changed from here.') +
         (can ? ' <button type="button" id="coedit-on">Work on this draft with ' + esc(first) + '</button>' : '');
   }
   function canCoedit() { var c = S.cur; return !!(c && c.id && c.editable !== false && ['draft', 'assigned', 'returned'].indexOf(c.status) >= 0); }
@@ -709,12 +709,22 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     if (ev.target.id === 'coedit-off') { if (S.dirty && !confirm('Leave without saving your changes?')) { return; } S.coedit = false; S.dirty = false; renderViewAs(); if (S.cur && S.cur.id) { open(S.cur.id); } }
   });
   function loadList() { return call('me').then(showMe); }
+  // Stats keeps itself current (Oct. 30): every 2 minutes while it's open and the tab is showing, the numbers are read
+  // again (the helper asks ZH's counters), and only the dashboard is drawn again.
+  setInterval(function () {
+    if (S.view !== 'stats' || document.hidden || !S.me || S.busy) { return; }
+    call('me').then(function (j) { if (S.view === 'stats') { S.me = j; S.list = j.articles || S.list; renderDash(); } }).catch(function () {});
+  }, 120000);
 
 
   // ---------- the dashboard (Oct. 20, Dan: "Can he have a dashboard up top?"): how each piece did on ZeroHedge. The
-  // numbers are ZeroHedge's own view and comment counters, collected every 10 minutes by the desk's zh-stats worker and
+  // numbers are ZeroHedge's own view and comment counters, collected every 5 minutes by the desk's zh-stats worker and
   // published hourly; each piece is set against the median for the hour and weekday it ran (ZH's traffic ebbs and
-  // flows through the day and week), against that day's other posts, and against its section.
+  // flows through the day and week), against that day's other posts, and against its section. Since Oct. 30 (Dan: "Can
+  // the contributor view update more quickly re: total views?") views and comments for the last week's pieces are read
+  // from ZH's counters each time the desk loads (counts_at), and every 2 minutes while Stats is open, and the newest
+  // piece shows the 2-day views it's on track for (proj) in place of the median piece (Dan: "remove the 'typical piece'
+  // tile").
   var D = { sort: 'pub', dir: -1, perf: { slot: false } };   // open: the piece whose details show; the newest live piece's at first
   function nf(n) { return n == null ? '-' : Math.round(n).toLocaleString('en-US'); }
   function kf(n) { if (n == null) { return '-'; } n = Math.round(n); return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1e4 ? Math.round(n / 1e3) + 'K' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(n); }
@@ -741,7 +751,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       $('dash-body').innerHTML = '<p class="muted">Nothing has gone to the editors yet. Once a piece runs on ZeroHedge, its views, comments and how it did against the other posts that day show here.</p>';
       return;
     }
-    $('dash-upd').textContent = base && base.updated ? 'Updated ' + when(base.updated) + ', from ZeroHedge\'s own view counter' : 'The numbers show here within the hour';
+    $('dash-upd').textContent = j.counts_at ? 'Views and comments as of ' + when(j.counts_at) + ', from ZeroHedge\'s own counter' + (base && base.updated ? '; rankings updated ' + when(base.updated) : '')
+      : base && base.updated ? 'Updated ' + when(base.updated) + ', from ZeroHedge\'s own view counter' : 'The numbers show here within the hour';
     var st = rows.map(function (a) { return a.stats; });
     var views = st.reduce(function (t, x) { return t + (x.views || 0); }, 0), comments = st.reduce(function (t, x) { return t + (x.comments || 0); }, 0);
     var idxs = st.map(function (x) { return x.idx; }).filter(function (x) { return x != null; });
@@ -749,11 +760,18 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     var best = st.filter(function (x) { return x.day_rank; }).sort(function (a, b) { return a.day_rank / a.day_n - b.day_rank / b.day_n; })[0];
     var tops = st.filter(function (x) { return x.top_best; }), topBest = tops.length ? Math.min.apply(null, tops.map(function (x) { return x.top_best; })) : null;
     var onWay = sent.length - live.length;
+    // the newest piece: the 2-day views it's on track for at its pace so far, or its first 2 days once it's past them
+    var newest = st.filter(function (x) { return x.pub_ts; }).sort(function (a, b) { return b.pub_ts - a.pub_ts; })[0];
+    var nAge = newest ? (Date.now() / 1000 - newest.pub_ts) / 3600 : null, typ = 'ZH\'s typical post: ' + kf(base && base.med48);
+    var track = !newest ? ['On track for', '-', typ + ' in 2 days']
+      : nAge >= 48 ? ['Newest piece, 2 days', kf(newest.m48 != null ? newest.m48 : newest.views), 'views in its first 2 days; ' + typ]
+      : newest.proj ? ['On track for', kf(newest.proj), '2-day views for the newest piece at its pace so far; ' + typ]
+      : ['On track for', '-', 'shows 15 minutes after a piece runs; ' + typ + ' in 2 days'];
     var tile = function (k, v, s) { return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + (s || '&nbsp;') + '</div></div>'; };
     var h = '<div class="tiles">' +
       tile('Live on ZeroHedge', live.length, 'of ' + sent.length + ' submitted' + (onWay ? ' &middot; ' + onWay + ' on the way' : '')) +
       tile('Total views', nf(views), nf(comments) + ' comments') +
-      tile('Typical piece', kf(med(st.map(function (x) { return x.views; }))), 'median views; ZH\'s typical post: ' + kf(base && base.med48) + ' in 2 days') +
+      tile(track[0], track[1], track[2]) +
       tile('Against its time slot', idxs.length ? xf(med(idxs)) : '-', 'median; 1× is a typical ZH post for the hour and weekday it ran') +
       tile('Beat the typical', idxs.length ? beat + ' of ' + idxs.length : '-', idxs.length ? big + ' at 1.5× or more' : '') +
       tile('Best day', best ? '#' + best.day_rank + ' of ' + best.day_n : '-', best ? 'top ' + topPct(best.day_rank, best.day_n) + '% on ' + dayName(best.day) : '') +
@@ -834,7 +852,8 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     if (pts.length < 2) {
       var first = (x.curve || [])[0];
       return '<p class="small">' + (first ? 'First counted ' + (first[0] < 48 ? Math.round(first[0]) + ' hours' : Math.round(first[0] / 24) + ' days') + ' after it ran: <strong>' + nf(first[1]) + '</strong> views. ' : '') +
-        'Now: <strong>' + nf(x.views) + '</strong>.</p><p class="muted small">No hour-by-hour line for this piece: the desk started following ZeroHedge\'s view counter hour by hour on Oct. 20, 2026, and this piece ran before that. Pieces that run from now on get the full curve. "How it did" still sets it against posts at the same hour and weekday.</p>';
+        'Now: <strong>' + nf(x.views) + '</strong>.</p><p class="muted small">' + (x.pub_ts >= 1792468800 ? 'Its hour-by-hour line starts with the next hourly update.' :
+        'No hour-by-hour line for this piece: the desk started following ZeroHedge\'s view counter hour by hour on Oct. 20, 2026, and this piece ran before that. Pieces that run from now on get the full curve. "How it did" still sets it against posts at the same hour and weekday.') + '</p>';
     }
     var age = pts[pts.length - 1][0], xmax = Math.max(6, Math.min(48, x.basis === 48 ? 48 : Math.max(age, 6)));
     var solid = function (m) { return cv[m] && cv[m].n >= CURVE_MIN && m <= xmax; };

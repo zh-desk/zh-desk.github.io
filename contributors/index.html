@@ -420,7 +420,8 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     var d = S.data, base = d.stats_base, arts = [].concat.apply([], (d.contributors || []).map(withHistory)), s = summary(arts);
     var pitches = []; d.contributors.forEach(function (c) { (c.pitches || []).forEach(function (p) { pitches.push(p); }); });
     var open = pitches.filter(function (p) { return p.status === 'open'; }).length;
-    $('upd').textContent = base && base.updated ? 'ZeroHedge numbers updated ' + when(base.updated) : 'ZeroHedge numbers start within the hour';
+    $('upd').textContent = (d.counts_at ? 'Views as of ' + when(d.counts_at) + ' (the last week\'s pieces, from ZH\'s counter); ' : '') +
+      (base && base.updated ? (d.counts_at ? 'the rest updated ' : 'ZeroHedge numbers updated ') + when(base.updated) : 'ZeroHedge numbers start within the hour');
     $('totals').innerHTML = tile('Contributors', d.contributors.length, d.invites.length ? d.invites.length + ' invite' + (d.invites.length === 1 ? '' : 's') + ' unused' : '') +
       tile('Live on ZeroHedge', s.live, 'of ' + s.sent + ' submitted &middot; ' + s.inWorks + ' in the works') + tile('Total views', nf(s.views), nf(s.comments) + ' comments') +
       tile('Typical piece', kf(s.medViews), 'median views; ZH\'s typical post ' + kf(base && base.med48) + ' in 2 days') +
