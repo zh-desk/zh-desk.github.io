@@ -896,7 +896,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       }).join('') +
       (th.length ? '<ul class="thread">' + th.map(function (t) { return '<li class="' + (t.from === 'editors' ? 'editors' : '') + '"><strong>' + esc(t.from === 'editors' ? (t.name || t.by) : nameOf(c)) + '</strong> <span class="muted">' + esc(ago(t.at)) + '</span>\n' + esc(t.text) + '</li>'; }).join('') + '</ul>' : '') +
       (S.pitchOpen[p.id] ? '<div class="form"><textarea data-pitch-text placeholder="A comment for ' + esc(short(c)) + ' (they see it)"></textarea><div class="row"><button type="button" data-pact="comment">Send the comment</button></div></div>' : '') +
-      '<div class="pc-foot"><label><input type="checkbox" data-pitch-assign checked> approved ideas become assignments</label><label><input type="checkbox" data-pitch-mail' + (c.notify ? ' checked' : '') + '> email ' + esc(short(c)) + '</label>' +
+      '<div class="pc-foot"><label><input type="checkbox" data-pitch-assign checked> approved ideas become assignments</label>' +
       '<button type="button" class="linkish" data-pact="open">' + (S.pitchOpen[p.id] ? 'no comment' : 'comment') + '</button></div></div>';
   }
   // The funnel: pitches, then what's being written or prepped, then ready, then in the CMS. Done is on the right.
@@ -957,7 +957,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       (th ? '<ul class="thread">' + th + '</ul>' : '') +
       (S.pitchOpen[p.id] ? '<div class="form"><textarea data-pitch-text placeholder="A comment for ' + esc(short(c)) + ' (they see it)"></textarea>' +
         '<div class="row">' + (open ? '<button type="button" class="good" data-pact="approved">Approve</button><label class="small row" style="gap:4px"><input type="checkbox" data-pitch-assign checked> and make it an assignment</label><button type="button" class="bad" data-pact="denied">Turn down</button>' : '<button type="button" data-pact="reopen">Reopen</button>') +
-        '<button type="button" data-pact="comment">Comment only</button><label class="small row" style="gap:4px"><input type="checkbox" data-pitch-mail' + (c.notify ? ' checked' : '') + '> email them</label></div></div>' :
+        '<button type="button" data-pact="comment">Comment only</button></div></div>' :
         '<div class="acts"><button type="button" data-pact="open">' + (open ? 'Decide or comment' : 'Comment') + '</button></div>') + '</div>';
   }
 
@@ -1429,13 +1429,15 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
         return;
       }
       var txt = k === 'comment' ? (box.querySelector('[data-pitch-text]') || {}).value || '' : ob ? ((ob.querySelector('[data-onote]') || {}).value || '') : ((box.querySelector('[data-pitch-text]') || {}).value || '');
-      var assign = !!(box.querySelector('[data-pitch-assign]') || {}).checked, mail = !!(box.querySelector('[data-pitch-mail]') || {}).checked;
+      var assign = !!(box.querySelector('[data-pitch-assign]') || {}).checked;
       if (k === 'comment' && !txt.trim()) { toast('Write the comment first.', true); return; }
       pa.disabled = true;
       var oid = k !== 'comment' && ob ? ob.dataset.opt : '';
-      call('pitch', { login: who, pid: id, option: oid || undefined, decision: k, text: txt, assign: k === 'approved' && assign, notify: mail }).then(function (j) {
+      // No email on pitch decisions (Oct. 31, Dan: "please don't try to email the contributor when a post idea is approved"):
+      // they see the decision and any note on their author desk's Pitches tab.
+      call('pitch', { login: who, pid: id, option: oid || undefined, decision: k, text: txt, assign: k === 'approved' && assign }).then(function (j) {
         if (k === 'comment') { delete S.pitchOpen[id]; }
-        afterMail(j, k === 'approved' ? 'Approved' + (j.assignment ? ' and on their desk to write.' : '.') : k === 'denied' ? 'Passed.' : k === 'reopen' ? 'Back to undecided.' : 'Comment sent.');
+        toast(k === 'approved' ? 'Approved' + (j.assignment ? ' and on their desk to write.' : '.') : k === 'denied' ? 'Passed.' : k === 'reopen' ? 'Back to undecided.' : 'Comment sent.');
         return load();
       }).catch(function (e) { pa.disabled = false; toast(e.message, true); });
     }
