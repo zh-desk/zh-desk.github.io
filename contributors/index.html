@@ -1238,23 +1238,14 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       (j.email ? '<div class="mrow small"><b>To</b><span>' + esc(j.email) + '</span><button type="button" class="small" data-mcopy="to">Copy</button></div>' : '') +
       '<div class="mrow small"><b>Subject</b><span>' + esc(INVITE_SUBJECT) + '</span><button type="button" class="small" data-mcopy="subject">Copy</button></div>' +
       '<textarea id="inv-mail-body" rows="19" aria-label="The invite email">' + esc(inviteMailText(j)) + '</textarea>' +
-      // Send it for me (Oct. 31): once Resend is on in the helper, the desk sends this message itself, replies to you.
-      (S.data.email_ready && j.email ? '<div class="row" style="margin-top:8px"><button type="button" class="primary" data-mcopy="send">Send it for me</button><button type="button" data-mcopy="body">Copy the email</button><button type="button" data-mcopy="open">Open in my mail app</button>' +
-        '<span class="hint">From ' + esc(S.data.email_from) + '; ' + (S.data.me.email ? 'replies go to ' + esc(S.data.me.email) + '.' : 'add your address under My email so their reply reaches you.') + '</span></div>'
-      : '<div class="row" style="margin-top:8px"><button type="button" class="primary" data-mcopy="body">Copy the email</button><button type="button" data-mcopy="open">Open in my mail app</button>' +
-        '<span class="hint">' + (j.email ? 'Their email and the Stats tab choice go on file when they join.' : 'Add their email next time to have the To line filled in.') + '</span></div>') +
+      '<div class="row" style="margin-top:8px"><button type="button" class="primary" data-mcopy="body">Copy the email</button><button type="button" data-mcopy="open">Open in my mail app</button>' +
+      '<span class="hint">' + (j.email ? 'Their email and the Stats tab choice go on file when they join.' : 'Add their email next time to have the To line filled in.') + '</span></div>' +
       '<input type="hidden" id="inv-mail-to" value="' + esc(j.email || '') + '"></div>';
   }
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-mcopy]');
     if (!b) { return; }
     var k = b.dataset.mcopy, to = $('inv-mail-to').value, body = $('inv-mail-body').value;
-    if (k === 'send') {
-      b.disabled = true; b.textContent = 'Sending...';
-      call('invite-send', { to: to, text: body }).then(function () { b.textContent = 'Sent'; toast('Sent to ' + to + '.'); })
-        .catch(function (e) { b.disabled = false; b.textContent = 'Send it for me'; toast(e.message, true); });
-      return;
-    }
     if (k === 'open') { location.href = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(INVITE_SUBJECT) + '&body=' + encodeURIComponent(body); return; }
     navigator.clipboard.writeText(k === 'to' ? to : k === 'subject' ? INVITE_SUBJECT : body).then(function () { toast(k === 'body' ? 'Email copied.' : 'Copied.'); }).catch(function () { toast('Couldn\'t copy: select it and copy by hand.', true); });
   });
@@ -1268,7 +1259,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
           (j.role === 'contributor' ? inviteMailHtml(j) : '');
         $('inv-copy').onclick = function () { navigator.clipboard.writeText(j.link).then(function () { toast('Copied.'); }); };
         if (j.role === 'contributor') { $('inv-c-nick').value = ''; $('inv-c-email').value = ''; $('inv-c-stats').checked = true; }
-        if (j.email) { navigator.clipboard.writeText($('inv-mail-body').value).then(function () { toast(S.data.email_ready ? 'The invite email to ' + j.email + ' is ready: Send it for me, or paste it (it\'s copied).' : 'The invite email is copied: paste it into a new email to ' + j.email + '.', false, 7000); }).catch(function () {}); }
+        if (j.email) { navigator.clipboard.writeText($('inv-mail-body').value).then(function () { toast('The invite email is copied: paste it into a new email to ' + j.email + '.', false, 7000); }).catch(function () {}); }
         else { navigator.clipboard.writeText(j.link).catch(function () {}); }
         return call('overview').then(function (d) { S.data = d; renderTotals(); });
       }).catch(function (e) { toast(e.message, true); });
