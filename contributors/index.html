@@ -128,6 +128,60 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
 .cbar { display: inline-block; position: relative; width: 56px; height: 8px; background: var(--code); border-radius: 4px; vertical-align: middle; margin-right: 6px; }
 .cbar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 4px; opacity: .7; }
 .cbar b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink); }
+/* Compare and rank, charted (Oct. 31): folded under the table */
+details.cmp-charts { margin-top: 14px; border: 1px solid var(--rule); border-radius: 8px; }
+details.cmp-charts > summary { cursor: pointer; padding: 9px 12px; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+details.cmp-charts > summary .muted { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 6px; }
+details.cmp-charts[open] > summary { border-bottom: 1px solid var(--rule); }
+.cc-body { padding: 10px 12px 12px; position: relative; }
+.cc-body h3 { margin: 16px 0 8px; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.cc-body h3:first-child { margin-top: 2px; }
+.cc-body h3 .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.cc-body svg { display: block; width: 100%; height: auto; overflow: visible; }
+.cc-body svg text { fill: var(--muted); font-size: 11px; }
+.cc-body svg text.cname { fill: var(--ink); font-size: 12px; }
+.cc-body svg text.dim { fill: var(--muted); }
+.cc-scroll { overflow-x: auto; }
+.cc-scroll svg { max-width: 760px; }
+.cdials { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.dialc { border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px 9px; background: var(--paper); cursor: pointer; text-align: center; width: 100%; color: var(--ink); font: inherit; margin: 0; }
+.dialc:hover, .dialc.on { border-color: var(--accent); }
+.dialc.dim { opacity: .6; }
+.dialc svg { max-width: 150px; margin: 0 auto; }
+.dialc .dn { font-weight: 700; margin-top: 2px; }
+.dialc .dv { margin: 3px 0 2px; font-size: 1.05rem; }
+.dialc .ds { font-size: .74rem; color: var(--muted); }
+.dial .dbg { fill: none; stroke: var(--code); stroke-width: 10; stroke-linecap: round; }
+.dial .dval { fill: none; stroke-width: 10; }
+.dial .dval.up { stroke: var(--good); }
+.dial .dval.dn { stroke: var(--warn); }
+.dial .dtk { stroke: var(--muted); stroke-width: 1; }
+.dial .d1x { stroke: var(--ink); stroke-width: 2; }
+.dial .dneedle { stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; }
+.dial .dhub { fill: var(--ink); }
+.cc-body .tile[data-person] { cursor: pointer; }
+.cc-body .tile[data-person]:hover, .cc-body .tile.on { border-color: var(--accent); }
+.cc-body .tile .v { font-size: 1.1rem; }
+.cc-body .cgrid { stroke: var(--rule); stroke-width: 1; }
+.cc-body .c1x { stroke: var(--ink); stroke-width: 1.5; stroke-dasharray: 4 3; stroke-opacity: .6; }
+.cc-body .crow { stroke: var(--rule); stroke-width: 1; stroke-opacity: .6; }
+.cc-body .cband { fill: var(--accent); fill-opacity: .14; }
+.cc-body .cm .hit { fill: transparent; }
+.cc-body .cm .dot { fill: var(--accent); fill-opacity: .75; stroke: var(--panel); stroke-width: 1.5; }
+.cc-body .cm.hollow .dot { fill: var(--panel); stroke: var(--accent); stroke-width: 2; }
+.cc-body .cm.on .dot { fill-opacity: 1; stroke: var(--ink); stroke-width: 2; }
+.cc-body .cm[data-open], .cc-body .cm[data-person] { cursor: pointer; }
+.cc-body .cmed { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+.cc-body .cline { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.cforms { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.cform { border: 1px solid var(--rule); border-radius: 8px; padding: 7px 9px 4px; background: var(--paper); }
+.cform .fh { display: flex; gap: 6px; align-items: baseline; justify-content: space-between; font-size: .82rem; }
+.cform .fh b { cursor: pointer; }
+.cform .fh span { color: var(--muted); font-size: .74rem; text-align: right; }
+.ctip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 6px 9px; font-size: .78rem; box-shadow: 0 4px 14px rgba(0,0,0,.14); max-width: 290px; z-index: 3; color: var(--ink); }
+.ctip b { display: block; margin-bottom: 2px; }
+.ctip .muted { color: var(--muted); }
+@media (max-width: 760px) { .cc-scroll svg { min-width: 600px; } .cdials, .cc-body .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .dialc { padding: 6px 6px 8px; } .cc-body .tile .v { font-size: 1rem; } }
 .idx.hi { background: rgba(31,122,69,.14); color: var(--good); }
 .idx.mid { background: var(--code); }
 .idx.lo { background: rgba(154,91,0,.14); color: var(--warn); }
@@ -506,12 +560,13 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   function cmpIdx(x, beat) { return !beat ? x.idx : x.idxs != null ? x.idxs : x.idx == null ? null : x.idx / secFactor(x.channel); }
   function cmpRow(c) {
     var days = CMP_SPANS.filter(function (x) { return x[0] === S.cmp.span; })[0][2], from = days ? Date.now() / 1000 - days * 86400 : 0;
-    var st = withHistory(c).filter(function (a) { return a.status === 'live' && a.stats && (!from || (a.stats.pub_ts || 0) >= from); }).map(function (a) { return a.stats; });
+    var lv = withHistory(c).filter(function (a) { return a.status === 'live' && a.stats && (!from || (a.stats.pub_ts || 0) >= from); }), st = lv.map(function (a) { return a.stats; });
+    var ps = lv.map(function (a) { var i = cmpIdx(a.stats, S.cmp.beat); return i > 0 ? { a: a, x: a.stats, i: i, t: a.stats.pub_ts || 0 } : null; }).filter(Boolean).sort(function (a, b) { return a.t - b.t; });   // for the charts, oldest first
     var ix = st.map(function (x) { return cmpIdx(x, S.cmp.beat); }).filter(function (x) { return x != null; });
     var views = st.reduce(function (t, x) { return t + (x.views || 0); }, 0), comments = st.reduce(function (t, x) { return t + (x.comments || 0); }, 0);
     var best = st.filter(function (x) { return x.day_rank && x.day_n; }).sort(function (a, b) { return a.day_rank / a.day_n - b.day_rank / b.day_n; })[0] || null;
     var fx = c.articles.filter(function (a) { return a.fixes != null && (!from || Date.parse(a.submitted || '') / 1000 >= from); });
-    return { c: c, live: st.length, ni: ix.length, idx: med(ix), beatpct: ix.length ? ix.filter(function (x) { return x > 1; }).length / ix.length : null, nbeat: ix.filter(function (x) { return x > 1; }).length,
+    return { c: c, ps: ps, from: from, live: st.length, ni: ix.length, idx: med(ix), beatpct: ix.length ? ix.filter(function (x) { return x > 1; }).length / ix.length : null, nbeat: ix.filter(function (x) { return x > 1; }).length,
              medViews: med(st.map(function (x) { return x.views; })), views: st.length ? views : null, cpk: views ? comments * 1000 / views : null,
              best: best ? best.day_rank / best.day_n : null, bestX: best, tops: st.length ? st.filter(function (x) { return x.top_best; }).length : null,
              err: fx.length ? fx.reduce(function (t, a) { return t + a.fixes; }, 0) / fx.length : null, nerr: fx.length, crit: fx.filter(function (a) { return a.critical > 0; }).length };
@@ -554,7 +609,181 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       ranked.map(function (r, k) { return tr(r, k); }).join('') + rest.map(function (r) { return tr(r, null); }).join('') + '</tbody></table></div>' +
       '<p class="muted small" style="margin:6px 0 0">Hover a number for more. Pieces live on ZH from ' + esc(span[3]) + ', their pieces from before the author desk included. Ranked once a contributor has ' + CMP_MIN + ' pieces with numbers in the span; the rest are listed under them. ' +
       (S.cmp.beat ? 'Adjusted for beat: each piece set against a typical ZH post for its hour, weekday and section. ' : 'Against its slot: each piece against a typical ZH post for its hour and weekday; tick Adjust for beat to allow for its section too. ') +
-      'The bar\'s line is 1&times;, a typical ZH post.' + (cpk ? ' ZH\'s typical comments per 1,000 views: ' + cpk + '.' : '') + ' Click a contributor for their profile. Only admins see this page.</p>';
+      'The bar\'s line is 1&times;, a typical ZH post.' + (cpk ? ' ZH\'s typical comments per 1,000 views: ' + cpk + '.' : '') + ' Click a contributor for their profile. Only admins see this page.</p>' +
+      cmpCharts(ranked.concat(rest), ranked, rest, span);
+    cmpBind(el);
+  }
+
+  // ---------- Compare and rank, charted (Oct. 31, Dan: "how do we chart this too? Maybe an accordion with dials and stats
+  // and widgets and whatnot"). Folded under the table (open or shut, remembered on the device), and following the table's
+  // span and Adjust for beat. Dials: each contributor's typical piece against ZH's typical post, 1x straight up, above it
+  // to the right in green, below it to the left in amber. Standouts: the best piece, the most read, who's in form, the
+  // steadiest, the best hit rate, the most talked about, the cleanest copy. Every piece: each piece a dot on one scale,
+  // with their middle half and median. Volume and strength: how much each writes against how well it does. Form: each
+  // contributor's pieces over time, with the median of their last three. One color for every contributor: they're told
+  // apart by name, never by color. Hover anything for the piece or the numbers; click to open it.
+  S.cmp.charts = store('cd-cmp-charts') === '1';
+  S.cmpTips = [];
+  var LN2 = Math.log(2);
+  function l2(v) { return Math.log(v) / LN2; }
+  function qtl(a, p) { a = a.slice().sort(function (x, y) { return x - y; }); if (!a.length) { return null; } var i = (a.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i); return a[lo] + (a[hi] - a[lo]) * (i - lo); }
+  function xl(v) { return v === 0.5 ? '½×' : v === 0.25 ? '¼×' : v === 0.125 ? '⅛×' : v === 0.0625 ? '1/16×' : v + '×'; }
+  function tipAdd(h) { S.cmpTips.push(h); return S.cmpTips.length - 1; }
+  function cut(s, n) { s = String(s || 'Untitled'); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+  function md(ts) { return ts ? new Date(ts * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''; }
+  function pTitle(p) { return p.x.title || (p.a.zh && p.a.zh.title) || p.a.title || 'Untitled'; }
+  function vsWord() { return S.cmp.beat ? 'its slot and section' : 'its slot'; }
+  function pTip(r, p) {
+    return tipAdd('<b>' + esc(pTitle(p)) + '</b>' + xf(p.i) + ' a typical ZH post for ' + vsWord() + '<br><span class="muted">' + esc(nameOf(r.c)) + ' &middot; ' +
+      esc(p.x.day ? dayName(p.x.day) : md(p.t)) + ' &middot; ' + nf(p.x.views) + ' views' + (p.x.channel ? ' &middot; ' + esc(secName(p.x.channel)) : '') + (p.a.history ? ' &middot; before the author desk' : '') + '</span>');
+  }
+  function pMark(r, p, cx, cy, rad, hollow) {
+    return '<g class="cm' + (hollow ? ' hollow' : '') + '" data-tip="' + pTip(r, p) + '"' + (p.a.history ? '' : ' data-open="' + esc(r.c.login) + '|' + esc(p.a.id) + '"') + '>' +
+      '<circle class="hit" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="9"/><circle class="dot" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + rad + '"/></g>';
+  }
+  // the one log scale every chart shares: powers of two around the pieces, at least 1/4x to 4x
+  function cmpDom(rows) {
+    var all = []; rows.forEach(function (r) { r.ps.forEach(function (p) { all.push(p.i); }); });
+    var lo = Math.min(0.25, Math.min.apply(null, all.concat([1])) / 1.15), hi = Math.max(4, Math.max.apply(null, all.concat([1])) * 1.15);
+    var d = { lo: Math.pow(2, Math.floor(l2(lo))), hi: Math.pow(2, Math.ceil(l2(hi))) }, ts = [];
+    for (var e = Math.round(l2(d.lo)); e <= Math.round(l2(d.hi)); e++) { ts.push(Math.pow(2, e)); }
+    d.ticks = ts; d.f = function (v) { return (l2(Math.min(d.hi, Math.max(d.lo, v))) - l2(d.lo)) / (l2(d.hi) - l2(d.lo)); };
+    return d;
+  }
+  function rowMed(r) { return med(r.ps.map(function (p) { return p.i; })); }
+  function lastMed(r, n, skip) { var a = r.ps.slice(0, r.ps.length - (skip || 0)).slice(-n); return a.length === n ? med(a.map(function (p) { return p.i; })) : null; }
+
+  // Dials: 1/4x on the left, 1x straight up, 4x on the right (a log scale, so twice as good and half as good sit level)
+  function dialSvg(v) {
+    var cx = 60, cy = 62, R = 48, ang = function (x) { return Math.PI * (1 - (Math.max(-2, Math.min(2, l2(x))) + 2) / 4); };
+    var pt = function (a, r) { return (cx + r * Math.cos(a)).toFixed(1) + ' ' + (cy - r * Math.sin(a)).toFixed(1); };
+    var s = '<svg class="dial" viewBox="0 0 120 78" aria-hidden="true"><path class="dbg" d="M' + pt(Math.PI, R) + ' A' + R + ' ' + R + ' 0 0 1 ' + pt(0, R) + '"/>';
+    [0.25, 0.5, 2, 4].forEach(function (x) { s += '<line class="dtk" x1="' + pt(ang(x), R - 8).split(' ')[0] + '" y1="' + pt(ang(x), R - 8).split(' ')[1] + '" x2="' + pt(ang(x), R - 13).split(' ')[0] + '" y2="' + pt(ang(x), R - 13).split(' ')[1] + '"/>'; });
+    if (v != null && v > 0) {
+      var a = ang(v), up = v >= 1;
+      if (Math.abs(a - Math.PI / 2) > 0.02) { s += '<path class="dval ' + (up ? 'up' : 'dn') + '" d="M' + pt(Math.PI / 2, R) + ' A' + R + ' ' + R + ' 0 0 ' + (up ? 1 : 0) + ' ' + pt(a, R) + '"/>'; }
+      s += '<line class="dneedle" x1="' + cx + '" y1="' + cy + '" x2="' + pt(a, R - 10).split(' ')[0] + '" y2="' + pt(a, R - 10).split(' ')[1] + '"/>';
+    }
+    s += '<line class="d1x" x1="60" y1="' + (cy - R - 7) + '" x2="60" y2="' + (cy - R + 7) + '"/><circle class="dhub" cx="' + cx + '" cy="' + cy + '" r="3.5"/>' +
+      '<text x="66" y="11" font-size="10">1×</text><text x="' + (cx - R) + '" y="76" text-anchor="middle" font-size="10">¼×</text><text x="' + (cx + R) + '" y="76" text-anchor="middle" font-size="10">4×</text></svg>';
+    return s;
+  }
+  function dialsHtml(order, ranked) {
+    return '<div class="cdials">' + order.map(function (r) {
+      var v = rowMed(r), on = ranked.indexOf(r) >= 0, n = r.ps.length;
+      var k = tipAdd('<b>' + esc(nameOf(r.c)) + '</b>' + (v == null ? 'No pieces with numbers in the span.' : 'Their typical piece: ' + xf(v) + ' a typical ZH post for ' + vsWord() + '.' +
+        (n >= 2 ? '<br><span class="muted">Middle half of their pieces: ' + xf(qtl(r.ps.map(function (p) { return p.i; }), 0.25)) + ' to ' + xf(qtl(r.ps.map(function (p) { return p.i; }), 0.75)) + '; best ' + xf(Math.max.apply(null, r.ps.map(function (p) { return p.i; }))) + '.</span>' : '')) +
+        (on ? '' : '<br><span class="muted">Not ranked: ranking starts at ' + CMP_MIN + ' pieces.</span>'));
+      return '<button type="button" class="dialc' + (on ? '' : ' dim') + '" data-person="' + esc(r.c.login) + '" data-tip="' + k + '">' + dialSvg(v) +
+        '<div class="dn">' + esc(nameOf(r.c)) + '</div><div class="dv">' + idxHtml(v) + '</div><div class="ds">' + (n ? n + ' piece' + (n === 1 ? '' : 's') + (r.beatpct != null ? ' &middot; ' + Math.round(100 * r.beatpct) + '% beat typical' : '') : 'nothing live') + (on ? '' : ' &middot; not ranked') + '</div></button>';
+    }).join('') + '</div>';
+  }
+
+  // Standouts: one widget per question, each naming who and why; small samples kept out (ranked contributors only)
+  function standoutsHtml(order, ranked) {
+    var out = [], pcs = [], w = function (k, v, s, r, tip) { out.push('<div class="tile" data-person="' + esc(r.c.login) + '" data-tip="' + tipAdd(tip) + '"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + s + '</div></div>'); };
+    order.forEach(function (r) { r.ps.forEach(function (p) { pcs.push({ r: r, p: p }); }); });
+    if (!pcs.length) { return ''; }
+    var best = pcs.slice().sort(function (a, b) { return b.p.i - a.p.i; })[0];
+    w('Best piece', xf(best.p.i), esc(nameOf(best.r.c)) + ': ' + esc(cut(pTitle(best.p), 70)), best.r, '<b>' + esc(pTitle(best.p)) + '</b>' + xf(best.p.i) + ' a typical ZH post for ' + vsWord() + ', ' + nf(best.p.x.views) + ' views<br><span class="muted">' + esc(nameOf(best.r.c)) + ', ' + esc(best.p.x.day ? dayName(best.p.x.day) : md(best.p.t)) + '</span>');
+    var most = pcs.filter(function (x) { return x.p.x.views != null; }).sort(function (a, b) { return b.p.x.views - a.p.x.views; })[0];
+    if (most) { w('Most read', kf(most.p.x.views), esc(nameOf(most.r.c)) + ': ' + esc(cut(pTitle(most.p), 70)), most.r, '<b>' + esc(pTitle(most.p)) + '</b>' + nf(most.p.x.views) + ' views, ' + xf(most.p.i) + ' a typical post for ' + vsWord() + '<br><span class="muted">' + esc(nameOf(most.r.c)) + '</span>'); }
+    var pick = function (f, better) { var b = null; ranked.forEach(function (r) { var v = f(r); if (v != null && (b == null || (better === 'hi' ? v > b.v : v < b.v))) { b = { r: r, v: v }; } }); return b; };
+    var form = pick(function (r) { return lastMed(r, 3); }, 'hi');
+    if (form) { var all = rowMed(form.r); w('In form', esc(nameOf(form.r.c)), 'last 3 pieces ' + xf(form.v) + (all != null ? ' (span ' + xf(all) + ')' : ''), form.r, '<b>' + esc(nameOf(form.r.c)) + '</b>The median of their last three pieces is the highest: ' + xf(form.v) + ' a typical post for ' + vsWord() + '.'); }
+    var steady = pick(function (r) { var a = r.ps.map(function (p) { return p.i; }); return a.length >= CMP_MIN ? l2(qtl(a, 0.75)) - l2(qtl(a, 0.25)) : null; }, 'lo');
+    if (steady) { var sa = steady.r.ps.map(function (p) { return p.i; }); w('Steadiest', esc(nameOf(steady.r.c)), 'middle half ' + xf(qtl(sa, 0.25)) + ' to ' + xf(qtl(sa, 0.75)), steady.r, '<b>' + esc(nameOf(steady.r.c)) + '</b>The narrowest middle half of pieces: they land close to their typical piece most times.'); }
+    var hit = pick(function (r) { return r.beatpct; }, 'hi');
+    if (hit) { w('Best hit rate', esc(nameOf(hit.r.c)), Math.round(100 * hit.v) + '% beat typical (' + hit.r.nbeat + ' of ' + hit.r.ni + ')', hit.r, '<b>' + esc(nameOf(hit.r.c)) + '</b>The largest share of pieces above a typical ZH post for ' + vsWord() + '.'); }
+    var talk = pick(function (r) { return r.cpk; }, 'hi'), cpk = (S.data.stats_base || {}).comments_per_1k;
+    if (talk) { w('Most talked about', esc(nameOf(talk.r.c)), talk.v.toFixed(1) + ' comments per 1,000 views' + (cpk ? ' (ZH ' + cpk + ')' : ''), talk.r, '<b>' + esc(nameOf(talk.r.c)) + '</b>The most comments for their views.'); }
+    var clean = null; order.forEach(function (r) { if (r.nerr >= CMP_MIN && (clean == null || r.err < clean.err)) { clean = r; } });
+    if (clean) { w('Cleanest copy', esc(nameOf(clean.c)), clean.err.toFixed(1) + ' fixes per piece' + (clean.crit ? ', ' + clean.crit + ' critical' : ', none critical'), clean, '<b>' + esc(nameOf(clean.c)) + '</b>The fewest fixes the prep required per piece as submitted, over ' + clean.nerr + ' prepped pieces.'); }
+    return '<div class="tiles">' + out.join('') + '</div>';
+  }
+
+  // Every piece: a row per contributor, each piece a dot (log scale), the middle half shaded, the median a dark tick
+  function stripSvg(order, ranked, dom) {
+    var W = 760, L = 118, R = 14, T = 24, RH = 30, B = 22, H = T + order.length * RH + B, X = function (v) { return L + (W - L - R) * dom.f(v); };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Every piece against a typical ZH post, a row for each contributor">';
+    dom.ticks.forEach(function (v) { s += '<line class="' + (v === 1 ? 'c1x' : 'cgrid') + '" x1="' + X(v).toFixed(1) + '" x2="' + X(v).toFixed(1) + '" y1="' + (T - 4) + '" y2="' + (H - B) + '"/><text x="' + X(v).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + xl(v) + '</text>'; });
+    s += '<text x="' + X(1).toFixed(1) + '" y="' + (T - 10) + '" text-anchor="middle">typical ZH post</text>';
+    order.forEach(function (r, k) {
+      var y = T + k * RH + RH / 2, on = ranked.indexOf(r) >= 0, a = r.ps.map(function (p) { return p.i; });
+      if (k) { s += '<line class="crow" x1="' + L + '" x2="' + (W - R) + '" y1="' + (y - RH / 2) + '" y2="' + (y - RH / 2) + '"/>'; }
+      s += '<text class="cname' + (on ? '' : ' dim') + '" x="' + (L - 10) + '" y="' + (y + 4) + '" text-anchor="end" data-person="' + esc(r.c.login) + '" style="cursor:pointer">' + esc(cut(nameOf(r.c), 13)) + ' <tspan class="dim" font-size="10">' + a.length + '</tspan></text>';
+      if (a.length >= 2) { var q1 = qtl(a, 0.25), q3 = qtl(a, 0.75); s += '<rect class="cband" x="' + X(q1).toFixed(1) + '" y="' + (y - 9) + '" width="' + Math.max(2, X(q3) - X(q1)).toFixed(1) + '" height="18" rx="4"/>'; }
+      r.ps.forEach(function (p, j) { s += pMark(r, p, X(p.i), y + (((j * 0.618034) % 1) - 0.5) * 12, 4.5, !on); });
+      if (a.length) { var m = X(med(a)); s += '<line class="cmed" x1="' + m.toFixed(1) + '" x2="' + m.toFixed(1) + '" y1="' + (y - 11) + '" y2="' + (y + 11) + '"/>'; }
+    });
+    return s + '</svg>';
+  }
+
+  // Volume and strength: pieces live in the span across, the typical piece up (log), a labeled dot per contributor
+  function scatterSvg(order, ranked, dom) {
+    var W = 760, H = 250, L = 44, R = 120, T = 20, B = 36, pts = order.filter(function (r) { return r.ps.length; });
+    var top = Math.max(3, Math.max.apply(null, pts.map(function (r) { return r.ps.length; }).concat([0]))), step = [1, 2, 5, 10, 20, 25, 50, 100].filter(function (x) { return Math.ceil(top / x) <= 6; })[0] || 100, xmax = Math.ceil(top * 1.1 / step) * step;
+    var X = function (n) { return L + (W - L - R) * n / xmax; }, Y = function (v) { return T + (H - T - B) * (1 - dom.f(v)); };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Pieces live against how the typical piece did, a dot per contributor">';
+    dom.ticks.forEach(function (v) { s += '<line class="' + (v === 1 ? 'c1x' : 'cgrid') + '" x1="' + L + '" x2="' + (W - R + 30) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '"/><text x="' + (L - 6) + '" y="' + (Y(v) + 4).toFixed(1) + '" text-anchor="end">' + xl(v) + '</text>'; });
+    s += '<text x="' + (W - R + 34) + '" y="' + (Y(1) + 4).toFixed(1) + '">typical ZH post</text>';
+    for (var n = 0; n <= xmax; n += step) { s += '<text x="' + X(n).toFixed(1) + '" y="' + (H - 18) + '" text-anchor="middle">' + n + '</text>'; }
+    s += '<text x="' + ((L + W - R) / 2).toFixed(1) + '" y="' + (H - 2) + '" text-anchor="middle">pieces live in the span &#8594;</text><text x="' + L + '" y="' + (T - 8) + '">&#8593; their typical piece, against ' + esc(vsWord()) + '</text>';
+    var lab = pts.map(function (r) { var v = rowMed(r); return { r: r, x: X(r.ps.length), y: Y(v), v: v, on: ranked.indexOf(r) >= 0 }; }).sort(function (a, b) { return a.y - b.y; });
+    lab.forEach(function (p, i) { p.ly = p.y + 4; if (i && p.ly - lab[i - 1].ly < 14 && Math.abs(p.x - lab[i - 1].x) < 120) { p.ly = lab[i - 1].ly + 14; } });   // names never sit on top of each other
+    lab.forEach(function (p) {
+      var k = tipAdd('<b>' + esc(nameOf(p.r.c)) + '</b>' + p.r.ps.length + ' piece' + (p.r.ps.length === 1 ? '' : 's') + ' live, typical piece ' + xf(p.v) + '<br><span class="muted">' + nf(p.r.views) + ' views in all' + (p.r.beatpct != null ? ', ' + Math.round(100 * p.r.beatpct) + '% beat typical' : '') + (p.on ? '' : '; not ranked') + '</span>');
+      s += '<g class="cm' + (p.on ? '' : ' hollow') + '" data-tip="' + k + '" data-person="' + esc(p.r.c.login) + '"><circle class="hit" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="12"/><circle class="dot" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="7"/></g>' +
+        '<text class="cname' + (p.on ? '' : ' dim') + '" x="' + (p.x + 11).toFixed(1) + '" y="' + p.ly.toFixed(1) + '">' + esc(cut(nameOf(p.r.c), 16)) + '</text>';
+    });
+    return s + '</svg>';
+  }
+
+  // Form: a small chart per contributor, every piece over time and the median of their last three as the line
+  function formsHtml(order, ranked, dom) {
+    var now = Date.now() / 1000, t0 = order.reduce(function (m, r) { return r.from ? r.from : Math.min(m, r.ps.length ? r.ps[0].t : m); }, now);
+    if (now - t0 < 86400) { t0 = now - 86400; }
+    var W = 240, H = 100, L = 30, R = 8, T = 8, B = 16, X = function (t) { return L + (W - L - R) * (t - t0) / (now - t0); }, Y = function (v) { return T + (H - T - B) * (1 - dom.f(v)); };
+    return '<div class="cforms">' + order.filter(function (r) { return r.ps.length; }).map(function (r) {
+      var on = ranked.indexOf(r) >= 0, last = lastMed(r, 3), prev = r.ps.length >= 6 ? lastMed(r, 3, 3) : null;
+      var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" aria-label="' + esc(nameOf(r.c)) + '\'s pieces over time">';
+      [dom.lo, 1, dom.hi].forEach(function (v) { s += '<line class="' + (v === 1 ? 'c1x' : 'cgrid') + '" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '"/><text x="' + (L - 4) + '" y="' + (Y(v) + 4).toFixed(1) + '" text-anchor="end" font-size="10">' + xl(v) + '</text>'; });
+      s += '<text x="' + L + '" y="' + (H - 2) + '" font-size="10">' + md(t0) + '</text><text x="' + (W - R) + '" y="' + (H - 2) + '" text-anchor="end" font-size="10">now</text>';
+      if (r.ps.length >= 3) { s += '<path class="cline" d="' + r.ps.slice(2).map(function (p, j) { var m = med(r.ps.slice(j, j + 3).map(function (q) { return q.i; })); return (j ? 'L' : 'M') + X(p.t).toFixed(1) + ' ' + Y(m).toFixed(1); }).join(' ') + '"/>'; }
+      r.ps.forEach(function (p) { s += pMark(r, p, X(p.t), Y(p.i), 3.5, !on); });
+      return '<div class="cform"><div class="fh"><b data-person="' + esc(r.c.login) + '">' + esc(nameOf(r.c)) + '</b><span>' + (last != null ? 'last 3: ' + xf(last) + (prev != null ? (last > prev ? ' &#9650;' : last < prev ? ' &#9660;' : '') + ' from ' + xf(prev) : '') : r.ps.length + ' piece' + (r.ps.length === 1 ? '' : 's')) + '</span></div>' + s + '</svg></div>';
+    }).join('') + '</div>';
+  }
+
+  function cmpCharts(order, ranked, rest, span) {
+    S.cmpTips = [];
+    var any = order.some(function (r) { return r.ps.length; }), dom = cmpDom(order);
+    var body = !any ? '<p class="muted small">Nothing live on ZH with numbers from ' + esc(span[3]) + '.</p>' :
+      '<h3>Typical piece against a typical ZH post <span class="muted">(' + esc(vsWord()) + ')</span></h3>' + dialsHtml(order, ranked) +
+      '<h3>Standouts</h3>' + standoutsHtml(order, ranked) +
+      '<h3>Every piece <span class="muted">the shading is their middle half, the dark tick their typical piece</span></h3><div class="cc-scroll">' + stripSvg(order, ranked, dom) + '</div>' +
+      '<h3>Volume and strength <span class="muted">up and to the right is more, and better</span></h3><div class="cc-scroll">' + scatterSvg(order, ranked, dom) + '</div>' +
+      '<h3>Form <span class="muted">each piece over time; the line is the median of their last three</span></h3>' + formsHtml(order, ranked, dom) +
+      '<p class="muted small" style="margin:10px 0 0">Pieces from ' + esc(span[3]) + ', on a doubling scale: 2&times; is twice a typical ZH post for ' + esc(vsWord()) + ', &frac12;&times; half. Hollow dots and faded dials are contributors not ranked yet (fewer than ' + CMP_MIN + ' pieces). Hover anything for the numbers; click a dot to open the piece, a name or dial for the profile.</p>';
+    return '<details class="cmp-charts" data-cmp-charts' + (S.cmp.charts ? ' open' : '') + '><summary>Charts<span class="muted">dials, standouts, every piece, volume and strength, form</span></summary><div class="cc-body">' + body + '</div></details>';
+  }
+  function cmpBind(el) {
+    var dt = el.querySelector('details.cmp-charts'); if (!dt) { return; }
+    dt.addEventListener('toggle', function () { S.cmp.charts = dt.open; store('cd-cmp-charts', dt.open ? '1' : '0'); });
+    var box = dt.querySelector('.cc-body'), tip = null, cur = null;
+    var hide = function () { if (tip) { tip.remove(); tip = null; } if (cur) { cur.classList.remove('on'); cur = null; } };
+    box.addEventListener('mousemove', function (ev) {
+      var m = ev.target.closest ? ev.target.closest('[data-tip]') : null;
+      if (!m || !box.contains(m)) { hide(); return; }
+      var h = S.cmpTips[+m.getAttribute('data-tip')]; if (!h) { hide(); return; }
+      if (cur !== m) { if (cur) { cur.classList.remove('on'); } cur = m; m.classList.add('on'); }
+      if (!tip) { tip = document.createElement('div'); tip.className = 'ctip'; box.appendChild(tip); }
+      tip.innerHTML = h;
+      var br = box.getBoundingClientRect(), x = ev.clientX - br.left + 14, y = ev.clientY - br.top + 14;
+      if (x + 300 > br.width) { x = Math.max(4, ev.clientX - br.left - 304); }
+      tip.style.left = x + 'px'; tip.style.top = y + 'px';
+    });
+    box.addEventListener('mouseleave', hide);
   }
 
   // ---------- Time off (Oct. 26, Dan: "Josh told me this on X"): each contributor's days off the desk, from config/off-desk.json
