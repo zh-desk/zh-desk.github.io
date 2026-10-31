@@ -241,6 +241,10 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
 .toast.bad { background: var(--bad); color: #fff; }
 .link-out { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px; border-radius: 6px; background: rgba(31,122,69,.12); margin: 8px 0; overflow-wrap: anywhere; }
 .link-out code { font-size: .8rem; }
+.inv-mail { border: 1px solid var(--rule); border-radius: 6px; padding: 10px; margin: 8px 0; background: var(--panel); }
+.inv-mail .mrow { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; overflow-wrap: anywhere; }
+.inv-mail .mrow b { min-width: 58px; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.inv-mail textarea { font-size: .86rem; line-height: 1.45; }
 .ptitle { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .ptitle h2 { margin: 0; font: 700 1.4rem/1.2 Georgia, "Times New Roman", serif; color: var(--ink); text-transform: none; letter-spacing: 0; }
 @media (max-width: 1050px) { .page { grid-template-columns: minmax(0, 1fr); } .board { position: static; max-height: none; } }
@@ -752,12 +756,15 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   function renderInvites() {
     var d = S.data, ed = d.me.role === 'editor';
     var h = '<h2><span class="grow">Invites</span></h2>' +
-      '<form class="row" id="inv-c"><input type="text" style="flex:1 1 220px;width:auto" id="inv-c-nick" placeholder="Private nickname for them (optional)"><button type="submit" class="primary">Make a contributor invite</button></form>' +
-      '<p class="hint">Contributors need a free GitHub account; the link explains that. Each link works once.</p>' +
+      '<form class="row" id="inv-c"><input type="text" style="flex:1 1 200px;width:auto" id="inv-c-nick" placeholder="Private nickname for them (optional)">' +
+        '<input type="email" style="flex:1 1 200px;width:auto" id="inv-c-email" placeholder="Their email (optional)">' +
+        '<label class="small row" style="gap:4px" title="Untick to start them without the Stats tab on their author desk. You can switch it on their profile any time."><input type="checkbox" id="inv-c-stats" checked> Stats tab on</label>' +
+        '<button type="submit" class="primary">Make a contributor invite</button></form>' +
+      '<p class="hint">Contributors need a free GitHub account; the link explains that. Each link works once. With their email, you get the invite email ready to copy into your mail, and it goes on file for notifications when they join.</p>' +
       (ed ? '<form class="row" id="inv-a" style="margin-top:10px"><input type="text" style="flex:1 1 200px;width:auto" id="inv-a-name" placeholder="Their name"><label class="small row" style="gap:4px"><input type="checkbox" id="inv-a-owner"> the owner</label><button type="submit">Make an admin invite</button></form>' +
         '<p class="hint">An admin gets this dashboard and nothing else: no desk, no store, no repository.</p>' : '') +
       '<div id="inv-out"></div>' +
-      (d.invites.length ? '<ul class="small" style="padding-left:18px">' + d.invites.map(function (v) { return '<li>' + (v.role === 'admin' ? 'Admin invite' + (v.name ? ' for ' + esc(v.name) : '') : 'Contributor invite' + (v.nickname ? ' for ' + esc(v.nickname) : '')) + ', made ' + esc(when(v.made)) + ' by ' + esc(v.by_name || v.by) + ' <button type="button" class="small" data-act="withdraw" data-hash="' + esc(v.hash) + '">Withdraw</button></li>'; }).join('') + '</ul>' : '') +
+      (d.invites.length ? '<ul class="small" style="padding-left:18px">' + d.invites.map(function (v) { return '<li>' + (v.role === 'admin' ? 'Admin invite' + (v.name ? ' for ' + esc(v.name) : '') : 'Contributor invite' + (v.nickname ? ' for ' + esc(v.nickname) : '') + (v.email ? ' (' + esc(v.email) + ')' : '') + (v.stats_tab === false ? ', Stats tab off' : '')) + ', made ' + esc(when(v.made)) + ' by ' + esc(v.by_name || v.by) + ' <button type="button" class="small" data-act="withdraw" data-hash="' + esc(v.hash) + '">Withdraw</button></li>'; }).join('') + '</ul>' : '') +
       (ed && d.admins ? '<h2 style="margin-top:14px"><span class="grow">Admins</span><a class="small" style="text-transform:none;letter-spacing:0;font-weight:400" href="/contributors/?view=owner">See the dashboard as the owner sees it</a></h2>' + (d.admins.length ? '<ul class="small" style="padding-left:18px">' + d.admins.map(function (a) { return '<li>' + esc(a.name) + ' (@' + esc(a.login) + ', ' + esc(a.role) + ')' + (a.joined ? ', joined ' + esc(when(a.joined)) : '') + ' <button type="button" class="small" data-act="admin-remove" data-login="' + esc(a.login) + '">Remove</button></li>'; }).join('') + '</ul>' : '<p class="muted small">No admins yet besides you and Tim.</p>') : '') +
       '<h2 style="margin-top:14px">My email</h2><form class="row small" id="self"><input type="email" style="width:240px" id="self-email" value="' + esc(d.me.email) + '" placeholder="you@example.com"><label class="row" style="gap:4px"><input type="checkbox" id="self-notify"' + (d.me.notify ? ' checked' : '') + '> email me new pitches and submissions</label><button type="submit">Save</button></form>';
     $('invites-panel').innerHTML = h;
@@ -1210,15 +1217,50 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     var nk = ev.target.closest('[data-nick]'), c = sel();
     if (nk && c) { call('nickname', { login: c.login, nickname: nk.value.trim() }).then(function () { toast('Desk name saved. They never see it.'); return load(); }).catch(function (e) { toast(e.message, true); }); }
   });
+  // The invite email (Oct. 31, Dan: "can I just give you their email and you auto-generate the email to them with their
+  // unique link that i can then copy into the composer"). It never uses the private nickname: they never see that. The
+  // message can be edited here before it's copied or opened in the mail app.
+  var INVITE_SUBJECT = 'Your invite to write for ZeroHedge';
+  function inviteMailText(j) {
+    var me = (S.data && S.data.me && S.data.me.name) || '';
+    return 'Hi,\n\n' +
+      'Here\'s your invite to the ZeroHedge author desk, where you\'ll write your pieces and send them to the editors:\n\n' + j.link + '\n\n' +
+      'To get in:\n' +
+      '1. If you don\'t have a GitHub account, make one at https://github.com/signup (it\'s free). The desk uses it to sign you in.\n' +
+      '2. Open the link above and sign in with GitHub.\n' +
+      '3. Pick the name you\'d like the editors to see, and you\'re in.\n\n' +
+      'From your desk you can write and submit articles, pitch story ideas, follow where each piece stands' + (j.stats_tab === false ? '' : ', see how your pieces do on ZeroHedge') + ' and mark days you\'ll be away.\n\n' +
+      'The link works once, so please don\'t share it. If anything goes wrong, just reply to this email.\n\n' +
+      'Thanks,\n' + me;
+  }
+  function inviteMailHtml(j) {
+    return '<div class="inv-mail">' +
+      (j.email ? '<div class="mrow small"><b>To</b><span>' + esc(j.email) + '</span><button type="button" class="small" data-mcopy="to">Copy</button></div>' : '') +
+      '<div class="mrow small"><b>Subject</b><span>' + esc(INVITE_SUBJECT) + '</span><button type="button" class="small" data-mcopy="subject">Copy</button></div>' +
+      '<textarea id="inv-mail-body" rows="19" aria-label="The invite email">' + esc(inviteMailText(j)) + '</textarea>' +
+      '<div class="row" style="margin-top:8px"><button type="button" class="primary" data-mcopy="body">Copy the email</button><button type="button" data-mcopy="open">Open in my mail app</button>' +
+      '<span class="hint">' + (j.email ? 'Their email and the Stats tab choice go on file when they join.' : 'Add their email next time to have the To line filled in.') + '</span></div>' +
+      '<input type="hidden" id="inv-mail-to" value="' + esc(j.email || '') + '"></div>';
+  }
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-mcopy]');
+    if (!b) { return; }
+    var k = b.dataset.mcopy, to = $('inv-mail-to').value, body = $('inv-mail-body').value;
+    if (k === 'open') { location.href = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(INVITE_SUBJECT) + '&body=' + encodeURIComponent(body); return; }
+    navigator.clipboard.writeText(k === 'to' ? to : k === 'subject' ? INVITE_SUBJECT : body).then(function () { toast(k === 'body' ? 'Email copied.' : 'Copied.'); }).catch(function () { toast('Couldn\'t copy: select it and copy by hand.', true); });
+  });
   document.addEventListener('submit', function (ev) {
     var f = ev.target;
     if (f.id === 'inv-c' || f.id === 'inv-a') {
       ev.preventDefault();
-      var body = f.id === 'inv-c' ? { role: 'contributor', nickname: $('inv-c-nick').value.trim() } : { role: 'admin', name: $('inv-a-name').value.trim(), owner: $('inv-a-owner').checked };
+      var body = f.id === 'inv-c' ? { role: 'contributor', nickname: $('inv-c-nick').value.trim(), email: $('inv-c-email').value.trim(), stats: $('inv-c-stats').checked } : { role: 'admin', name: $('inv-a-name').value.trim(), owner: $('inv-a-owner').checked };
       call('invite', body).then(function (j) {
-        $('inv-out').innerHTML = '<div class="link-out"><code>' + esc(j.link) + '</code><button type="button" class="small" id="inv-copy">Copy</button><span class="hint">Send it to them. It works once.</span></div>';
+        $('inv-out').innerHTML = '<div class="link-out"><code>' + esc(j.link) + '</code><button type="button" class="small" id="inv-copy">Copy</button><span class="hint">Send it to them. It works once.</span></div>' +
+          (j.role === 'contributor' ? inviteMailHtml(j) : '');
         $('inv-copy').onclick = function () { navigator.clipboard.writeText(j.link).then(function () { toast('Copied.'); }); };
-        navigator.clipboard.writeText(j.link).catch(function () {});
+        if (j.role === 'contributor') { $('inv-c-nick').value = ''; $('inv-c-email').value = ''; $('inv-c-stats').checked = true; }
+        if (j.email) { navigator.clipboard.writeText($('inv-mail-body').value).then(function () { toast('The invite email is copied: paste it into a new email to ' + j.email + '.', false, 7000); }).catch(function () {}); }
+        else { navigator.clipboard.writeText(j.link).catch(function () {}); }
         return call('overview').then(function (d) { S.data = d; renderTotals(); });
       }).catch(function (e) { toast(e.message, true); });
     }
