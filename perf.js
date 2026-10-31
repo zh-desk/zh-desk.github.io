@@ -181,15 +181,17 @@
     var ymax = Math.ceil(top / step) * step, ticks = []; for (var v = 0; v <= ymax + step / 2; v += step) { ticks.push(v); }
     return { ticks: ticks, Y: function (v) { return T + (H - T - B) * (1 - v / ymax); } };
   }
-  // o: { arts, base, whose: "Ally's" or "your", their: "their" or "your", range, slot }
+  // o: { arts, base, whose: "Ally's" or "your", their: "their" or "your", range, slot, own }. own (Oct. 31, the author
+  // desk's "own numbers" tier): their pieces only, with nothing of ZH's to set them against, so no adjust toggles or notes.
   function html(o) {
+    if (o.own) { o.slot = false; o.beat = false; }
     var d = data(o), n = d.live.length, their = o.their || 'their';
     var head = '<div class="phead"><h3>How ' + esc(o.whose || 'their') + ' pieces ran: views, first two days</h3>' +
       '<span class="pseg" role="group" aria-label="How far back">' + SPANS.map(function (x) { return '<button type="button" data-pspan="' + x[0] + '" aria-pressed="' + (x[0] === d.range.span) + '" title="Pieces from ' + x[3] + '">' + x[1] + '</button>'; }).join('') + '</span>' +
       '<select data-pcount aria-label="How many posts">' + COUNTS.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === d.range.count ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select>' +
-      '<label class="pslot" title="Each piece scaled to a typical slot: its views times ZH\'s typical two-day views over what its publish hour and weekday expect"><input type="checkbox" data-pslot' + (o.slot ? ' checked' : '') + '> Adjust for time slot</label>' +
+      (o.own ? '' : '<label class="pslot" title="Each piece scaled to a typical slot: its views times ZH\'s typical two-day views over what its publish hour and weekday expect"><input type="checkbox" data-pslot' + (o.slot ? ' checked' : '') + '> Adjust for time slot</label>') +
       (d.secList.length > 1 || d.sec ? '<select data-psec aria-label="Which section"><option value="">All sections</option>' + d.secList.map(function (x) { return '<option value="' + esc(x[0]) + '"' + (x[0] === d.sec ? ' selected' : '') + '>' + esc(secName(x[0])) + ' (' + x[1] + ')</option>'; }).join('') + '</select>' : '') +
-      (d.sec ? '' : '<label class="pslot" title="Each piece scaled to a typical section: its views over what its ZH section draws (Political posts draw more than Markets posts), so each is judged against its own section"><input type="checkbox" data-pbeat' + (o.beat ? ' checked' : '') + '> Adjust for beat</label>') + '</div>';
+      (d.sec || o.own ? '' : '<label class="pslot" title="Each piece scaled to a typical section: its views over what its ZH section draws (Political posts draw more than Markets posts), so each is judged against its own section"><input type="checkbox" data-pbeat' + (o.beat ? ' checked' : '') + '> Adjust for beat</label>') + '</div>';
     if (!d.drawn.length && !d.dots.length) {
       var spanWord = SPANS.filter(function (x) { return x[0] === d.range.span; })[0][3];
       return head + '<p class="pnote">' + (n ? 'None of the ' + n + ' live piece' + (n === 1 ? '' : 's') + ' from ' + spanWord + ' can be drawn yet: ' + (n === 1 ? 'it' : 'they') + ' ran only minutes ago.' :
@@ -197,7 +199,7 @@
     }
     var sc = scale(d), Y = sc.Y;
     var line = function (arr) { return arr.map(function (q, i) { return (i ? 'L' : 'M') + X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' '); };
-    var sv = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Views over the first two days: ' + d.drawn.length + ' pieces against ZH\'s typical post. The table below has every number.">';
+    var sv = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Views over the first two days: ' + d.drawn.length + ' pieces' + (o.own ? '' : ' against ZH\'s typical post') + '. The table below has every number.">';
     sc.ticks.forEach(function (v) { sv += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" stroke="var(--rule)" stroke-width="1"/><text x="' + (L - 6) + '" y="' + (Y(v) + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + kf(v) + '</text>'; });
     [0, 6, 12, 24, 36, 48].forEach(function (t) { sv += '<text x="' + X(t).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + (t ? t + 'h' : '0') + '</text>'; });
     if (d.zh.band.length) { sv += '<path class="pband" d="' + d.zh.band.map(function (q, i) { return (i ? 'L' : 'M') + X(q[0]).toFixed(1) + ' ' + Y(q[2]).toFixed(1); }).join(' ') + ' ' + d.zh.band.slice().reverse().map(function (q) { return 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' ') + ' Z"/>'; }
@@ -224,14 +226,14 @@
       (d.zh.band.length ? '<span><i style="background:var(--muted);opacity:.25;height:8px"></i>Middle half of ZH ' + esc(d.beatWord) + 'posts</span>' : '') + '</div>' +
       '<p class="pnote">' + rangeName(d.range) + ': ' + n + ' live piece' + (n === 1 ? '' : 's') + (dl ? ', ' + lines + ' as lines and ' + dl + ' as dots' : '') + '. ' +
       (o.slot ? 'Adjusted for time slot: each piece scaled as if it ran at a typical hour and weekday. ' : '') +
-      (d.sec ? esc(secName(d.sec)) + ' pieces only, against ZH\'s own ' + esc(secName(d.sec)) + ' posts: their typical post and middle half. ' : '') +
+      (d.sec ? esc(secName(d.sec)) + ' pieces only' + (o.own ? '. ' : ', against ZH\'s own ' + esc(secName(d.sec)) + ' posts: their typical post and middle half. ') : '') +
       (o.beat && !d.sec ? 'Adjusted for beat: each piece scaled as if it ran in a typical section (its views over what its section draws: ' +
         esc(d.secList.slice(0, 3).map(function (x) { return secName(x[0]) + ' posts ' + xf(secF(o.base, x[0])); }).join(', ')) + ' the typical). ' : '') +
       'Hover a line or dot, or a row in the table, for the piece.' +
       (dl ? ' The desk counts views hour by hour from Oct. 20, 2026, so earlier pieces are a dot at two days (ZH posts add well under 1% after that).' : '') +
       (left > 0 ? ' ' + left + ' too new to show.' : '') +
       (pins ? ' A dark dot is where a piece was pinned to the top of ZH\'s front page (hover it for its views an hour before and after); pins are tracked from Oct. 22, 2026.' : '') +
-      (d.zh.typ.length ? '' : ' ZH\'s typical curve shows once enough posts have been followed from the minute they ran.') + '</p>';
+      (d.zh.typ.length || o.own ? '' : ' ZH\'s typical curve shows once enough posts have been followed from the minute they ran.') + '</p>';
   }
   // box: the element holding html(o); rows: table rows whose rowId(tr) is a piece's id (hovering one lights its line)
   function bind(box, o, rows, rowId) {

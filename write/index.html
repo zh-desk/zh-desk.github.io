@@ -762,11 +762,11 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     $('dash-title').textContent = S.viewing ? shown() + '\'s numbers on ZeroHedge' : 'Your numbers on ZeroHedge';
     if (!sent.length) {
       $('dash-upd').textContent = '';
-      $('dash-body').innerHTML = '<p class="muted">Nothing has gone to the editors yet. Once a piece runs on ZeroHedge, its views, comments and how it did against the other posts that day show here.</p>';
+      $('dash-body').innerHTML = '<p class="muted">Nothing has gone to the editors yet. Once a piece runs on ZeroHedge, its views' + (ownOnly() ? ' and comments show here.' : ', comments and how it did against the other posts that day show here.') + '</p>';
       return;
     }
     $('dash-upd').textContent = j.counts_at ? 'Views and comments as of ' + when(j.counts_at) + ', from ZeroHedge\'s own counter' + (base && base.updated ? '; rankings updated ' + when(base.updated) : '')
-      : base && base.updated ? 'Updated ' + when(base.updated) + ', from ZeroHedge\'s own view counter' : 'The numbers show here within the hour';
+      : base && base.updated ? 'Updated ' + when(base.updated) + ', from ZeroHedge\'s own view counter' : rows.length ? 'From ZeroHedge\'s own view counter' : 'The numbers show here within the hour';
     var st = rows.map(function (a) { return a.stats; });
     var views = st.reduce(function (t, x) { return t + (x.views || 0); }, 0), comments = st.reduce(function (t, x) { return t + (x.comments || 0); }, 0);
     var idxs = st.map(function (x) { return x.idx; }).filter(function (x) { return x != null; });
@@ -778,7 +778,9 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     var newest = st.filter(function (x) { return x.pub_ts; }).sort(function (a, b) { return b.pub_ts - a.pub_ts; })[0];
     // (Dan, Oct. 30: no ZH typical-post figure here; the contributor doesn't see ZH's own numbers)
     var nAge = newest ? (Date.now() / 1000 - newest.pub_ts) / 3600 : null;
-    var track = !newest ? ['On track for', '-', '2-day views for the newest piece']
+    var own = ownOnly();
+    var track = own ? (!newest ? ['Newest piece', '-', 'views so far'] : nAge >= 48 ? ['Newest piece, 2 days', kf(newest.m48 != null ? newest.m48 : newest.views), 'views in its first 2 days'] : ['Newest piece', kf(newest.views), 'views so far'])
+      : !newest ? ['On track for', '-', '2-day views for the newest piece']
       : nAge >= 48 ? ['Newest piece, 2 days', kf(newest.m48 != null ? newest.m48 : newest.views), 'views in its first 2 days']
       : newest.proj ? ['On track for', kf(newest.proj), '2-day views for the newest piece at its pace so far']
       : ['On track for', '-', 'shows 15 minutes after a piece runs'];
@@ -788,9 +790,9 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       tile('Live on ZeroHedge', live.length, 'of ' + sent.length + ' submitted' + (onWay ? ' &middot; ' + onWay + ' on the way' : '')) +
       tile('Total views', nf(views), nf(comments) + ' comments') +
       tile(track[0], track[1], track[2]) +
-      tile('Against its time slot', idxs.length ? xf(med(idxs)) : '-', 'median; 1× is a typical ZH post for the hour and weekday it ran') +
+      (own ? '' : tile('Against its time slot', idxs.length ? xf(med(idxs)) : '-', 'median; 1× is a typical ZH post for the hour and weekday it ran') +
       tile('Beat the typical', idxs.length ? beat + ' of ' + idxs.length : '-', idxs.length ? big + ' at 1.5× or more' : '') +
-      tile('Best day', best ? '#' + best.day_rank + ' of ' + best.day_n : '-', best ? 'top ' + topPct(best.day_rank, best.day_n) + '% on ' + dayName(best.day) : '', bestA ? bestCard(bestA) : '') +
+      tile('Best day', best ? '#' + best.day_rank + ' of ' + best.day_n : '-', best ? 'top ' + topPct(best.day_rank, best.day_n) + '% on ' + dayName(best.day) : '', bestA ? bestCard(bestA) : '')) +
       tile('Comments per 1,000 views', views ? (comments * 1000 / views).toFixed(1) : '-', base && base.comments_per_1k ? 'ZH typical: ' + base.comments_per_1k : '') +
       tile('ZH\'s Today\'s top', tops.length ? tops.length + (tops.length === 1 ? ' piece' : ' pieces') : '-', topBest ? '#' + topBest + ' at best' : 'tracked from Oct. 20', topCard(rows)) +
       '</div>';
@@ -803,8 +805,11 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       // a long list folds to its first five rows, fading out, with a button for the rest (Oct. 30, Dan: "Collapse the giant
       // list of pieces to that fade / expand accordion (default closed with maybe the last 5 showing)")
       var FOLDN = 5, folded = live.length > FOLDN && !D.allRows;
-      h += '<div class="ptab-wrap' + (folded ? ' folded' : '') + '"><table class="ptab"><thead><tr>' + [['title', 'Piece'], ['pub', 'Ran (ET)'], ['views', 'Views', 1], ['comments', 'Comments', 1, 'opt'], ['idx', 'Vs. its slot', 1],
-        ['day', 'That day', 1], ['chan', 'Section, 7 days', 1, 'opt'], ['m1', '1 hr', 1, 'opt'], ['m24', '24 hr', 1, 'opt'], ['m48', '2 days', 1, 'opt'], ['top', 'ZH top', 1, 'opt']].map(function (c) {
+      var cols = [['title', 'Piece'], ['pub', 'Ran (ET)'], ['views', 'Views', 1], ['comments', 'Comments', 1, 'opt'], ['idx', 'Vs. its slot', 1],
+        ['day', 'That day', 1], ['chan', 'Section, 7 days', 1, 'opt'], ['m1', '1 hr', 1, 'opt'], ['m24', '24 hr', 1, 'opt'], ['m48', '2 days', 1, 'opt'], ['top', 'ZH top', 1, 'opt']]
+        .filter(function (c) { return !own || ['idx', 'day', 'chan'].indexOf(c[0]) < 0; });
+      if (own && ['idx', 'day', 'chan'].indexOf(D.sort) >= 0) { D.sort = 'pub'; D.dir = -1; }
+      h += '<div class="ptab-wrap' + (folded ? ' folded' : '') + '"><table class="ptab"><thead><tr>' + cols.map(function (c) {
         return '<th data-dsort="' + c[0] + '" class="' + (c[2] ? 'n ' : '') + (c[3] || '') + '">' + c[1] + (D.sort === c[0] ? (D.dir < 0 ? ' ▾' : ' ▴') : '') + '</th>';
       }).join('') + '</tr></thead><tbody>';
       var key = function (a) {
@@ -819,20 +824,21 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
           var x = a.stats, open = D.open === a.id;
           h += '<tr class="prow' + (open ? ' open' : '') + '" data-piece="' + esc(a.id) + '" title="Click for its chart and how it did"><td class="hl"><span class="chev">' + (open ? '&#9662;' : '&#9656;') + '</span><a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc((x && x.title) || a.zh.title || a.title) + '</a>' +
             '<span class="sub">' + esc(x ? secName(x.channel) : '') + (x && x.views == null ? ' &middot; not counted yet' : '') + '</span></td>';
-          if (!x) { h += '<td>' + esc(when(a.zh.published)) + '</td><td class="n" colspan="9"><span class="muted">Numbers within the hour</span></td></tr>'; return; }
+          if (!x) { h += '<td>' + esc(when(a.zh.published)) + '</td><td class="n" colspan="' + (cols.length - 2) + '"><span class="muted">Numbers within the hour</span></td></tr>'; return; }
           h += '<td>' + esc(dayName(x.day)) + '<span class="sub">' + esc(hourName(x.hour)) + '</span></td>' +
-            '<td class="n">' + nf(x.views) + '</td><td class="n opt">' + nf(x.comments) + '</td><td class="n">' + idxHtml(x.idx) + '</td>' +
+            '<td class="n">' + nf(x.views) + '</td><td class="n opt">' + nf(x.comments) + '</td>' + (own ? '' : '<td class="n">' + idxHtml(x.idx) + '</td>' +
             '<td class="n">' + (x.day_rank ? '#' + x.day_rank + ' of ' + x.day_n + '<span class="sub">top ' + topPct(x.day_rank, x.day_n) + '%</span>' : '-') + '</td>' +
-            '<td class="n opt">' + (x.chan_rank ? '#' + x.chan_rank + ' of ' + x.chan_n : '-') + '</td>' +
+            '<td class="n opt">' + (x.chan_rank ? '#' + x.chan_rank + ' of ' + x.chan_n : '-') + '</td>') +
             '<td class="n opt">' + kf(x.m1) + '</td><td class="n opt">' + kf(x.m24) + '</td><td class="n opt">' + kf(x.m48 != null ? x.m48 : (x.basis === 48 ? x.views : null)) + '</td>' +
             '<td class="n opt">' + (x.top_best ? '#' + x.top_best + (x.top_min ? '<span class="sub">' + Math.round(x.top_min / 60 * 10) / 10 + ' hr on it</span>' : '') : '-') + '</td></tr>';
-          if (open) { h += '<tr class="pdetail"><td colspan="11">' + detailHtml(a, base) + '</td></tr>'; }
+          if (open) { h += '<tr class="pdetail"><td colspan="' + cols.length + '">' + detailHtml(a, base) + '</td></tr>'; }
         });
       h += '</tbody></table></div>';
       if (live.length > FOLDN) { h += '<div class="ptab-more"><button type="button" data-allrows aria-expanded="' + !folded + '">' + (folded ? 'Show all ' + live.length + ' pieces &#9662;' : 'Show ' + FOLDN + ' only &#9652;') + '</button></div>'; }
       h += sectionsHtml(st);
     }
-    h += '<p class="how">How to read it: <strong>Vs. its slot</strong> is a piece\'s views against the median ZeroHedge post published at the same hour and on the same kind of day (ZH\'s traffic ebbs and flows through the day and week), at 2 days old, or at its age for younger pieces: 1× is typical, 2× is twice the typical. <strong>That day</strong> ranks it among every ZH post that Eastern day; <strong>Section</strong>, among its section\'s posts over the week around it. Hour-by-hour numbers start from Oct. 20, 2026; earlier pieces have their totals.</p>';
+    h += own ? '<p class="how">Views and comments are ZeroHedge\'s own counters for your pieces' + (S.viewing ? ' (theirs, here)' : '') + '. <strong>1 hr</strong>, <strong>24 hr</strong> and <strong>2 days</strong> are the views at those ages; <strong>ZH top</strong> is the best place a piece reached on ZH\'s Today\'s top list. Hour-by-hour numbers start from Oct. 20, 2026; earlier pieces have their totals.</p>'
+      : '<p class="how">How to read it: <strong>Vs. its slot</strong> is a piece\'s views against the median ZeroHedge post published at the same hour and on the same kind of day (ZH\'s traffic ebbs and flows through the day and week), at 2 days old, or at its age for younger pieces: 1× is typical, 2× is twice the typical. <strong>That day</strong> ranks it among every ZH post that Eastern day; <strong>Section</strong>, among its section\'s posts over the week around it. Hour-by-hour numbers start from Oct. 20, 2026; earlier pieces have their totals.</p>';
     $('dash-body').innerHTML = h;
     var pb = $('dash-body').querySelector('.perf');
     if (pb) { ZHPerf.bind(pb, perfOpts(), $('dash-body').querySelectorAll('tr.prow'), function (tr) { return tr.dataset.piece; }); }
@@ -866,9 +872,11 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   }
   function perfOpts() {
     var j = S.me || {};
-    return Object.assign(D.perf, { arts: (j.articles || []).concat(j.history || []), base: j.stats_base || {}, whose: S.viewing ? shown() + '\'s' : 'your', their: S.viewing ? 'their' : 'your' });
+    var own = ownOnly(); if (own) { D.perf.slot = false; D.perf.beat = false; }
+    return Object.assign(D.perf, { arts: (j.articles || []).concat(j.history || []), base: j.stats_base || {}, own: own, whose: S.viewing ? shown() + '\'s' : 'your', their: S.viewing ? 'their' : 'your' });
   }
   function detailHtml(a, base) {
+    if (ownOnly()) { return ownDetailHtml(a); }
     var x = a.stats, b = base || {}, hf = (b.hour || [])[x.hour], df = (b.dow || [])[x.dow], cf = ((b.chan || {})[x.channel] || {}).factor;
     var p = [];
     p.push('<p>Ran ' + esc(dayName(x.day)) + ' at ' + esc(hourName(x.hour)) + ' Eastern. ' + (hf ? 'Posts at that hour draw ' + xf(hf) + ' the typical, ' : '') +
@@ -886,13 +894,23 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     return '<div class="dgrid"><div class="curve"><h4>Views over time</h4>' + curveSvg(x, b) + '</div><div><h4>How it did</h4>' + p.join('') +
       (top ? '<h4 style="margin-top:10px">That day\'s most read on ZH</h4><ol class="top5">' + top + '</ol>' : '') + '</div></div>';
   }
+  // Own numbers only (the "own" tier): when it ran, its views and comments, its views at each age, and its place on ZH's
+  // public Today's top list; the curve is the piece's own line, with nothing of ZH's drawn against it.
+  function ownDetailHtml(a) {
+    var x = a.stats, p = [], ages = [[1, '1 hour'], [3, '3 hours'], [6, '6 hours'], [24, '1 day'], [48, '2 days'], [168, '7 days']].filter(function (m) { return x['m' + m[0]] != null; });
+    p.push('<p>Ran ' + esc(dayName(x.day)) + (x.hour != null ? ' at ' + esc(hourName(x.hour)) + ' Eastern' : '') + '. <strong>' + nf(x.views) + '</strong> views and <strong>' + nf(x.comments) + '</strong> comments so far' +
+      (x.views ? ' (' + ((x.comments || 0) * 1000 / x.views).toFixed(1) + ' per 1,000 views)' : '') + '.</p>');
+    if (ages.length) { p.push('<p>Views at ' + ages.map(function (m) { return m[1] + ': <strong>' + nf(x['m' + m[0]]) + '</strong>'; }).join(', ') + '.</p>'); }
+    p.push('<p>' + (x.top_best ? 'On ZH\'s Today\'s top list: <strong>#' + x.top_best + '</strong> at best' + (x.top_min ? ', for about ' + (x.top_min < 90 ? x.top_min + ' minutes' : (Math.round(x.top_min / 6) / 10) + ' hours') : '') + '.' : 'Not seen on ZH\'s Today\'s top list' + (x.pub_ts && x.pub_ts * 1000 < Date.parse('2026-10-20T17:00:00Z') ? ' (tracked from Oct. 20)' : '') + '.') + '</p>');
+    return '<div class="dgrid"><div class="curve"><h4>Views over time</h4>' + curveSvg(x, null, true) + '</div><div><h4>How it did</h4>' + p.join('') + '</div></div>';
+  }
   // The piece's views by hour since it ran, against the typical curve for its slot (the median, and the middle half).
   // Drawn only from what's solid (Oct. 20, Dan: "how do I interpret this?" when it showed a wobbling band and no line):
   // the piece needs two or more counts from its first two days, and the typical curve and band need at least CURVE_MIN
   // ZH posts tracked to that age. Tracking began Oct. 20, 2026: hour-by-hour views exist for pieces that ran after that,
   // and the typical 2-day curve fills in from Oct. 22.
   var CURVE_MIN = 20;
-  function curveSvg(x, b) {
+  function curveSvg(x, b, own) {
     var W = 560, Hh = 220, L = 46, R = 10, T = 10, B = 26, curve = (x.curve || []).filter(function (c) { return c[0] >= 0 && c[0] <= 48.5; });
     var ms = [1, 3, 6, 12, 24, 48], cv = (b && b.curve) || {}, scale = b && b.med48 ? (x.exp48 || 0) / b.med48 : 1;
     var pts = curve.length ? curve.map(function (c) { return [c[0], c[1]]; }) : ms.filter(function (m) { return x['m' + m] != null; }).map(function (m) { return [m, x['m' + m]]; });
@@ -900,7 +918,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       var first = (x.curve || [])[0];
       return '<p class="small">' + (first ? 'First counted ' + (first[0] < 48 ? Math.round(first[0]) + ' hours' : Math.round(first[0] / 24) + ' days') + ' after it ran: <strong>' + nf(first[1]) + '</strong> views. ' : '') +
         'Now: <strong>' + nf(x.views) + '</strong>.</p><p class="muted small">' + (x.pub_ts >= 1792468800 ? 'Its hour-by-hour line starts with the next hourly update.' :
-        'No hour-by-hour line for this piece: the desk started following ZeroHedge\'s view counter hour by hour on Oct. 20, 2026, and this piece ran before that. Pieces that run from now on get the full curve. "How it did" still sets it against posts at the same hour and weekday.') + '</p>';
+        'No hour-by-hour line for this piece: the desk started following ZeroHedge\'s view counter hour by hour on Oct. 20, 2026, and this piece ran before that. Pieces that run from now on get the full curve.' + (own ? '' : ' "How it did" still sets it against posts at the same hour and weekday.')) + '</p>';
     }
     var age = pts[pts.length - 1][0], xmax = Math.max(6, Math.min(48, x.basis === 48 ? 48 : Math.max(age, 6)));
     var solid = function (m) { return cv[m] && cv[m].n >= CURVE_MIN && m <= xmax; };
@@ -911,7 +929,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     var ymax = Math.max.apply(null, all.concat([10])) * 1.08;
     var X = function (hh) { return L + (W - L - R) * hh / xmax; }, Y = function (v) { return T + (Hh - T - B) * (1 - v / ymax); };
     var line = function (arr) { return arr.map(function (q, i) { return (i ? 'L' : 'M') + X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' '); };
-    var s = '<svg viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="Views over time against the typical post for its slot">';
+    var s = '<svg viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="' + (own ? 'Views over time' : 'Views over time against the typical post for its slot') + '">';
     [0, 0.5, 1].forEach(function (f) { var v = ymax / 1.08 * f; s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="var(--rule)"/><text x="' + (L - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + kf(v) + '</text>'; });
     [0, 6, 12, 24, 36, 48].filter(function (t) { return t <= xmax; }).forEach(function (t) { s += '<text x="' + X(t) + '" y="' + (Hh - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + t + 'h</text>'; });
     if (band.length > 1) { s += '<path d="' + 'M' + X(0) + ' ' + Y(0) + ' ' + band.map(function (q) { return 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[2]).toFixed(1); }).join(' ') + ' ' + band.slice().reverse().map(function (q) { return 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1); }).join(' ') + ' Z" fill="var(--accent)" opacity=".12"/>'; }
@@ -920,7 +938,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     if (pts.length < 4) { pts.forEach(function (q) { s += '<circle cx="' + X(q[0]) + '" cy="' + Y(q[1]) + '" r="3.5" fill="var(--accent)"/>'; }); }
     s += '</svg><div class="legend"><span><i style="background:var(--accent)"></i>This piece</span>' + (exp.length > 1 ? '<span><i style="background:var(--muted)"></i>Typical for its slot</span>' : '') +
       (band.length > 1 ? '<span><i style="background:var(--accent);opacity:.25;height:8px"></i>Middle half of ZH posts</span>' : '') + '</div>' +
-      (exp.length > 1 && band.length > 1 ? '' : '<p class="muted small">The typical curve for its slot shows once enough ZH posts have been followed hour by hour from the minute they ran (from about Oct. 22, 2026).</p>');
+      (own || (exp.length > 1 && band.length > 1) ? '' : '<p class="muted small">The typical curve for its slot shows once enough ZH posts have been followed hour by hour from the minute they ran (from about Oct. 22, 2026).</p>');
     return s;
   }
   function sectionsHtml(st) {
@@ -1001,7 +1019,11 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   S.view = 'compose';
   // The editors can switch a contributor's Stats tab off from the dashboard (Oct. 31, Dan: "give me the ability to toggle
   // a contributor's stats tab on or off"); stats_tab false hides the tab, and a desk left on it moves to Compose.
-  function statsOn() { return !S.me || S.me.stats_tab !== false; }
+  // Tiers (Oct. 31, Dan: "tiered relevant stats access depending on who it is"): full, own (their own pieces' numbers,
+  // nothing set against ZH) or none (no Stats tab, no numbers). The helper sends only what the tier allows.
+  function level() { var m = S.me || {}; return m.stats_level || (m.stats_tab === false ? 'none' : 'full'); }
+  function ownOnly() { return level() === 'own'; }
+  function statsOn() { return !S.me || level() !== 'none'; }
   function statsTab() {
     var on = statsOn(), b = document.querySelector('.vtabs [data-view="stats"]');
     if (b) { b.hidden = !on; }
@@ -1032,17 +1054,19 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     var h = '<div class="trk-sum">' + GROUPS.filter(function (g) { return n[g[0]]; }).map(function (g) { return '<span><b>' + n[g[0]] + '</b> ' + (n[g[0]] > 1 && g[2] ? g[2] : g[1]) + '</span>'; }).join('') +
       (arts.length ? '' : '<span class="muted">No articles yet.</span>') + '</div>';
     if (!arts.length) { $('tracker').innerHTML = h + '<p class="muted">Start one in Compose, or drop a Word file onto the page there.</p>'; return; }
+    var lv = level(), nums = lv !== 'none', cmp = lv === 'full', ncol = 6 + (nums ? 2 : 0) + (cmp ? 2 : 0);
     h += '<div class="ptab-wrap"><table class="ptab trk"><thead><tr><th>Article</th><th>Where it stands</th><th class="opt">Started</th><th class="opt">Last saved</th><th>Sent to the editors</th><th>Ran on ZH</th>' +
-      '<th class="n">Views</th><th class="n">Vs. its slot</th><th class="n opt">That day</th><th class="n opt">Comments</th></tr></thead><tbody>';
+      (nums ? '<th class="n">Views</th>' : '') + (cmp ? '<th class="n">Vs. its slot</th><th class="n opt">That day</th>' : '') + (nums ? '<th class="n opt">Comments</th>' : '') + '</tr></thead><tbody>';
     arts.forEach(function (a) {
       var x = a.stats || {}, open = T.open === a.id, isLive = a.status === 'live' && a.zh && /^https:\/\/(www\.)?zerohedge\.com\//.test(a.zh.url);
       var chip = isLive ? '<a class="chip live" href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(a.word || 'Live on ZeroHedge') + ' &#8599;</a>' : '<span class="chip ' + esc(a.status) + '">' + esc(a.word || a.status) + '</span>';
-      h += '<tr class="trow' + (open ? ' open' : '') + '" data-trow="' + esc(a.id) + '" title="Click for its timeline and numbers"><td class="hl"><span class="chev">' + (open ? '&#9662;' : '&#9656;') + '</span><span class="t">' + esc(a.title || 'Untitled') + '</span>' +
+      h += '<tr class="trow' + (open ? ' open' : '') + '" data-trow="' + esc(a.id) + '" title="Click for its timeline' + (nums ? ' and numbers' : '') + '"><td class="hl"><span class="chev">' + (open ? '&#9662;' : '&#9656;') + '</span><span class="t">' + esc(a.title || 'Untitled') + '</span>' +
         '<span class="sub">' + (a.assigned ? 'Assigned by the editors' : 'Your own') + (x.channel ? ' &middot; ' + esc(secName(x.channel)) : '') + '</span></td>' +
         '<td>' + chip + '</td><td class="opt">' + esc(when(a.created)) + '</td><td class="opt">' + esc(when(a.updated)) + '</td><td>' + esc(when(a.submitted)) + '</td>' +
-        '<td>' + (isLive ? esc(when(a.zh.published)) : '') + '</td><td class="n">' + (isLive ? nf(x.views) : '') + '</td><td class="n">' + (isLive ? idxHtml(x.idx) : '') + '</td>' +
-        '<td class="n opt">' + (x.day_rank ? '#' + x.day_rank + ' of ' + x.day_n : '') + '</td><td class="n opt">' + (isLive && x.comments != null ? nf(x.comments) : '') + '</td></tr>';
-      if (open) { h += '<tr class="pdetail"><td colspan="10">' + trackDetail(a, isLive) + '</td></tr>'; }
+        '<td>' + (isLive ? esc(when(a.zh.published)) : '') + '</td>' + (nums ? '<td class="n">' + (isLive ? nf(x.views) : '') + '</td>' : '') +
+        (cmp ? '<td class="n">' + (isLive ? idxHtml(x.idx) : '') + '</td><td class="n opt">' + (x.day_rank ? '#' + x.day_rank + ' of ' + x.day_n : '') + '</td>' : '') +
+        (nums ? '<td class="n opt">' + (isLive && x.comments != null ? nf(x.comments) : '') + '</td>' : '') + '</tr>';
+      if (open) { h += '<tr class="pdetail"><td colspan="' + ncol + '">' + trackDetail(a, isLive) + '</td></tr>'; }
     });
     $('tracker').innerHTML = h + '</tbody></table></div>';
   }
@@ -1058,7 +1082,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       (['accepted', 'live'].indexOf(st) >= 0 ? step('done', 'Accepted for ZeroHedge') : '') +
       (isLive ? step('live', 'Live on ZeroHedge' + (a.zh.update ? ', in an update to' : '') + ': <a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(a.zh.title || a.zh.url) + '</a>', a.zh.update ? a.zh.updated : a.zh.published) : '') +
       (st === 'declined' ? step('', 'Not taken this time') : '') + '</ul>';
-    var stats = isLive && a.stats ? detailHtml(a, (S.me || {}).stats_base) : isLive ? '<p class="muted small">Its numbers show here within the hour.</p>' : '';
+    var stats = !statsOn() ? '' : isLive && a.stats ? detailHtml(a, (S.me || {}).stats_base) : isLive ? '<p class="muted small">Its numbers show here within the hour.</p>' : '';
     return tl + stats + '<div class="trk-acts" style="margin-top:8px"><button type="button" class="primary" data-topen="' + esc(a.id) + '">Open it</button></div>';
   }
   $('tracker').addEventListener('click', function (ev) {

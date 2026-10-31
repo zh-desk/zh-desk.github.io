@@ -389,6 +389,13 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   // A contributor's name here is the one the editors give them (Dan, Oct. 20: "use whatever name I give a contributor";
   // several sign up under other names), with their GitHub name beside it. Their own sign-up name only stands in until
   // someone gives them one.
+  // Stats tiers on a contributor's author desk (Oct. 31, Dan: "allow tiered relevant stats access depending on who it is"):
+  // the helper sends each desk only what its tier allows.
+  var STATS_TIERS = [['full', 'Full stats', 'Everything: their numbers set against ZH (time slot, rank that day and in its section, ZH\'s typical post)'],
+    ['own', 'Their own numbers', 'Views and comments of their own pieces only, nothing set against the rest of ZH'],
+    ['none', 'No stats', 'No Stats tab and no numbers on their desk']];
+  function tierOpts(v) { return STATS_TIERS.map(function (t) { return '<option value="' + t[0] + '"' + (t[0] === (v || 'full') ? ' selected' : '') + ' title="' + esc(t[2]) + '">' + t[1] + '</option>'; }).join(''); }
+  function tierNote(v) { return v === 'own' ? 'own numbers only' : v === 'none' ? 'none' : ''; }
   function nameOf(c) { return (c && (c.nickname || c.name || c.shown_login || c.login)) || ''; }
   function short(c) { return c.nickname ? c.nickname : nameOf(c).split(' ')[0]; }
   function ghOf(c) { return '@' + (c.shown_login || c.login); }
@@ -466,7 +473,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     $('people').innerHTML = list.map(function (c) {
       var s = summary(withHistory(c)), open = (c.pitches || []).filter(function (p) { return p.status === 'open'; }).length;
       return '<button type="button" class="person' + (S.sel === c.login ? ' on' : '') + '" data-person="' + esc(c.login) + '"><div class="nm">' + esc(nameOf(c)) + '</div>' +
-        '<div class="nk">' + esc(ghOf(c)) + ' on GitHub' + (c.nickname ? '' : ' &middot; no name given yet') + (c.stats_tab === false ? ' &middot; Stats tab off' : '') + '</div>' +
+        '<div class="nk">' + esc(ghOf(c)) + ' on GitHub' + (c.nickname ? '' : ' &middot; no name given yet') + (tierNote(c.stats_level) ? ' &middot; Stats: ' + tierNote(c.stats_level) : '') + '</div>' +
         '<div class="nums"><span><b>' + s.live + '</b> live</span><span><b>' + kf(s.views) + '</b> views</span><span><b>' + xf(s.idx) + '</b> vs slot</span>' +
         (s.inWorks ? '<span><b>' + s.inWorks + '</b> in the works</span>' : '') + (open ? '<span><b>' + open + '</b> pitch' + (open === 1 ? '' : 'es') + ' waiting</span>' : '') + '</div>' + awayPill(c) + '</button>';
     }).join('');
@@ -601,8 +608,8 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     var h = '<div class="ptitle"><h2>' + esc(nameOf(c)) + '</h2><span class="muted small">' + esc(ghOf(c)) + ' on GitHub' + (c.joined ? ' &middot; joined ' + esc(when(c.joined)) : '') + '</span></div>' +
       '<div class="row" style="margin:10px 0">' +
       '<button type="button" class="primary" data-act="assign">Give ' + esc(short(c)) + ' an article</button>' +
-      '<label class="small row" style="gap:5px;margin-left:auto" title="Untick to hide the Stats tab on ' + esc(short(c)) + '\'s author desk. My articles still shows each piece\'s numbers.">' +
-        '<input type="checkbox" data-statstab' + (c.stats_tab !== false ? ' checked' : '') + '> Stats tab on their desk</label>' +
+      '<label class="small row" style="gap:5px;margin-left:auto" title="What ' + esc(short(c)) + '\'s author desk shows. Full: their numbers set against ZH. Their own numbers: views and comments of their pieces only. No stats: none at all.">' +
+        'Stats on their desk <select data-statslevel style="width:auto">' + tierOpts(c.stats_level) + '</select></label>' +
       '<label class="small row" style="gap:6px" title="The name everyone here sees for them. They never see it.">Their name here <input type="text" style="width:160px" data-nick value="' + esc(c.nickname) + '" placeholder="e.g. Josh"></label></div>' +
       '<div class="row small" style="margin-bottom:12px">Email: <input type="email" style="width:240px" data-email value="' + esc(c.email) + '" placeholder="their address, for notifications">' +
       '<label class="row" style="gap:4px"><input type="checkbox" data-notify' + (c.notify ? ' checked' : '') + '> send them email</label><button type="button" data-act="contact">Save</button>' +
@@ -758,13 +765,13 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     var h = '<h2><span class="grow">Invites</span></h2>' +
       '<form class="row" id="inv-c"><input type="text" style="flex:1 1 200px;width:auto" id="inv-c-nick" placeholder="Private nickname for them (optional)">' +
         '<input type="email" style="flex:1 1 200px;width:auto" id="inv-c-email" placeholder="Their email (optional)">' +
-        '<label class="small row" style="gap:4px" title="Untick to start them without the Stats tab on their author desk. You can switch it on their profile any time."><input type="checkbox" id="inv-c-stats" checked> Stats tab on</label>' +
+        '<label class="small row" style="gap:4px" title="What their author desk will show. You can change it on their profile any time.">Stats <select id="inv-c-stats" style="width:auto">' + tierOpts('full') + '</select></label>' +
         '<button type="submit" class="primary">Make a contributor invite</button></form>' +
       '<p class="hint">Contributors need a free GitHub account; the link explains that. Each link works once. With their email, you get the invite email ready to copy into your mail, and it goes on file for notifications when they join.</p>' +
       (ed ? '<form class="row" id="inv-a" style="margin-top:10px"><input type="text" style="flex:1 1 200px;width:auto" id="inv-a-name" placeholder="Their name"><label class="small row" style="gap:4px"><input type="checkbox" id="inv-a-owner"> the owner</label><button type="submit">Make an admin invite</button></form>' +
         '<p class="hint">An admin gets this dashboard and nothing else: no desk, no store, no repository.</p>' : '') +
       '<div id="inv-out"></div>' +
-      (d.invites.length ? '<ul class="small" style="padding-left:18px">' + d.invites.map(function (v) { return '<li>' + (v.role === 'admin' ? 'Admin invite' + (v.name ? ' for ' + esc(v.name) : '') : 'Contributor invite' + (v.nickname ? ' for ' + esc(v.nickname) : '') + (v.email ? ' (' + esc(v.email) + ')' : '') + (v.stats_tab === false ? ', Stats tab off' : '')) + ', made ' + esc(when(v.made)) + ' by ' + esc(v.by_name || v.by) + ' <button type="button" class="small" data-act="withdraw" data-hash="' + esc(v.hash) + '">Withdraw</button></li>'; }).join('') + '</ul>' : '') +
+      (d.invites.length ? '<ul class="small" style="padding-left:18px">' + d.invites.map(function (v) { return '<li>' + (v.role === 'admin' ? 'Admin invite' + (v.name ? ' for ' + esc(v.name) : '') : 'Contributor invite' + (v.nickname ? ' for ' + esc(v.nickname) : '') + (v.email ? ' (' + esc(v.email) + ')' : '') + (tierNote(v.stats_level) ? ', stats: ' + tierNote(v.stats_level) : '')) + ', made ' + esc(when(v.made)) + ' by ' + esc(v.by_name || v.by) + ' <button type="button" class="small" data-act="withdraw" data-hash="' + esc(v.hash) + '">Withdraw</button></li>'; }).join('') + '</ul>' : '') +
       (ed && d.admins ? '<h2 style="margin-top:14px"><span class="grow">Admins</span><a class="small" style="text-transform:none;letter-spacing:0;font-weight:400" href="/contributors/?view=owner">See the dashboard as the owner sees it</a></h2>' + (d.admins.length ? '<ul class="small" style="padding-left:18px">' + d.admins.map(function (a) { return '<li>' + esc(a.name) + ' (@' + esc(a.login) + ', ' + esc(a.role) + ')' + (a.joined ? ', joined ' + esc(when(a.joined)) : '') + ' <button type="button" class="small" data-act="admin-remove" data-login="' + esc(a.login) + '">Remove</button></li>'; }).join('') + '</ul>' : '<p class="muted small">No admins yet besides you and Tim.</p>') : '') +
       '<h2 style="margin-top:14px">My email</h2><form class="row small" id="self"><input type="email" style="width:240px" id="self-email" value="' + esc(d.me.email) + '" placeholder="you@example.com"><label class="row" style="gap:4px"><input type="checkbox" id="self-notify"' + (d.me.notify ? ' checked' : '') + '> email me new pitches and submissions</label><button type="submit">Save</button></form>';
     $('invites-panel').innerHTML = h;
@@ -1206,12 +1213,12 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   });
   document.addEventListener('change', function (ev) {
     if (ev.target.matches('[data-cmp-beat]')) { S.cmp.beat = ev.target.checked; store('cd-cmp-beat', S.cmp.beat ? '1' : '0'); renderCompare(); return; }
-    var st = ev.target.closest('[data-statstab]');
+    var st = ev.target.closest('[data-statslevel]');
     if (st && sel()) {
-      var sc = sel(), on = st.checked;
+      var sc = sel(), lv = st.value, was = sc.stats_level || 'full';
       st.disabled = true;
-      call('stats-tab', { login: sc.login, on: on }).then(function () { toast('Stats tab ' + (on ? 'back on' : 'off') + ' for ' + short(sc) + '.'); return load(); })
-        .catch(function (e) { st.checked = !on; st.disabled = false; toast(e.message, true); });
+      call('stats-tab', { login: sc.login, level: lv }).then(function () { toast(short(sc) + ': ' + STATS_TIERS.filter(function (t) { return t[0] === lv; })[0][1].toLowerCase() + '.'); return load(); })
+        .catch(function (e) { st.value = was; st.disabled = false; toast(e.message, true); });
       return;
     }
     var nk = ev.target.closest('[data-nick]'), c = sel();
@@ -1229,7 +1236,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       '1. If you don\'t have a GitHub account, make one at https://github.com/signup (it\'s free). The desk uses it to sign you in.\n' +
       '2. Open the link above and sign in with GitHub.\n' +
       '3. Pick the name you\'d like the editors to see, and you\'re in.\n\n' +
-      'From your desk you can write and submit articles, pitch story ideas, follow where each piece stands' + (j.stats_tab === false ? '' : ', see how your pieces do on ZeroHedge') + ' and mark days you\'ll be away.\n\n' +
+      'From your desk you can write and submit articles, pitch story ideas, follow where each piece stands' + (j.stats_level === 'none' ? '' : j.stats_level === 'own' ? ', see your pieces\' views and comments' : ', see how your pieces do on ZeroHedge') + ' and mark days you\'ll be away.\n\n' +
       'The link works once, so please don\'t share it. If anything goes wrong, just reply to this email.\n\n' +
       'Thanks,\n' + me;
   }
@@ -1239,7 +1246,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
       '<div class="mrow small"><b>Subject</b><span>' + esc(INVITE_SUBJECT) + '</span><button type="button" class="small" data-mcopy="subject">Copy</button></div>' +
       '<textarea id="inv-mail-body" rows="19" aria-label="The invite email">' + esc(inviteMailText(j)) + '</textarea>' +
       '<div class="row" style="margin-top:8px"><button type="button" class="primary" data-mcopy="body">Copy the email</button><button type="button" data-mcopy="open">Open in my mail app</button>' +
-      '<span class="hint">' + (j.email ? 'Their email and the Stats tab choice go on file when they join.' : 'Add their email next time to have the To line filled in.') + '</span></div>' +
+      '<span class="hint">' + (j.email ? 'Their email and the stats choice go on file when they join.' : 'Add their email next time to have the To line filled in.') + '</span></div>' +
       '<input type="hidden" id="inv-mail-to" value="' + esc(j.email || '') + '"></div>';
   }
   document.addEventListener('click', function (ev) {
@@ -1253,12 +1260,12 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     var f = ev.target;
     if (f.id === 'inv-c' || f.id === 'inv-a') {
       ev.preventDefault();
-      var body = f.id === 'inv-c' ? { role: 'contributor', nickname: $('inv-c-nick').value.trim(), email: $('inv-c-email').value.trim(), stats: $('inv-c-stats').checked } : { role: 'admin', name: $('inv-a-name').value.trim(), owner: $('inv-a-owner').checked };
+      var body = f.id === 'inv-c' ? { role: 'contributor', nickname: $('inv-c-nick').value.trim(), email: $('inv-c-email').value.trim(), stats: $('inv-c-stats').value } : { role: 'admin', name: $('inv-a-name').value.trim(), owner: $('inv-a-owner').checked };
       call('invite', body).then(function (j) {
         $('inv-out').innerHTML = '<div class="link-out"><code>' + esc(j.link) + '</code><button type="button" class="small" id="inv-copy">Copy</button><span class="hint">Send it to them. It works once.</span></div>' +
           (j.role === 'contributor' ? inviteMailHtml(j) : '');
         $('inv-copy').onclick = function () { navigator.clipboard.writeText(j.link).then(function () { toast('Copied.'); }); };
-        if (j.role === 'contributor') { $('inv-c-nick').value = ''; $('inv-c-email').value = ''; $('inv-c-stats').checked = true; }
+        if (j.role === 'contributor') { $('inv-c-nick').value = ''; $('inv-c-email').value = ''; $('inv-c-stats').value = 'full'; }
         if (j.email) { navigator.clipboard.writeText($('inv-mail-body').value).then(function () { toast('The invite email is copied: paste it into a new email to ' + j.email + '.', false, 7000); }).catch(function () {}); }
         else { navigator.clipboard.writeText(j.link).catch(function () {}); }
         return call('overview').then(function (d) { S.data = d; renderTotals(); });
