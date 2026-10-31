@@ -692,6 +692,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   }
   function showMe(j) {
     S.me = j; S.list = j.articles || [];
+    statsTab();
     S.viewing = !!j.viewing_as;
     document.documentElement.classList.toggle('view-as', S.viewing);
     $('viewas').hidden = !S.viewing;
@@ -726,7 +727,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   // again (the helper asks ZH's counters), and only the dashboard is drawn again.
   setInterval(function () {
     if (S.view !== 'stats' || document.hidden || !S.me || S.busy) { return; }
-    call('me').then(function (j) { if (S.view === 'stats') { S.me = j; S.list = j.articles || S.list; renderDash(); } }).catch(function () {});
+    call('me').then(function (j) { if (S.view === 'stats') { S.me = j; S.list = j.articles || S.list; if (statsTab()) { renderDash(); } } }).catch(function () {});
   }, 120000);
 
 
@@ -998,8 +999,17 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   // always opens in Compose.
   var VIEWS = ['stats', 'compose', 'articles', 'pitches', 'away'];
   S.view = 'compose';
+  // The editors can switch a contributor's Stats tab off from the dashboard (Oct. 31, Dan: "give me the ability to toggle
+  // a contributor's stats tab on or off"); stats_tab false hides the tab, and a desk left on it moves to Compose.
+  function statsOn() { return !S.me || S.me.stats_tab !== false; }
+  function statsTab() {
+    var on = statsOn(), b = document.querySelector('.vtabs [data-view="stats"]');
+    if (b) { b.hidden = !on; }
+    if (!on && S.view === 'stats') { setView('compose', true); }
+    return on;
+  }
   function setView(v, quiet) {
-    if (VIEWS.indexOf(v) < 0) { v = 'compose'; }
+    if (VIEWS.indexOf(v) < 0 || (v === 'stats' && !statsOn())) { v = 'compose'; }
     S.view = v;
     document.querySelectorAll('.vtabs [data-view]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.view === v)); });
     $('v-stats').hidden = v !== 'stats'; $('v-compose').hidden = v !== 'compose'; $('v-articles').hidden = v !== 'articles'; $('v-pitches').hidden = v !== 'pitches'; $('v-away').hidden = v !== 'away';

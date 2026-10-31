@@ -462,7 +462,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     $('people').innerHTML = list.map(function (c) {
       var s = summary(withHistory(c)), open = (c.pitches || []).filter(function (p) { return p.status === 'open'; }).length;
       return '<button type="button" class="person' + (S.sel === c.login ? ' on' : '') + '" data-person="' + esc(c.login) + '"><div class="nm">' + esc(nameOf(c)) + '</div>' +
-        '<div class="nk">' + esc(ghOf(c)) + ' on GitHub' + (c.nickname ? '' : ' &middot; no name given yet') + '</div>' +
+        '<div class="nk">' + esc(ghOf(c)) + ' on GitHub' + (c.nickname ? '' : ' &middot; no name given yet') + (c.stats_tab === false ? ' &middot; Stats tab off' : '') + '</div>' +
         '<div class="nums"><span><b>' + s.live + '</b> live</span><span><b>' + kf(s.views) + '</b> views</span><span><b>' + xf(s.idx) + '</b> vs slot</span>' +
         (s.inWorks ? '<span><b>' + s.inWorks + '</b> in the works</span>' : '') + (open ? '<span><b>' + open + '</b> pitch' + (open === 1 ? '' : 'es') + ' waiting</span>' : '') + '</div>' + awayPill(c) + '</button>';
     }).join('');
@@ -597,7 +597,9 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     var h = '<div class="ptitle"><h2>' + esc(nameOf(c)) + '</h2><span class="muted small">' + esc(ghOf(c)) + ' on GitHub' + (c.joined ? ' &middot; joined ' + esc(when(c.joined)) : '') + '</span></div>' +
       '<div class="row" style="margin:10px 0">' +
       '<button type="button" class="primary" data-act="assign">Give ' + esc(short(c)) + ' an article</button>' +
-      '<label class="small row" style="gap:6px;margin-left:auto" title="The name everyone here sees for them. They never see it.">Their name here <input type="text" style="width:160px" data-nick value="' + esc(c.nickname) + '" placeholder="e.g. Josh"></label></div>' +
+      '<label class="small row" style="gap:5px;margin-left:auto" title="Untick to hide the Stats tab on ' + esc(short(c)) + '\'s author desk. My articles still shows each piece\'s numbers.">' +
+        '<input type="checkbox" data-statstab' + (c.stats_tab !== false ? ' checked' : '') + '> Stats tab on their desk</label>' +
+      '<label class="small row" style="gap:6px" title="The name everyone here sees for them. They never see it.">Their name here <input type="text" style="width:160px" data-nick value="' + esc(c.nickname) + '" placeholder="e.g. Josh"></label></div>' +
       '<div class="row small" style="margin-bottom:12px">Email: <input type="email" style="width:240px" data-email value="' + esc(c.email) + '" placeholder="their address, for notifications">' +
       '<label class="row" style="gap:4px"><input type="checkbox" data-notify' + (c.notify ? ' checked' : '') + '> send them email</label><button type="button" data-act="contact">Save</button>' +
       '<span class="hint">' + (S.data.email_ready ? 'Assignments, pitch decisions and notes go out by email when you tick the box.' : 'Email isn\'t switched on in the helper yet: the dashboard opens a ready email in your mail program instead.') + '</span></div>' +
@@ -1197,6 +1199,14 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   });
   document.addEventListener('change', function (ev) {
     if (ev.target.matches('[data-cmp-beat]')) { S.cmp.beat = ev.target.checked; store('cd-cmp-beat', S.cmp.beat ? '1' : '0'); renderCompare(); return; }
+    var st = ev.target.closest('[data-statstab]');
+    if (st && sel()) {
+      var sc = sel(), on = st.checked;
+      st.disabled = true;
+      call('stats-tab', { login: sc.login, on: on }).then(function () { toast('Stats tab ' + (on ? 'back on' : 'off') + ' for ' + short(sc) + '.'); return load(); })
+        .catch(function (e) { st.checked = !on; st.disabled = false; toast(e.message, true); });
+      return;
+    }
     var nk = ev.target.closest('[data-nick]'), c = sel();
     if (nk && c) { call('nickname', { login: c.login, nickname: nk.value.trim() }).then(function () { toast('Desk name saved. They never see it.'); return load(); }).catch(function (e) { toast(e.message, true); }); }
   });
