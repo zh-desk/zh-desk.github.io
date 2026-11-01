@@ -165,6 +165,13 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
 .pf-acts { margin-top: 10px; }
 .pf-opt + .pf-opt, #pf-more .pf-opt { border-top: 1px dashed var(--rule); margin-top: 12px; padding-top: 6px; }
 .pf-on { font-weight: 700; font-size: .84rem; color: var(--accent); margin-top: 6px; display: flex; gap: 8px; align-items: center; }
+/* The story check (Nov. 1): under each idea, what ZH ran and what's already with the editors or pitched. */
+.pf-check { margin-top: 8px; font-size: .84rem; line-height: 1.4; border-left: 3px solid var(--rule); padding: 4px 0 4px 10px; }
+.pf-check.clear { border-left-color: var(--good); color: var(--muted); }
+.pf-check.hit { border-left-color: var(--warn); }
+.pf-check ul { list-style: none; margin: 0; padding: 0; }
+.pf-check li { margin: 3px 0; }
+.pf-check li.near, .pf-check .why { color: var(--muted); }
 .plist .opts { margin: 6px 0 0; padding-left: 18px; font-size: .86rem; }
 .plist .opts li { border: 0; padding: 2px 0; margin: 0; background: none; cursor: inherit; }
 .plist { list-style: none; margin: 8px 0 0; padding: 0; }
@@ -289,10 +296,10 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       <section id="v-pitches" hidden>
         <div class="pitchbox" id="pitch-box">
           <h3>Pitch an idea</h3>
-          <p class="muted small" style="margin:2px 0 8px">The editors read every pitch and approve it or say why not. An approved pitch can come back to you as an assignment.</p>
+          <p class="muted small" style="margin:2px 0 8px">The editors read every pitch and approve it or say why not. An approved pitch can come back to you as an assignment. As you type a headline or paste a link, it's checked against what ZeroHedge has run, what the editors already have and other pitches.</p>
           <form id="pitch-form"><div class="pf-opt" data-n="1"><div class="pf-on" hidden>Option 1</div><label for="pf-title">Headline or working title</label><input type="text" id="pf-title" maxlength="300" required>
             <label for="pf-text">The pitch: what it is, why ZH readers will care, what's new</label><textarea id="pf-text"></textarea>
-            <label for="pf-links">Links (sources, one per line)</label><textarea id="pf-links" style="min-height:60px" placeholder="https://..."></textarea></div>
+            <label for="pf-links">Links (sources, one per line)</label><textarea id="pf-links" style="min-height:60px" placeholder="https://..."></textarea><div class="pf-check" aria-live="polite" hidden></div></div>
             <div id="pf-more"></div>
             <p class="muted small" style="margin:8px 0 0">More than one angle? <button type="button" class="small" id="pf-add">+ Add another option</button> The editors approve or pass on each one.</p>
             <div class="pf-acts"><button type="submit" class="primary">Send the pitch</button></div></form>
@@ -1130,22 +1137,95 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   $('pf-add').addEventListener('click', function () {
     var d = document.createElement('div'); d.className = 'pf-opt';
     d.innerHTML = '<div class="pf-on"><span class="pf-n"></span><button type="button" class="small" data-pf-del>Remove</button></div><label>Headline or working title</label><input type="text" data-pf="title" maxlength="300" required>' +
-      '<label>The pitch</label><textarea data-pf="text"></textarea><label>Links (one per line)</label><textarea data-pf="links" style="min-height:60px" placeholder="https://..."></textarea>';
+      '<label>The pitch</label><textarea data-pf="text"></textarea><label>Links (one per line)</label><textarea data-pf="links" style="min-height:60px" placeholder="https://..."></textarea><div class="pf-check" aria-live="polite" hidden></div>';
     $('pf-more').appendChild(d); pfNumber(); d.querySelector('input').focus();
   });
   $('pf-more').addEventListener('click', function (ev) { var x = ev.target.closest('[data-pf-del]'); if (x) { x.closest('.pf-opt').remove(); pfNumber(); } });
+  // ---------- the story check (Nov. 1, Matt: "there's no way to see what stories have already been pitched or are waiting
+  // to go up"): as an idea's headline, pitch and links are typed, the helper looks for the story on ZeroHedge (the last two
+  // weeks), among the stories the editors have (where each stands, by its source's own headline and link) and in the pitches
+  // (your own by headline, anyone else's as a line). Sending an idea that matches asks first; the check never stops a pitch.
+  function pfQuery(el) {
+    var f = function (sel) { return el.querySelector(sel).value; };
+    return { title: f('#pf-title, [data-pf="title"]').trim(), text: f('#pf-text, [data-pf="text"]').trim(),
+             links: f('#pf-links, [data-pf="links"]').split(/\s+/).filter(function (u) { return /^https?:\/\/\S+$/i.test(u); }) };
+  }
+  function pfWorth(q) { return q.links.length > 0 || q.title.split(/\s+/).filter(Boolean).length >= 3; }
+  function pfAgo(iso) {
+    var ms = Date.now() - Date.parse(iso);
+    if (!(ms >= 0)) { return when(iso); }
+    var m = Math.round(ms / 60000), h = Math.round(m / 60);
+    return m < 2 ? 'just now' : m < 60 ? m + ' minutes ago' : h < 24 ? (h === 1 ? 'an hour ago' : h + ' hours ago') : 'on ' + when(iso);
+  }
+  function pfSlug(u) {
+    try { var x = new URL(u), last = decodeURIComponent(x.pathname.replace(/\/+$/, '').split('/').pop() || '').replace(/\.\w{2,5}$/, '').replace(/[-_]+/g, ' ').trim(); return /[a-z]{3}/i.test(last) ? last : x.hostname.replace(/^www\./, ''); } catch (e) { return u; }
+  }
+  function pfWhy(x) { return x.link ? ' <span class="why">(same link)</span>' : x.words && x.words.length ? ' <span class="why">(matched on ' + esc(x.words.join(', ')) + ')</span>' : ''; }
+  function pfLink(url, words) { return '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(words) + '</a>'; }
+  function pfRender(el, j) {
+    var box = el.querySelector('.pf-check'), zh = j.zh || [], work = j.work || [], rows = [];
+    zh.filter(function (z) { return z.same; }).forEach(function (z) { rows.push('<li><strong>ZeroHedge already ran this</strong> ' + esc(pfAgo(z.published)) + ': ' + pfLink(z.url, z.title) + pfWhy(z) + '</li>'); });
+    work.forEach(function (w) {
+      var src = w.headline || w.url ? ': ' + (w.url ? pfLink(w.url, w.headline || pfSlug(w.url)) : esc(w.headline)) + (w.outlet ? ' (' + esc(w.outlet) + ')' : '') : '';
+      rows.push('<li>' + (w.mine ? esc(w.what) + (w.title ? ': <em>' + esc(w.title) + '</em>' : '') : '<strong>' + esc(w.what) + '</strong>' + src) + pfWhy(w) + '</li>');
+    });
+    zh.filter(function (z) { return !z.same; }).forEach(function (z) { rows.push('<li class="near">Related on ZeroHedge ' + esc(pfAgo(z.published)) + ': ' + pfLink(z.url, z.title) + '</li>'); });
+    var hit = work.length || zh.some(function (z) { return z.same; });
+    box.className = 'pf-check' + (hit ? ' hit' : rows.length ? '' : ' clear');
+    box.innerHTML = rows.length ? '<ul>' + rows.join('') + '</ul>' : '&#10003; Nothing like it on ZeroHedge in the last two weeks, with the editors or in other pitches.';
+    box.hidden = false;
+  }
+  function pfCheck(el) {
+    var q = pfQuery(el), key = JSON.stringify(q), box = el.querySelector('.pf-check');
+    if (!pfWorth(q)) { el._ck = null; box.hidden = true; box.innerHTML = ''; return Promise.resolve(null); }
+    if (el._ck && el._ck.key === key) { return el._ck.p; }
+    var ck = { key: key };
+    el._ck = ck; box.hidden = false; box.className = 'pf-check'; box.innerHTML = '<span class="muted">Checking ZeroHedge, the editors\' stories and the pitches&hellip;</span>';
+    ck.p = call('check', q).then(function (j) { if (el._ck === ck) { pfRender(el, j); } return j; }).catch(function (e) {
+      if (el._ck === ck) { el._ck = null; box.className = 'pf-check'; box.innerHTML = '<span class="muted">Couldn\'t check this one just now (' + esc(e.message) + '). You can still send it.</span>'; }
+      return null;
+    });
+    return ck.p;
+  }
+  $('pitch-form').addEventListener('input', function (ev) {
+    var el = ev.target.closest('.pf-opt');
+    if (!el || S.viewing) { return; }
+    clearTimeout(el._t); el._t = setTimeout(function () { pfCheck(el); }, 800);
+  });
+  // Before sending: every idea checked (or its check finished), and anything it found said out loud, with a choice.
+  function pfGuard() {
+    var els = Array.prototype.slice.call(document.querySelectorAll('#pitch-form .pf-opt'));
+    els.forEach(function (el) { clearTimeout(el._t); });
+    return Promise.all(els.map(pfCheck)).then(function (rs) {
+      var lines = [];
+      rs.forEach(function (j, i) {
+        if (!j) { return; }
+        var tag = els.length > 1 ? 'Option ' + (i + 1) + ': ' : '';
+        (j.zh || []).filter(function (z) { return z.same; }).forEach(function (z) { lines.push(tag + 'ZeroHedge already ran this ' + pfAgo(z.published) + ' ("' + z.title + '")'); });
+        (j.work || []).forEach(function (w) { lines.push(tag + w.what + (w.headline ? ' ("' + w.headline + '")' : w.mine && w.title ? ' ("' + w.title + '")' : '')); });
+      });
+      return !lines.length || confirm('Before you send:\n\n- ' + lines.join('\n- ') + '\n\nSend the pitch anyway?');
+    });
+  }
   $('pitch-form').addEventListener('submit', function (ev) {
     ev.preventDefault();
     var b = $('pitch-form').querySelector('button[type="submit"]'); b.disabled = true;
+    pfGuard().then(function (go) { if (go) { pfSend(b); } else { b.disabled = false; } });
+  });
+  function pfSend(b) {
     var first = { title: $('pf-title').value, text: $('pf-text').value, links: $('pf-links').value.split(/\s+/).filter(Boolean) };
     var more = Array.prototype.map.call($('pf-more').querySelectorAll('.pf-opt'), function (el) {
       return { title: el.querySelector('[data-pf="title"]').value, text: el.querySelector('[data-pf="text"]').value, links: el.querySelector('[data-pf="links"]').value.split(/\s+/).filter(Boolean) };
     }).filter(function (o) { return o.title.trim(); });
     var body = more.length ? { title: first.title, options: [first].concat(more) } : first;
     call('pitch', body)
-      .then(function () { b.disabled = false; $('pitch-form').reset(); $('pf-more').innerHTML = ''; pfNumber(); toast('Pitch sent to the editors.'); return loadList(); })
+      .then(function () {
+        b.disabled = false; $('pitch-form').reset(); $('pf-more').innerHTML = ''; pfNumber();
+        var one = document.querySelector('#pitch-form .pf-opt'); one._ck = null; one.querySelector('.pf-check').hidden = true;
+        toast('Pitch sent to the editors.'); return loadList();
+      })
       .catch(function (e) { b.disabled = false; toast('Couldn\'t send it: ' + e.message, true); });
-  });
+  }
   $('pitches').addEventListener('click', function (ev) {
     var li = ev.target.closest('li[data-pitch]');
     if (!li) { return; }

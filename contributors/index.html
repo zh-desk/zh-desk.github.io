@@ -253,6 +253,10 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
 .odec input { flex: 1 1 auto; min-width: 0; font-size: .8rem; padding: 4px 6px; }
 .odec button { padding: 3px 9px; font-size: .78rem; white-space: nowrap; }
 .odone { font-size: .78rem; margin-top: 4px; }
+/* The story check on an open idea (Nov. 1): ZH already ran it, the desk has it, someone else pitched it. */
+.ocheck { list-style: none; margin: 5px 0 0; padding: 3px 0 3px 8px; border-left: 3px solid var(--warn); font-size: .78rem; overflow-wrap: anywhere; }
+.ocheck li { margin: 1px 0; }
+.ocheck b { color: var(--warn); }
 .odone .chip { display: inline-block; padding: 0 7px; border-radius: 10px; font-weight: 700; font-size: .72rem; }
 .odone .chip.approved { background: rgba(31,122,69,.15); color: var(--good); } .odone .chip.denied { background: rgba(173,42,32,.12); color: var(--bad); }
 .cmsbtn { margin-left: auto; padding: 1px 8px; font-size: .74rem; font-weight: 600; border-color: var(--good); color: var(--good); }
@@ -879,7 +883,29 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   }
   // A pitch, ready to decide (Oct. 20): each idea in it (one, or the two or three options a contributor like Margo sends)
   // gets Approve or Pass and an optional note, in one click; approved ideas become assignments unless unticked.
-  function optionsOf(p) { return p.options && p.options.length ? p.options : [{ id: '', title: p.title, text: p.pitch, links: p.links, status: p.status === 'withdrawn' ? 'open' : p.status, note: (p.decided || {}).text, assignment: p.assignment }]; }
+  function optionsOf(p) { return p.options && p.options.length ? p.options : [{ id: '', title: p.title, text: p.pitch, links: p.links, status: p.status === 'withdrawn' ? 'open' : p.status, note: (p.decided || {}).text, assignment: p.assignment, check: p.check }]; }
+  // The story check on an open idea (Nov. 1, after Matt asked how to see what's already pitched or waiting to go up): what
+  // ZH ran, the desk stories and the other pitches on the same story, from the helper. The editors get desk numbers and
+  // headlines; the owner and admins get where a desk story stands, by its source's headline.
+  var CHECK_LANE = { scouted: 'New scans', candidate: 'Candidates', approved: 'Approved', prepping: 'Prepping', 'needs-paste': 'Needs paste', returned: 'With the author', ready: 'Ready', posted: 'In the CMS, not live yet' };
+  function checkHtml(k) {
+    if (!k) { return ''; }
+    var rows = [];
+    (k.zh || []).forEach(function (z) { rows.push('<li><b>ZH ran it</b> ' + esc(ago(z.published)) + ': <a href="' + esc(z.url) + '" target="_blank" rel="noopener">' + esc(z.title) + '</a>' + (z.link ? ' (same link)' : '') + '</li>'); });
+    (k.desk || []).forEach(function (d) {
+      if (d.n) {
+        var who = d.house ? 'contributor piece' + (d.author ? ', ' + nameOf((S.data.contributors || []).filter(function (c) { return c.login === d.author; })[0]) : '') : d.outlet;
+        rows.push('<li><b>On the desk</b>, ' + esc(CHECK_LANE[d.status] || d.status) + ': <a href="https://github.com/zh-desk/desk/issues/' + esc(d.n) + '" target="_blank" rel="noopener">#' + esc(d.n) + ' ' + esc(d.title) + '</a>' + (who ? ' (' + esc(who) + ')' : '') + (d.link ? ', same link' : '') + '</li>');
+      } else {
+        rows.push('<li><b>' + esc(d.what) + '</b>' + (d.headline ? ': ' + (d.url ? '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.headline) + '</a>' : esc(d.headline)) : '') + (d.outlet ? ' (' + esc(d.outlet) + ')' : '') + '</li>');
+      }
+    });
+    (k.pitches || []).forEach(function (x) {
+      var c = (S.data.contributors || []).filter(function (y) { return y.login === x.login; })[0];
+      rows.push('<li><b>Also pitched</b> by ' + esc(c ? nameOf(c) : x.name) + ', ' + esc(ago(x.created)) + ': ' + esc(x.title) + ' (' + esc({ open: 'waiting', approved: 'approved', denied: 'passed' }[x.status] || x.status) + ')' + (x.link ? ', same link' : '') + '</li>');
+    });
+    return rows.length ? '<ul class="ocheck">' + rows.join('') + '</ul>' : '';
+  }
   function pitchCard(c, p) {
     var ops = optionsOf(p), multi = !!(p.options && p.options.length);
     var th = (p.thread || []).filter(function (t) { return !t.option && (t.from !== 'editors' || !t.decision); });
@@ -892,7 +918,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
           '<div class="odec"><input type="text" data-onote placeholder="Note for ' + esc(short(c)) + ' (optional)"><button type="button" class="good" data-pact="approved">Approve</button><button type="button" class="bad" data-pact="denied">Pass</button></div>' :
           '<div class="odone"><span class="chip ' + esc(o.status) + '">' + (o.status === 'approved' ? 'Approved' : 'Passed') + '</span>' + (o.note ? ' ' + esc(o.note) : '') +
             (o.assignment ? ' <button type="button" class="linkish" data-openp="' + esc(c.login) + '|' + esc(o.assignment.id) + '">open the assignment</button>' : '') + ' <button type="button" class="linkish" data-pact="reopen">undo</button></div>';
-        return '<div class="opt" data-opt="' + esc(o.id) + '"><div class="ot">' + (multi ? (i + 1) + '. ' : '') + esc(o.title) + '</div>' + (o.text ? '<div class="ox">' + esc(o.text) + '</div>' : '') + (links ? '<div class="ol">' + links + '</div>' : '') + dec + '</div>';
+        return '<div class="opt" data-opt="' + esc(o.id) + '"><div class="ot">' + (multi ? (i + 1) + '. ' : '') + esc(o.title) + '</div>' + (o.text ? '<div class="ox">' + esc(o.text) + '</div>' : '') + (links ? '<div class="ol">' + links + '</div>' : '') + (o.status === 'open' ? checkHtml(o.check) : '') + dec + '</div>';
       }).join('') +
       (th.length ? '<ul class="thread">' + th.map(function (t) { return '<li class="' + (t.from === 'editors' ? 'editors' : '') + '"><strong>' + esc(t.from === 'editors' ? (t.name || t.by) : nameOf(c)) + '</strong> <span class="muted">' + esc(ago(t.at)) + '</span>\n' + esc(t.text) + '</li>'; }).join('') + '</ul>' : '') +
       (S.pitchOpen[p.id] ? '<div class="form"><textarea data-pitch-text placeholder="A comment for ' + esc(short(c)) + ' (they see it)"></textarea><div class="row"><button type="button" data-pact="comment">Send the comment</button></div></div>' : '') +
