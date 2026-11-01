@@ -891,18 +891,18 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   function checkHtml(k) {
     if (!k) { return ''; }
     var rows = [];
-    (k.zh || []).forEach(function (z) { rows.push('<li><b>ZH ran it</b> ' + esc(ago(z.published)) + ': <a href="' + esc(z.url) + '" target="_blank" rel="noopener">' + esc(z.title) + '</a>' + (z.link ? ' (same link)' : '') + '</li>'); });
+    (k.zh || []).forEach(function (z) { rows.push('<li><b>ZH ran it</b> ' + esc(ago(z.published)) + ': <a href="' + esc(z.url) + '" target="_blank" rel="noopener">' + esc(z.title) + '</a>' + (z.link ? ' (built on the same source)' : '') + '</li>'); });
     (k.desk || []).forEach(function (d) {
       if (d.n) {
         var who = d.house ? 'contributor piece' + (d.author ? ', ' + nameOf((S.data.contributors || []).filter(function (c) { return c.login === d.author; })[0]) : '') : d.outlet;
-        rows.push('<li><b>On the desk</b>, ' + esc(CHECK_LANE[d.status] || d.status) + ': <a href="https://github.com/zh-desk/desk/issues/' + esc(d.n) + '" target="_blank" rel="noopener">#' + esc(d.n) + ' ' + esc(d.title) + '</a>' + (who ? ' (' + esc(who) + ')' : '') + (d.link ? ', same link' : '') + '</li>');
+        rows.push('<li><b>On the desk</b>, ' + esc(CHECK_LANE[d.status] || d.status) + ': <a href="https://github.com/zh-desk/desk/issues/' + esc(d.n) + '" target="_blank" rel="noopener">#' + esc(d.n) + ' ' + esc(d.title) + '</a>' + (who ? ' (' + esc(who) + ')' : '') + (d.link ? ', built on the same source' : '') + '</li>');
       } else {
         rows.push('<li><b>' + esc(d.what) + '</b>' + (d.headline ? ': ' + (d.url ? '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">' + esc(d.headline) + '</a>' : esc(d.headline)) : '') + (d.outlet ? ' (' + esc(d.outlet) + ')' : '') + '</li>');
       }
     });
     (k.pitches || []).forEach(function (x) {
       var c = (S.data.contributors || []).filter(function (y) { return y.login === x.login; })[0];
-      rows.push('<li><b>Also pitched</b> by ' + esc(c ? nameOf(c) : x.name) + ', ' + esc(ago(x.created)) + ': ' + esc(x.title) + ' (' + esc({ open: 'waiting', approved: 'approved', denied: 'passed' }[x.status] || x.status) + ')' + (x.link ? ', same link' : '') + '</li>');
+      rows.push('<li><b>Also pitched</b> by ' + esc(c ? nameOf(c) : x.name) + ', ' + esc(ago(x.created)) + ': ' + esc(x.title) + ' (' + esc({ open: 'waiting', approved: 'approved', denied: 'passed' }[x.status] || x.status) + ')' + (x.link ? ', same source' : '') + '</li>');
     });
     return rows.length ? '<ul class="ocheck">' + rows.join('') + '</ul>' : '';
   }

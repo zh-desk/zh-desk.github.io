@@ -1160,7 +1160,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   function pfSlug(u) {
     try { var x = new URL(u), last = decodeURIComponent(x.pathname.replace(/\/+$/, '').split('/').pop() || '').replace(/\.\w{2,5}$/, '').replace(/[-_]+/g, ' ').trim(); return /[a-z]{3}/i.test(last) ? last : x.hostname.replace(/^www\./, ''); } catch (e) { return u; }
   }
-  function pfWhy(x) { return x.link ? ' <span class="why">(same link)</span>' : x.words && x.words.length ? ' <span class="why">(matched on ' + esc(x.words.join(', ')) + ')</span>' : ''; }
+  function pfWhy(x) { return x.link ? ' <span class="why">(built on the same source)</span>' : x.words && x.words.length ? ' <span class="why">(matched on ' + esc(x.words.join(', ')) + ')</span>' : ''; }
   function pfLink(url, words) { return '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(words) + '</a>'; }
   function pfRender(el, j) {
     var box = el.querySelector('.pf-check'), zh = j.zh || [], work = j.work || [], rows = [];
