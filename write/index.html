@@ -1052,7 +1052,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   // and numbers; "Open it" takes it to Compose.
   var T = {};   // open: the row whose timeline shows; the newest live piece's at first
   var GROUPS = [['assigned', 'assigned to you'], ['draft', 'draft', 'drafts'], ['returned', 'sent back'], ['prep', 'with the editors'], ['ready', 'ready to run'],
-                ['accepted', 'accepted, not live yet'], ['live', 'live on ZeroHedge'], ['declined', 'not taken']];
+                ['accepted', 'accepted, not live yet'], ['live', 'live on ZeroHedge'], ['covered', 'ZH ran another version'], ['declined', 'not taken']];
   function lastMove(a) { return (a.status === 'live' && a.zh && a.zh.published) || a.submitted || a.updated || a.created || ''; }
   function renderTracker() {
     var arts = S.list.slice().sort(function (a, b) { return String(lastMove(b)).localeCompare(String(lastMove(a))); });
@@ -1088,6 +1088,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       (past(1) ? step('done', 'With the editors') : '') +
       (['accepted', 'live'].indexOf(st) >= 0 ? step('done', 'Accepted for ZeroHedge') : '') +
       (isLive ? step('live', 'Live on ZeroHedge' + (a.zh.update ? ', in an update to' : '') + ': <a href="' + esc(a.zh.url) + '" target="_blank" rel="noopener">' + esc(a.zh.title || a.zh.url) + '</a>', a.zh.update ? a.zh.updated : a.zh.published) : '') +
+      (st === 'covered' ? step('done', 'With the editors') + step('', 'ZeroHedge ran this story from another source, so this version won\'t run') : '') +
       (st === 'declined' ? step('', 'Not taken this time') : '') + '</ul>';
     var stats = !statsOn() ? '' : isLive && a.stats ? detailHtml(a, (S.me || {}).stats_base) : isLive ? '<p class="muted small">Its numbers show here within the hour.</p>' : '';
     return tl + stats + '<div class="trk-acts" style="margin-top:8px"><button type="button" class="primary" data-topen="' + esc(a.id) + '">Open it</button></div>';
@@ -1321,6 +1322,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
       text = '<strong>Live on ZeroHedge' + (c.zh.update ? ', in an update' : '') + (zt ? ', ' + esc(when(zt)) : '') + ':</strong> <a href="' + esc(c.zh.url) + '" target="_blank" rel="noopener">' + esc(c.zh.title || c.zh.url) + '</a>';
     }
     else if (c.status === 'declined') { text = '<strong>Not taken this time.</strong> See the editors\' note, if any.'; }
+    else if (c.status === 'covered') { text = '<strong>ZeroHedge ran this story from another source.</strong> Your version won\'t run. See the editors\' note, if any.'; }
     b.className = 'banner ' + c.status; b.innerHTML = text; b.hidden = !text;
     $('submit').textContent = c.status === 'returned' ? 'Submit again' : 'Submit to the editors';
     var notes = c.notes || [];

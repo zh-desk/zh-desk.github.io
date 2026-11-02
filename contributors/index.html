@@ -107,6 +107,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .84rem; font-vari
 .stage.cms, .stage.accepted, .stage.ready, .stage.prep { color: var(--warn); border-color: var(--warn); }
 .stage.assigned, .stage.returned { color: var(--accent); border-color: var(--accent); }
 .stage.declined { color: var(--bad); border-color: var(--bad); }
+.stage.covered { color: var(--muted); border-color: var(--muted); }
 .idx { display: inline-block; padding: 0 7px; border-radius: 10px; font-weight: 700; }
 /* Compare and rank (Oct. 30): every contributor side by side, admins only */
 .cmp-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 8px; font-size: .8rem; }
@@ -441,6 +442,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     if (a.status === 'accepted') { return { k: 'cms', w: a.cms ? 'In the CMS, not live yet' : 'Posted, not live yet' }; }
     if (a.status === 'ready') { return { k: 'ready', w: 'Ready, not in the CMS' }; }
     if (a.status === 'declined') { return { k: 'declined', w: 'Not taken' }; }
+    if (a.status === 'covered') { return { k: 'covered', w: 'ZH ran another version' }; }   // Already prepped on the desk (Nov. 1)
     if (a.status === 'unknown') { return { k: 'unknown', w: 'Couldn\'t check the desk' }; }
     return { k: 'prep', w: 'With the editors, in prep' };
   }
@@ -1009,6 +1011,11 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
         if (z.update) { return 'in <a href="' + esc(z.url) + '" target="_blank" rel="noopener">' + esc(z.title || 'its post') + '</a>; views stay with that post' + (d.me.role === 'editor' && x.a.issue ? ' <button type="button" class="linkish" data-updoff="' + esc(x.a.issue) + '" title="Not an update after all: back to In CMS, unpublished">undo</button>' : ''); }
         return s ? nf(s.views) + ' views &middot; ' + idxHtml(s.idx) + (s.day_rank ? ' &middot; #' + s.day_rank + ' of ' + s.day_n + ' that day' : '') : 'ran ' + esc(when(z.published));
       }));
+    // Already prepped on the desk (Nov. 1, Dan, on Margo's NPR piece: ZH ran Hot Air's take, and hers sat in In CMS,
+    // unpublished): ZH ran the story from another version, so the piece won't run. Off the funnel, here for 14 days.
+    group('ZH ran another version, last 14 days', items.filter(function (x) { return x.a.status === 'covered' && Date.now() - Date.parse(x.a.closed || x.a.updated || 0) < 14 * 864e5; })
+      .sort(function (a, b) { return String(b.a.closed || b.a.updated).localeCompare(String(a.a.closed || a.a.updated)); }),
+      line('', function (x) { return 'marked ' + esc(ago(x.a.closed || x.a.updated)); }));
     group('Drafting, not sent yet', items.filter(function (x) { return x.a.status === 'draft'; }).sort(function (a, b) { return String(b.a.updated).localeCompare(String(a.a.updated)); }),
       line('', function (x) { return 'last saved ' + esc(ago(x.a.updated)); }));
     group('Pitches decided', pitches.filter(function (x) { return x.p.status !== 'open'; }).sort(function (a, b) { return String((b.p.decided || {}).at || b.p.created).localeCompare(String((a.p.decided || {}).at || a.p.created)); }).slice(0, 12),
