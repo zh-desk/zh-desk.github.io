@@ -250,13 +250,42 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
         say('There\'s no ' + (which === 'preview' ? 'preview to try' : which === 'v2' ? 'desk v2' : 'earlier version') + ' right now.');
         $('msg').insertAdjacentHTML('beforeend', ' <a href="/">Open the live desk</a>');
       } else if (e.status === 404 || e.status === 403) {
-        var gh = store('auth') === 'github';
+        if (store('auth') === 'github' && GH) { elsewhere(token); return; }
         clearAuth();
-        askKey(gh ? 'You\'re signed in to GitHub, but your account can\'t see the desk yet. Ask Dan to add you to zh-desk, then sign in again.' :
-          'That key works, but it can\'t see the desk. Make sure its resource owner is zh-desk and it includes the desk repository. If GitHub shows it as pending, an owner has to approve it first.', !gh);
+        askKey('That key works, but it can\'t see the desk. Make sure its resource owner is zh-desk and it includes the desk repository. If GitHub shows it as pending, an owner has to approve it first.', true);
       } else {
         say('Couldn\'t reach GitHub: ' + e.message + '.', true);
       }
+    });
+  }
+  // Nov. 5, 2026 (Margo, a contributor, opened zh-desk.github.io and was told to "Ask Dan to add you to zh-desk", and was
+  // signed out of the author desk too; Dan: "This kind of thing cannot happen"): a GitHub sign-in that can't read the desk is
+  // a contributor (author desk, /write/) or a dashboard admin such as the owner (/contributors/). Ask the sign-in helper which
+  // and open that page, still signed in. Only an account that is neither is signed out here and told how to get in.
+  function elsewhere(token) {
+    say('Opening your page...');
+    function ask(path) {
+      return fetch(CFG.worker.replace(/\/?$/, '/') + path, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ github_token: token }), cache: 'no-store' })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (b) { return { status: r.status, body: b || {} }; }); });
+    }
+    function out(text) { clearAuth(); askKey(text); }
+    var login = '';
+    ask('author/me').then(function (a) {
+      if (a.status === 200 && !a.body.editor) { location.replace('/write/'); return; }
+      if (a.status === 200 || a.status >= 500) { say('Couldn\'t reach GitHub just now.', true); return; }
+      if (a.status === 401) { out('Your GitHub sign-in ran out. Sign in again.'); return; }
+      login = a.body.login || '';
+      return ask('admin/overview').then(function (d) {
+        if (d.status === 200) { location.replace('/contributors/'); return; }
+        if (d.status >= 500) { say('Couldn\'t reach GitHub just now.', true); return; }
+        if (d.status === 401) { out('Your GitHub sign-in ran out. Sign in again.'); return; }
+        login = d.body.login || login;
+        out('The GitHub account ' + (login ? login + ' ' : 'you signed in with ') + 'isn\'t on the desk. Writers join with the invite link Dan sends, ' +
+            'which opens the author desk at zh-desk.github.io/write/. If you joined with a different GitHub account, sign out of GitHub and sign in with that one.');
+      });
+    }).catch(function () {
+      say('Couldn\'t reach the desk\'s sign-in helper. Writers can open the author desk at zh-desk.github.io/write/.', true);
     });
   }
   $('retry').addEventListener('click', function () { var t = store('token'); if (t) { go(t, false); } else { askKey(); } });
