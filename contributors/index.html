@@ -255,6 +255,13 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
 .odec button { padding: 3px 9px; font-size: .78rem; white-space: nowrap; }
 .odone { font-size: .78rem; margin-top: 4px; }
 /* The story check on an open idea (Nov. 1): ZH already ran it, the desk has it, someone else pitched it. */
+/* The ZH fit on an open idea (Nov. 5, Dan: "when a contributor proposes an article, please show me the ZH Fit score as well"):
+   the desk's own score for the headline pitched, from the helper; the editors' view only. */
+.zfit { display: inline-block; margin-left: 6px; padding: 2px 6px; border-radius: 5px; font: 600 .7rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .02em; vertical-align: 1px; white-space: nowrap; cursor: help; }
+.zfit.hi { background: #1f8a4c; color: #fff; }
+.zfit.mid { background: #e3f2e8; color: #1d6b3d; }
+.zfit.lo { background: var(--code); color: var(--muted); border: 1px solid var(--rule); }
+:root[data-theme="dark"] .zfit.mid { background: #1d3a29; color: #8fd9ad; }
 .ocheck { list-style: none; margin: 5px 0 0; padding: 3px 0 3px 8px; border-left: 3px solid var(--warn); font-size: .78rem; overflow-wrap: anywhere; }
 .ocheck li { margin: 1px 0; }
 .ocheck b { color: var(--warn); }
@@ -885,7 +892,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
   }
   // A pitch, ready to decide (Oct. 20): each idea in it (one, or the two or three options a contributor like Margo sends)
   // gets Approve or Pass and an optional note, in one click; approved ideas become assignments unless unticked.
-  function optionsOf(p) { return p.options && p.options.length ? p.options : [{ id: '', title: p.title, text: p.pitch, links: p.links, status: p.status === 'withdrawn' ? 'open' : p.status, note: (p.decided || {}).text, assignment: p.assignment, check: p.check }]; }
+  function optionsOf(p) { return p.options && p.options.length ? p.options : [{ id: '', title: p.title, text: p.pitch, links: p.links, status: p.status === 'withdrawn' ? 'open' : p.status, note: (p.decided || {}).text, assignment: p.assignment, check: p.check, fit: p.fit }]; }
   // The story check on an open idea (Nov. 1, after Matt asked how to see what's already pitched or waiting to go up): what
   // ZH ran, the desk stories and the other pitches on the same story, from the helper. The editors get desk numbers and
   // headlines; the owner and admins get where a desk story stands, by its source's headline.
@@ -908,6 +915,14 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
     });
     return rows.length ? '<ul class="ocheck">' + rows.join('') + '</ul>' : '';
   }
+  function fitHtml(f) {
+    if (!f || typeof f.fit !== 'number') { return ''; }
+    var t = 'ZH fit ' + f.fit + ' of 100, the desk\'s score for this headline: how headlines like it have done on ZeroHedge for their time slot (50 is a typical ZH post).' +
+      (f.up && f.up.length ? ' Lifted by: ' + f.up.join(', ') + '.' : '') + (f.down && f.down.length ? ' Held back by: ' + f.down.join(', ') + '.' : '') +
+      (f.taste ? ' The desk\'s own approvals and rejects ' + (f.taste > 0 ? 'lift' : 'lower') + ' it ' + Math.abs(f.taste) + ' point' + (Math.abs(f.taste) === 1 ? '' : 's') + '.' : '') +
+      ' Scored on the headline as pitched, so a working title scores low.';
+    return '<span class="zfit ' + (f.fit >= 75 ? 'hi' : f.fit >= 50 ? 'mid' : 'lo') + '" title="' + esc(t) + '">ZH fit ' + f.fit + '</span>';
+  }
   function pitchCard(c, p) {
     var ops = optionsOf(p), multi = !!(p.options && p.options.length);
     var th = (p.thread || []).filter(function (t) { return !t.option && (t.from !== 'editors' || !t.decision); });
@@ -920,7 +935,7 @@ details.seeas iframe { border: 0; border-radius: 0 0 8px 8px; display: block; }
           '<div class="odec"><input type="text" data-onote placeholder="Note for ' + esc(short(c)) + ' (optional)"><button type="button" class="good" data-pact="approved">Approve</button><button type="button" class="bad" data-pact="denied">Pass</button></div>' :
           '<div class="odone"><span class="chip ' + esc(o.status) + '">' + (o.status === 'approved' ? 'Approved' : 'Passed') + '</span>' + (o.note ? ' ' + esc(o.note) : '') +
             (o.assignment ? ' <button type="button" class="linkish" data-openp="' + esc(c.login) + '|' + esc(o.assignment.id) + '">open the assignment</button>' : '') + ' <button type="button" class="linkish" data-pact="reopen">undo</button></div>';
-        return '<div class="opt" data-opt="' + esc(o.id) + '"><div class="ot">' + (multi ? (i + 1) + '. ' : '') + esc(o.title) + '</div>' + (o.text ? '<div class="ox">' + esc(o.text) + '</div>' : '') + (links ? '<div class="ol">' + links + '</div>' : '') + (o.status === 'open' ? checkHtml(o.check) : '') + dec + '</div>';
+        return '<div class="opt" data-opt="' + esc(o.id) + '"><div class="ot">' + (multi ? (i + 1) + '. ' : '') + esc(o.title) + (o.status === 'open' ? fitHtml(o.fit) : '') + '</div>' + (o.text ? '<div class="ox">' + esc(o.text) + '</div>' : '') + (links ? '<div class="ol">' + links + '</div>' : '') + (o.status === 'open' ? checkHtml(o.check) : '') + dec + '</div>';
       }).join('') +
       (th.length ? '<ul class="thread">' + th.map(function (t) { return '<li class="' + (t.from === 'editors' ? 'editors' : '') + '"><strong>' + esc(t.from === 'editors' ? (t.name || t.by) : nameOf(c)) + '</strong> <span class="muted">' + esc(ago(t.at)) + '</span>\n' + esc(t.text) + '</li>'; }).join('') + '</ul>' : '') +
       (S.pitchOpen[p.id] ? '<div class="form"><textarea data-pitch-text placeholder="A comment for ' + esc(short(c)) + ' (they see it)"></textarea><div class="row"><button type="button" data-pact="comment">Send the comment</button></div></div>' : '') +
