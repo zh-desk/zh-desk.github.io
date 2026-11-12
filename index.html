@@ -169,9 +169,20 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
       });
   }
   function renew() {
-    var rt = store('refresh');
+    // Nov. 12: one tab renews at a time (desk.renewing, the same lock the desk page, the author desk and the contributor
+    // dashboard take); a newer key another tab stored is used instead of spending this one's single-use refresh key
+    var rt = store('refresh'), tok = store('token'), me = Math.random().toString(36).slice(2);
     if (!GH || !rt) { return Promise.reject(new Error('nothing to renew')); }
-    return helper({ refresh_token: rt }).then(function (t) { saveAuth(t); return t.access_token; });
+    var newer = function () { var t = store('token'); return t && (t !== tok || (store('refresh') || '') !== rt) ? t : null; };
+    var held = function () { var l = null; try { l = JSON.parse(store('renewing') || 'null'); } catch (e) { /* none */ } return !!l && l.id !== me && Date.now() - l.at < 20000; };
+    var step = function (tries) {
+      var t = newer(); if (t) { return Promise.resolve(t); }
+      if (held() && tries < 40) { return new Promise(function (ok) { setTimeout(ok, 500); }).then(function () { return step(tries + 1); }); }
+      store('renewing', JSON.stringify({ id: me, at: Date.now() }));
+      return helper({ refresh_token: store('refresh') }).then(function (k) { saveAuth(k); store('renewing', null); return k.access_token; },
+        function (e) { store('renewing', null); var t2 = newer(); if (t2) { return t2; } throw e; });
+    };
+    return step(0);
   }
   function b64url(bytes) {
     var s = '';

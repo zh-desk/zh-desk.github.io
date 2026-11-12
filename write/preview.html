@@ -423,16 +423,54 @@ html.embed .pv-bar, html.solo .pv-bar { display: none; }
     $('gh-go').hidden = !!noButton;
     $('gate-invite').hidden = !store('invite') || !!store('token');
   }
-  function renew() {
-    var rt = store('refresh');
-    if (!rt) { return Promise.reject(new Error('signed out')); }
-    return fetch(WORKER, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: rt }) })
-      .then(function (r) { return r.json(); }).then(function (t) {
-        if (!t.access_token) { throw new Error('signed out'); }
-        store('token', t.access_token); store('refresh', t.refresh_token || null);
-        store('expires', t.expires_in ? String(Date.now() + t.expires_in * 1000) : null); store('auth', 'github');
-        return t.access_token;
+  // Nov. 12: GitHub's renewal keys are single-use, and this page, the desk and the author desk (or the contributor
+  // dashboard) share them in this browser's storage, so two tabs renewing at once left one holding a spent key, which it
+  // sent again and again. Now one tab renews at a time (a 20-second lock in storage, desk.renewing) and the others take up
+  // its new key; a newer key in storage than the one this tab used is taken instead of renewing; and a renewal GitHub
+  // refuses (a spent or expired key) is never tried again: after one more look at storage, the page asks for a sign-in.
+  // The same code is in /write/, /write/preview.html and /contributors/; the desk's is page/index.html renewAuth.
+  var renewing = null, renewDead = false;
+  function renewSpent(e) { return !!e && (e.spent || (e.status >= 400 && e.status < 500 && e.status !== 429)); }
+  function renew(used) {
+    if (renewDead) { return Promise.reject(new Error('signed out')); }
+    if (renewing) { return renewing; }
+    var usedTok = used === undefined ? store('token') : used, usedRef = store('refresh'), me = Math.random().toString(36).slice(2);
+    var newer = function () { var t = store('token'); return t && (t !== usedTok || (store('refresh') || '') !== (usedRef || '')) ? t : null; };
+    if (!usedRef && !newer()) { return Promise.reject(new Error('signed out')); }
+    var held = function () { var l = null; try { l = JSON.parse(store('renewing') || 'null'); } catch (e) { /* none */ } return !!l && l.id !== me && Date.now() - l.at < 20000; };
+    var later = function (ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); };
+    var step = function (tries) {
+      var t = newer(); if (t) { return t; }
+      if (held() && tries < 40) { return later(500).then(function () { return step(tries + 1); }); }
+      store('renewing', JSON.stringify({ id: me, at: Date.now() }));
+      return later(60).then(function () {
+        if (held() && tries < 40) { return step(tries + 1); }   // another tab took the lock in the same moment: theirs stands
+        var t2 = newer(); if (t2) { store('renewing', null); return t2; }
+        return fetch(WORKER, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: store('refresh') }) })
+          .then(function (r) {
+            return r.json().catch(function () { return {}; }).then(function (k) {
+              if (!r.ok || !k.access_token) { var er = new Error(k.error_description || k.error || 'signed out'); er.status = r.status; er.spent = r.ok; throw er; }
+              store('token', k.access_token); store('refresh', k.refresh_token || null);
+              store('expires', k.expires_in ? String(Date.now() + k.expires_in * 1000) : null); store('auth', 'github');
+              store('renewing', null);
+              return k.access_token;
+            });
+          })
+          .catch(function (e) { store('renewing', null); throw e; });
       });
+    };
+    renewing = Promise.resolve(step(0)).then(function (t) { renewing = null; return t; }, function (e) {
+      renewing = null;
+      var t = newer(); if (t) { return t; }   // another tab renewed after all
+      if (renewSpent(e)) {
+        renewDead = true;
+        ['token', 'refresh', 'expires', 'auth'].forEach(function (k) { store(k, null); });
+        gate('Your sign-in ran out. Sign in again.');
+        var out = new Error('signed out'); out.status = 401; throw out;
+      }
+      throw e;
+    });
+    return renewing;
   }
   // View as (Oct. 20): an editor opens /write/?as=LOGIN to see a contributor's desk exactly as they do, read-only; the
   // desk's Contributors view shows it with &embed=1 (no header).
@@ -447,7 +485,7 @@ html.embed .pv-bar, html.solo .pv-bar { display: none; }
     return fetch(WORKER + 'author/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), cache: 'no-store' })
       .then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (j) {
-          if (r.status === 401 && !retried) { return renew().then(function () { return call(route, body, true); }); }
+          if (r.status === 401 && !retried) { return renew(payload.github_token).then(function () { return call(route, body, true); }); }
           if (!r.ok) { var e = new Error(j.error_description || j.error || ('the helper said ' + r.status)); e.code = j.error; e.status = r.status; e.login = j.login || ''; throw e; }
           return j;
         });
