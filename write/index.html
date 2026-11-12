@@ -477,7 +477,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   var OPEN = (QS.get('open') || '').trim(), SOLO = QS.get('solo') === '1' && !!OPEN, COEDIT = QS.get('coedit') === '1';
   if (SOLO) { document.documentElement.classList.add('solo'); }
   function call(route, body, retried) {
-    var payload = Object.assign({ github_token: store('token') || '' }, AS ? { as: AS } : {}, AS && S.coedit ? { coedit: true } : {}, body || {});
+    var payload = Object.assign({ github_token: store('token') || '' }, AS ? { as: AS } : {}, AS && S.coedit ? { coedit: true } : {}, AS && S.coedit && S.copyEdit ? { update_copy: true } : {}, body || {});
     return fetch(WORKER + 'author/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), cache: 'no-store' })
       .then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (j) {
@@ -491,7 +491,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   // ---------- state
   var S = { me: null, list: [], cur: null, dirty: false, tab: 'write', pics: [], blobs: {}, names: {}, busy: false, loading: false };
   var ED = null;           // the TinyMCE editor, once it's up
-  function editable() { return (!S.viewing || S.coedit) && (!S.cur || S.cur.editable !== false); }
+  function editable() { return (!S.viewing || S.coedit) && (!S.cur || S.cur.editable !== false || !!(S.coedit && S.copyEdit)); }
 
   // ---------- embeds: tweets, YouTube and other players
   // In the editor each embed is one locked block (class zh-embed) that shows the real post or player and carries the
@@ -755,17 +755,23 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
   function renderViewAs() {
     if (!S.viewing || !S.me) { return; }
     var nm = shown(), first = (S.me.viewing_as || {}).nickname ? nm : nm.split(' ')[0];
-    var can = canCoedit();
+    var can = canCoedit(), canCopy = canUpdateCopy();
     document.documentElement.classList.toggle('coediting', !!S.coedit);
-    $('viewas').innerHTML = S.coedit ? 'You\'re editing ' + esc(nm) + '\'s draft. Save to keep your changes; ' + esc(first) + ' sees them the next time they open it. <button type="button" id="coedit-off">Stop editing</button>'
+    $('viewas').innerHTML = S.coedit && S.copyEdit ? 'You\'re updating ' + esc(nm) + '\'s copy of a piece that\'s with the editors. Save, and ' + esc(first) + ' sees your version on their desk; nothing changes on the desk or on ZeroHedge. <button type="button" id="coedit-off">Stop editing</button>'
+      : S.coedit ? 'You\'re editing ' + esc(nm) + '\'s draft. Save to keep your changes; ' + esc(first) + ' sees them the next time they open it. <button type="button" id="coedit-off">Stop editing</button>'
       : (SOLO ? 'This is ' + esc(nm) + '\'s article as ' + esc(first) + ' sees it. Read-only: nothing changes unless you choose to work on it.'
               : 'You\'re seeing ' + esc(nm) + '\'s author desk exactly as ' + esc(first) + ' sees it, except for the name: they see their own, and never yours for them. Read-only: nothing can be changed from here.') +
-        (can ? ' <button type="button" id="coedit-on">Work on this draft with ' + esc(first) + '</button>' : '');
+        (can ? ' <button type="button" id="coedit-on">Work on this draft with ' + esc(first) + '</button>' : '') +
+        (canCopy ? ' <button type="button" id="copy-on" title="Put your edited version (say, the one that ran) on ' + esc(first) + '\'s desk">Update ' + esc(first) + '\'s copy</button>' : '');
   }
   function canCoedit() { var c = S.cur; return !!(c && c.id && c.editable !== false && ['draft', 'assigned', 'returned'].indexOf(c.status) >= 0); }
+  // Update NAME's copy (Nov. 12, Dan: he edited Margo's Khanna piece in the CMS and couldn't put it on her desk): a piece
+  // that's with the editors (or ran) stays locked for its writer, but an editor can still put the edited version on it.
+  function canUpdateCopy() { var c = S.cur; return !!(S.viewing && !S.coedit && c && c.id && c.issue && !canCoedit()); }
   $('viewas').addEventListener('click', function (ev) {
-    if (ev.target.id === 'coedit-on') { S.coedit = true; renderViewAs(); renderState(); setView('compose'); if (S.tab === 'preview') { setTab('write'); } }
-    if (ev.target.id === 'coedit-off') { if (S.dirty && !confirm('Leave without saving your changes?')) { return; } S.coedit = false; S.dirty = false; renderViewAs(); if (S.cur && S.cur.id) { open(S.cur.id); } }
+    if (ev.target.id === 'coedit-on') { S.coedit = true; S.copyEdit = false; renderViewAs(); renderState(); setView('compose'); if (S.tab === 'preview') { setTab('write'); } }
+    if (ev.target.id === 'copy-on') { S.coedit = true; S.copyEdit = true; renderViewAs(); renderState(); setView('compose'); if (S.tab === 'preview') { setTab('write'); } }
+    if (ev.target.id === 'coedit-off') { if (S.dirty && !confirm('Leave without saving your changes?')) { return; } S.coedit = false; S.copyEdit = false; S.dirty = false; renderViewAs(); if (S.cur && S.cur.id) { open(S.cur.id); } }
   });
   function loadList() { return call('me').then(showMe); }
   // Stats keeps itself current (Oct. 30): every 2 minutes while it's open and the tab is showing, the numbers are read
@@ -1312,7 +1318,7 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     call('get', { id: id }).then(function (j) {
       var a = j.article;
       S.cur = Object.assign({}, a, { status: j.status, word: j.word, editable: j.editable, notes: j.notes || [], zh: j.zh || null });
-      if (S.coedit && S.cur.id !== S.coeditId) { S.coedit = false; }
+      if (S.coedit && S.cur.id !== S.coeditId) { S.coedit = false; S.copyEdit = false; }
       S.coeditId = S.cur.id;
       S.pics = (a.images || []).map(function (im) { return Object.assign({}, im); });
       $('title').value = a.title || ''; $('deck').value = a.deck || ''; fitDeck(); $('note').value = a.note_to_editors || '';
