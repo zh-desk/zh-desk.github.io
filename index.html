@@ -54,6 +54,14 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
       <p>Sign in with your GitHub account. This browser stays signed in.</p>
       <p><button type="button" id="gh-go" class="gh-btn">Sign in with GitHub</button></p>
       <p class="err" id="gh-err" role="alert" hidden></p>
+      <p id="gh-code-wrap" hidden><button type="button" id="gh-code" class="gh-btn">Sign in with a code instead</button></p>
+      <div id="dev" hidden>
+        <p>1. Open <a id="dev-link" href="https://github.com/login/device" target="_blank" rel="noopener">github.com/login/device</a> and sign in to GitHub if it asks.</p>
+        <p>2. Type this code there:</p>
+        <p id="dev-code" style="font:700 2rem/1.2 ui-monospace,Consolas,monospace;letter-spacing:.15em;margin:6px 0 12px"></p>
+        <p class="muted small" id="dev-status" role="status">Waiting for you to approve it on GitHub...</p>
+        <p><button type="button" id="dev-cancel">Cancel</button></p>
+      </div>
       <p class="muted small">The first time, GitHub asks you to authorize ZH Desk. You need a GitHub account with access to the desk; Dan adds people.</p>
     </div>
     <details id="keys" class="plain" open>
@@ -73,7 +81,7 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
           <li>At the bottom of the left menu, click <strong>Developer settings</strong>, then <strong>Personal access tokens</strong>, then <strong>Fine-grained tokens</strong>.</li>
           <li>Click <strong>Generate new token</strong>. Name it <code>ZH desk</code> and pick an expiration.</li>
           <li>Under <strong>Resource owner</strong>, choose <strong>zh-desk</strong>.</li>
-          <li>Under <strong>Repository access</strong>, choose <strong>Only select repositories</strong> and pick <strong>desk</strong>.</li>
+          <li>Under <strong>Repository access</strong>, choose <strong>Only select repositories</strong> and pick both <strong>desk</strong> and <strong>articles</strong> (articles holds the prepped packages; without it, Ready cards say Not Found).</li>
           <li>Under <strong>Permissions</strong>, set <strong>Contents</strong> and <strong>Issues</strong> to <strong>Read and write</strong>.</li>
           <li>Click <strong>Generate token</strong>, copy it, and paste it above.</li>
         </ol>
@@ -163,7 +171,7 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
     return fetch(CFG.worker, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store' })
       .then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (b) {
-          if (!r.ok || !b.access_token) { throw new Error(b.error_description || b.error || ('the sign-in helper said ' + r.status)); }
+          if (!r.ok || !b.access_token) { var er = new Error(b.error_description || b.error || ('the sign-in helper said ' + r.status)); er.code = b.error || ''; er.status = r.status; throw er; }
           return b;
         });
       });
@@ -213,7 +221,56 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
       saveAuth(t);
       if (after && /^\/[a-z]+\/$/.test(after)) { location.replace(after); return; }
       go(t.access_token, false);
-    }).catch(function (e) { askKey('GitHub sign-in didn\'t finish: ' + e.message + '. Try again.'); });
+    }).catch(function (e) {
+      if (e.code === 'rate_limited' || e.status === 429 || /answered 429/.test(e.message)) { throttled(); return; }
+      askKey('GitHub sign-in didn\'t finish: ' + e.message + '. Try again.');
+    });
+  }
+  // Nov. 20, 2026 (Dan, one click, 429): GitHub throttles the sign-in helper's shared Cloudflare address, not the person.
+  // Say so, open the access key box, and offer GitHub's device sign-in, which the browser does itself from its own address
+  // (no helper, no client secret). Needs "Enable Device Flow" on the ZH Desk GitHub App.
+  function throttled() {
+    askKey('GitHub is limiting sign-ins from the desk\'s helper for a few minutes. It is not you. Sign in with a code below, use an access key, or try again in 10 minutes.', false);
+    $('keys').className = ''; $('keys').open = true;
+    $('gh-code-wrap').hidden = false;
+  }
+  var DEV = null;   // the device sign-in in progress
+  function devStop(msg) {
+    if (DEV) { clearTimeout(DEV.timer); DEV.stopped = true; DEV = null; }
+    $('dev').hidden = true; $('gh-go').hidden = false; $('gh-code-wrap').hidden = false;
+    if (msg) { $('gh-err').textContent = msg; $('gh-err').hidden = false; }
+  }
+  function devForm(o) { return fetch('https://github.com/' + o.path, { method: 'POST', headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(o.body).toString(), cache: 'no-store' }).then(function (r) { return r.json(); }); }
+  function startDevice() {
+    $('gh-err').hidden = true; $('gh-code-wrap').hidden = true; $('gh-go').hidden = true;
+    $('dev').hidden = false; $('dev-code').textContent = '...'; $('dev-status').textContent = 'Asking GitHub for a code...';
+    devForm({ path: 'login/device/code', body: { client_id: CFG.clientId } }).then(function (d) {
+      if (d.error || !d.device_code) {
+        devStop(d.error === 'device_flow_disabled' ? 'The code sign-in isn\'t switched on yet (Dan: ZH Desk GitHub App > Enable Device Flow). Use an access key for now.' :
+                'GitHub wouldn\'t give a code (' + (d.error_description || d.error || 'no answer') + '). Use an access key for now.');
+        return;
+      }
+      var me = DEV = { stopped: false, interval: Math.max(5, +d.interval || 5), until: Date.now() + (+d.expires_in || 900) * 1000, timer: 0 };
+      $('dev-code').textContent = d.user_code;
+      $('dev-link').href = d.verification_uri || 'https://github.com/login/device';
+      $('dev-status').textContent = 'Waiting for you to approve it on GitHub...';
+      var poll = function () {
+        if (me.stopped) { return; }
+        if (Date.now() > me.until) { devStop('That code ran out. Press Sign in with a code instead for a new one.'); return; }
+        devForm({ path: 'login/oauth/access_token', body: { client_id: CFG.clientId, device_code: d.device_code, grant_type: 'urn:ietf:params:oauth:grant-type:device_code' } }).then(function (t) {
+          if (me.stopped) { return; }
+          if (t.access_token) { DEV = null; saveAuth(t); go(t.access_token, false); return; }
+          if (t.error === 'slow_down') { me.interval = Math.max(me.interval + 5, +t.interval || 0); }
+          else if (t.error && t.error !== 'authorization_pending') {
+            devStop(t.error === 'access_denied' ? 'Sign-in was cancelled on GitHub.' : t.error === 'expired_token' ? 'That code ran out. Press Sign in with a code instead for a new one.' :
+                    'GitHub said ' + (t.error_description || t.error) + '. Use an access key for now.');
+            return;
+          }
+          me.timer = setTimeout(poll, me.interval * 1000);
+        }).catch(function () { if (!me.stopped) { me.timer = setTimeout(poll, (me.interval + 5) * 1000); } });
+      };
+      me.timer = setTimeout(poll, me.interval * 1000);
+    }).catch(function () { devStop('Couldn\'t reach GitHub for a code. Use an access key for now.'); });
   }
 
   // ---- running the desk page
@@ -263,7 +320,7 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
       } else if (e.status === 404 || e.status === 403) {
         if (store('auth') === 'github' && GH) { elsewhere(token); return; }
         clearAuth();
-        askKey('That key works, but it can\'t see the desk. Make sure its resource owner is zh-desk and it includes the desk repository. If GitHub shows it as pending, an owner has to approve it first.', true);
+        askKey('That key works, but it can\'t see the desk. Make sure its resource owner is zh-desk and it includes the desk and articles repositories. If GitHub shows it as pending, an owner has to approve it first.', true);
       } else {
         say('Couldn\'t reach GitHub: ' + e.message + '.', true);
       }
@@ -301,6 +358,8 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
   }
   $('retry').addEventListener('click', function () { var t = store('token'); if (t) { go(t, false); } else { askKey(); } });
   $('gh-go').addEventListener('click', startGitHub);
+  $('gh-code').addEventListener('click', startDevice);
+  $('dev-cancel').addEventListener('click', function () { devStop(''); });
   $('signin-form').dataset.loader = '1';
   $('signin-form').addEventListener('submit', function (ev) {
     ev.preventDefault();
@@ -309,7 +368,7 @@ ol { padding-left: 1.3em; display: grid; gap: 5px; margin: 10px 0 0; }
     if (!key) { return; }
     getPage(key).then(function (html) { clearAuth(); run(html, key); }).catch(function (e) {
       $('err').textContent = e.status === 401 ? 'GitHub didn\'t accept that key. Check that you copied all of it.' :
-        (e.status === 404 || e.status === 403) ? 'That key works, but it can\'t see the desk. Make sure its resource owner is zh-desk and it includes the desk repository. If GitHub shows it as pending, an owner has to approve it first.' :
+        (e.status === 404 || e.status === 403) ? 'That key works, but it can\'t see the desk. Make sure its resource owner is zh-desk and it includes the desk and articles repositories. If GitHub shows it as pending, an owner has to approve it first.' :
         'Couldn\'t sign in: ' + e.message;
       $('err').hidden = false;
     });
