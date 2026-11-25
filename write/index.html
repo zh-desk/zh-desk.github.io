@@ -1257,6 +1257,28 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     var b = $('pitch-form').querySelector('button[type="submit"]'); b.disabled = true;
     pfGuard().then(function (go) { if (go) { pfSend(b); } else { b.disabled = false; } });
   });
+  // A pitch draft survives a failed send, a reload or a closed tab (Nov. 25, after Margo's pitch hit a GitHub 500 and was
+  // lost): kept in this browser as it's typed, put back when the Pitches tab loads, cleared once the pitch is sent.
+  function pfDraftGet() {
+    var all = Array.prototype.map.call(document.querySelectorAll('#pitch-form .pf-opt'), function (el, i) {
+      var f = function (k, id) { var x = i ? el.querySelector('[data-pf="' + k + '"]') : $(id); return x ? x.value : ''; };
+      return { title: f('title', 'pf-title'), text: f('text', 'pf-text'), links: f('links', 'pf-links') };
+    });
+    return all.some(function (o) { return (o.title + o.text + o.links).trim(); }) ? all : null;
+  }
+  function pfDraftSave() { if (S.viewing) { return; } var d = pfDraftGet(); store('pitch-draft', d ? JSON.stringify(d) : null); }
+  (function pfDraftLoad() {
+    var d = null; try { d = JSON.parse(store('pitch-draft') || 'null'); } catch (e) { d = null; }
+    if (!d || !d.length || pfDraftGet()) { return; }
+    $('pf-title').value = d[0].title || ''; $('pf-text').value = d[0].text || ''; $('pf-links').value = d[0].links || '';
+    d.slice(1, 5).forEach(function (o) {
+      $('pf-add').click();
+      var el = $('pf-more').lastElementChild;
+      el.querySelector('[data-pf="title"]').value = o.title || ''; el.querySelector('[data-pf="text"]').value = o.text || ''; el.querySelector('[data-pf="links"]').value = o.links || '';
+    });
+  })();
+  $('pitch-form').addEventListener('input', pfDraftSave);
+  $('pf-more').addEventListener('click', function () { setTimeout(pfDraftSave, 0); });
   function pfSend(b) {
     var first = { title: $('pf-title').value, text: $('pf-text').value, links: $('pf-links').value.split(/\s+/).filter(Boolean) };
     var more = Array.prototype.map.call($('pf-more').querySelectorAll('.pf-opt'), function (el) {
@@ -1265,11 +1287,15 @@ textarea.note { width: 100%; min-height: 70px; padding: 8px; border: 1px solid v
     var body = more.length ? { title: first.title, options: [first].concat(more) } : first;
     call('pitch', body)
       .then(function () {
-        b.disabled = false; $('pitch-form').reset(); $('pf-more').innerHTML = ''; pfNumber();
+        b.disabled = false; $('pitch-form').reset(); $('pf-more').innerHTML = ''; pfNumber(); store('pitch-draft', null);
         var one = document.querySelector('#pitch-form .pf-opt'); one._ck = null; one.querySelector('.pf-check').hidden = true;
         toast('Pitch sent to the editors.'); return loadList();
       })
-      .catch(function (e) { b.disabled = false; toast('Couldn\'t send it: ' + e.message, true); });
+      .catch(function (e) {
+        b.disabled = false; pfDraftSave();
+        var blip = (e.status >= 500) || /GitHub said 5\d\d|didn't answer in time/.test(e.message || '');
+        toast(blip ? 'Couldn\'t send it: GitHub had a hiccup on our end. Your pitch is still here and saved in this browser; press Send the pitch again in a minute.' : 'Couldn\'t send it: ' + e.message, true, blip ? 15000 : 0);
+      });
   }
   $('pitches').addEventListener('click', function (ev) {
     var li = ev.target.closest('li[data-pitch]');
